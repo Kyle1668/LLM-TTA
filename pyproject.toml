@@ -1,0 +1,11 @@
+[tool.black]
+line-length = 200
+
+[tool.pylint]
+disable = [
+    "C0114",  # Missing module docstring
+    "C0115",  # Missing class docstring
+    "C0116",  # Missing function or method docstring
+    "C0301",  # Line too long
+    "W0702",  # No exception type(s) specified
+]

@@ -1,0 +1,12 @@
+transformers
+datasets
+openai
+torch
+numpy
+pandas
+scikit-learn
+plotly
+tqdm
+ipykernal
+black
+pylint
