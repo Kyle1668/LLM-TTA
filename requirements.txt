@@ -1,4 +1,6 @@
 transformers
+accelerate
+bitsandbytes
 datasets
 openai
 torch
@@ -7,6 +9,5 @@ pandas
 scikit-learn
 plotly
 tqdm
-ipykernal
 black
 pylint
