@@ -193,12 +193,12 @@ def evaluate_editing(experiment_id, dataset_name, dataset, tokenizer, model):
     # 1-shot with default prompt
     results_frame = evaluate_performance(experiment_id, model, tokenizer, dataset_name, dataset, "default")
 
-    # Flip labels for incorrect predictions with an increaisng number of repitions
+    # Set the current input sequence as the prompt example
     mistakes = results_frame[results_frame["label"] != results_frame["judgment"]]
     evaluate_performance(experiment_id, model, tokenizer, dataset_name, mistakes, "flip")
 
-    # Flip labels for incorrect predictions with 10 total non-unique examples
-    evaluate_performance(experiment_id, model, tokenizer, dataset_name, mistakes, "flip", 5)
+    # Flip labels for incorrect predictions with multiple duplicate examples
+    evaluate_performance(experiment_id, model, tokenizer, dataset_name, mistakes, "flip", 3)
 
     # Flip labels for all predictions
     # evaluate_performance(experiment_id, model, tokenizer, dataset_name, dataset, "flip")
@@ -212,21 +212,18 @@ if __name__ == "__main__":
     # dataset_names = ["imdb", "toxigen", "disaster_tweets", "amazon_polarity"]
     dataset_names = ["toxigen", "disaster_tweets"]
     model_names = [
-        "gpt2",
-        "gpt2-xl",
         "cerebras/Cerebras-GPT-2.7B",
         "cerebras/Cerebras-GPT-6.7B",
         "EleutherAI/gpt-j-6b",
         "facebook/opt-6.7b",
         "databricks/dolly-v2-6-9b",
-        "EleutherAI/gpt-neox-20b",
+        # "EleutherAI/gpt-neox-20b",
     ]
-    sample_size = 100
+    sample_size = 10000
 
     for model_name in model_names:
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         model = AutoModelForCausalLM.from_pretrained(model_name, device_map="auto").eval()
-        model = model.half() if model_name == "EleutherAI/gpt-neox-20b" else model
         for dataset_name in dataset_names:
             dataset = get_formatted_dataset(dataset_name, sample_size)
             print(f"Evaluating {dataset_name} with {model_name}...")
