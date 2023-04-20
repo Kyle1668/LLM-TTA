@@ -26,14 +26,15 @@ def get_static_examplars(dataset_name, dataset, num_shots, use_default=False):
 
 
 def get_complete_prompt(input_sequence, task_instructions, exemplars, technique, edit_count=None, edit_label=None):
-    # if technique == "flip":
-    #     assert edit_label is not None
-    #     if edit_label == 1:
-    #         pos_example = input_sequence
-    #     else:
-    #         neg_example = input_sequence
+    exemplars_copy = exemplars.copy()
+    if technique == "label_flipping":
+        assert edit_label is not None and edit_count > 0
+        for index in range(len(exemplars_copy)):
+            if exemplars_copy.iloc[index]["label"] == edit_label:
+                exemplars_copy.loc[index, "prompt"] = input_sequence
 
-    exemplar_strings= exemplars.apply(lambda x: f"\nSequence: {x['prompt']}\nLabel:{x['label']}", axis=1).tolist()
+
+    exemplar_strings= exemplars_copy.apply(lambda x: f"\nSequence: {x['prompt']}\nLabel:{x['label']}", axis=1).tolist()
     formatted_input_sequence = input_sequence.replace("\n", "")
     prompt = f"""Instructions: {task_instructions}
 {''.join(exemplar_strings)}

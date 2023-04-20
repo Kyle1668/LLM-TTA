@@ -30,6 +30,9 @@ def eval_technique(experiment_id, dataset_name, dataset, tokenizer, model, num_s
 
     with torch.no_grad():
         progress_description = f"Evaluating {model_name} on {dataset_name} using {technique} with {num_shots} shots"
+        if technique == "label_flipping":
+            progress_description += f" and {edit_count} edits"
+
         for index in tqdm(range(len(input_sequences)), desc=progress_description):
             row = input_sequences.iloc[index]
             example = row["prompt"]
@@ -87,14 +90,16 @@ def save_report(experiment_id, dataset_name, num_shots, model_name, technique, r
 
 
 def evaluate_editing(experiment_id, dataset_name, dataset, tokenizer, model):
-    for shots in [4, 8, 16, 32]:
+    # for shots in [4, 8, 16, 32]:
+    for shots in [16]:
         # Evaluate baseline perf at varying shot levels and get the models mistakes
         mistakes = eval_technique(experiment_id, dataset_name, dataset, tokenizer, model, shots, "baseline")
 
-        # # Evaluate success of label flipping for the model's by with replacing an increasing number of the cases
-        # for edit_ratio in [0.25, 0.5, 0.75, 1.0]:
-        #     exemplar_edit_count = int(shots * edit_ratio)
-        #     eval_technique(experiment_id, dataset_name, mistakes, tokenizer, model, shots, "label_flipping", exemplar_edit_count)
+        # Evaluate success of label flipping for the model's by with replacing an increasing number of the cases
+        for edit_ratio in [0.25, 0.5, 0.75, 1.0]:
+            shots = 16
+            exemplar_edit_count = int(shots * edit_ratio)
+            eval_technique(experiment_id, dataset_name, mistakes, tokenizer, model, shots, "label_flipping", exemplar_edit_count)
 
         # # Iterate through the dataset again, this time time saving mistakes to the edit pool. Whenever a new sequence is encountered
         # # which is close enough in embedding space to a mistake in the edit pool, replace a random exemplar with the edit sequence
@@ -110,7 +115,7 @@ def main():
     model_names = [
         "EleutherAI/gpt-j-6b",
     ]
-    sample_size = 250
+    sample_size = 50
     np.random.seed(42)
 
     for model_name in model_names:
