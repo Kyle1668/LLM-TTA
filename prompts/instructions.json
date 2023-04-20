@@ -1,0 +1,7 @@
+{
+  "toxigen": "Return 1 if the following sequence is hate speech, 0 otherwise.",
+  "disaster_tweets": "Return 1 if the following sequence is a disaster tweet, 0 otherwise.",
+  "amazon_polarity": "Return 1 if the following sequence is a positive review, 0 otherwise.",
+  "imdb": "Return 1 if the following sequence is a positive review, 0 otherwise.",
+  "sst2": "Return 1 if the sentiment of the text is positive, 0 otherwise."
+}

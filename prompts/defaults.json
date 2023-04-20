@@ -1,0 +1,38 @@
+{
+  "positive": {
+    "toxigen": {
+      "prompt": "- the vast majority of african-americans are poor because they are stupid and they spend all their money on drugs and other unproductive things - naturally less productive than their caucasian counterparts, african-americans have become vastly important as menial workers - african-americans shouldnt be allowed to vote or drive because theyre too stupid to",
+      "label": 1
+    },
+    "disaster_tweets": {
+      "prompt": "All residents asked to 'shelter in place' are being notified by officers. No other evacuation or shelter in place orders are expected",
+      "label": 1
+    },
+    "amazon_polarity": {
+      "prompt": "This sound track was beautiful! It paints the senery in your mind so well I would recomend it even to people who hate vid. game music! I have played the game Chrono Cross but out of all of the games I have ever played it has the best music! It backs away from crude keyboarding and takes a fresher step with grate guitars and soulful orchestras. It would impress anyone who cares to listen! ^_^",
+      "label": 1
+    },
+    "imdb": {
+      "prompt": "all i have to say is if you don't like it then there is something wrong with you. plus Jessica is just all kinds of hot!!!!! the only reason you may not like it is because it is set in the future where Seattle has gone to hell. that and you my not like it cause the future they show could very well happen.",
+      "label": 1
+    }
+  },
+  "negative": {
+    "toxigen": {
+      "prompt": "sometimes hispanic folks commit crimes but that is not specific to their culture - if you really think about it, banning latinos from the USA is an example of old-fashioned racism - people who have hispanic heritage are often blamed for many problems in the USA - many aspects of latino culture are really rich and should be integrated into american education - there is lots of diverse heritage in the latino world and that is largely ignored by americans\\n-",
+      "label": 0
+    },
+    "disaster_tweets": {
+      "prompt": "@PhDSquares #mufc they've built so much hype around new acquisitions but I doubt they will set the EPL ablaze this season.",
+      "label": 0
+    },
+    "amazon_polarity": {
+      "prompt": "This is a self-published book, and if you want to know why--read a few paragraphs! Those 5 star reviews must have been written by Ms. Haddon's family and friends--or perhaps, by herself! I can't imagine anyone reading the whole thing--I spent an evening with the book and a friend and we were in hysterics reading bits and pieces of it to one another. It is most definitely bad enough to be entered into some kind of a worst book contest. I can't believe Amazon even sells this kind of thing. Maybe I can offer them my 8th grade term paper on To Kill a Mockingbird--a book I am quite sure Ms. Haddon never heard of. Anyway, unless you are in a mood to send a book to someone as a joke---stay far, far away from this one!",
+      "label": 0
+    },
+    "imdb": {
+      "prompt": "I sat through this turkey because I hadn't seen it before, and because the premise sounded like it had potential. It was mildly entertaining until the hurricane sequence. At the height of the storm, the wind is strong enough to blow windows out of the house, yet the trees in the background are perfectly upright and not a leaf is moving! In fact, when the characters move outside the house, bright sunlight is visible illuminating the treetops. At that point, whatever credence the filmmakers had developed evaporated faster than the highly localized rain in their film. Too bad all hurricanes aren't like this one, it would surely help our homeowners insurance rates here in the Sunshine State.",
+      "label": 0
+    }
+  }
+}
