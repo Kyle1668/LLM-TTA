@@ -20,7 +20,7 @@ def get_static_examplars(dataset_name, dataset, num_shots, use_default=False):
         examplars = pd.read_csv(prompts_file_path, index_col=0)
         return examplars
 
-    examplars = pd.concat([dataset[dataset["label"] == 0].sample(num_shots), dataset[dataset["label"] == 1].sample(num_shots)])
+    examplars = pd.concat([dataset[dataset["label"] == 0].sample(num_shots), dataset[dataset["label"] == 1].sample(num_shots)]).sample(frac=1)
     examplars.to_csv(prompts_file_path)
     return examplars
 

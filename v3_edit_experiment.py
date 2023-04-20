@@ -87,7 +87,7 @@ def save_report(experiment_id, dataset_name, num_shots, model_name, technique, r
 
 
 def evaluate_editing(experiment_id, dataset_name, dataset, tokenizer, model):
-    for shots in [4, 8, 16, 32, 64]:
+    for shots in [4, 8, 16, 32]:
         # Evaluate baseline perf at varying shot levels and get the models mistakes
         mistakes = eval_technique(experiment_id, dataset_name, dataset, tokenizer, model, shots, "baseline")
 
@@ -110,7 +110,7 @@ def main():
     model_names = [
         "EleutherAI/gpt-j-6b",
     ]
-    sample_size = 1000
+    sample_size = 250
     np.random.seed(42)
 
     for model_name in model_names:
