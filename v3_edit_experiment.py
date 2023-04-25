@@ -9,7 +9,13 @@ import torch
 import json
 import os
 
-from data_util import get_formatted_dataset, get_static_examplars, get_complete_prompt, format_judgment
+from data_util import (
+    get_formatted_dataset,
+    get_static_examplars,
+    get_complete_prompt,
+    format_judgment,
+    get_embeddings
+)
 
 
 def eval_technique(experiment_id, dataset_name, dataset, tokenizer, model, num_shots, technique, edit_count=None):
@@ -27,6 +33,10 @@ def eval_technique(experiment_id, dataset_name, dataset, tokenizer, model, num_s
         0: [],
         1: []
     }
+
+    embedding_model = None
+    if technique == "kNE":
+        embedding_model = AutoModelForCausalLM.from_pretrained("sentence-transformers/all-mpnet-base-v2").to(device)
 
     with torch.no_grad():
         progress_description = f"Evaluating {model_name} on {dataset_name} using {technique} with {num_shots} shots"
@@ -59,6 +69,13 @@ def eval_technique(experiment_id, dataset_name, dataset, tokenizer, model, num_s
             probs[0].append(negative_prob)
             probs[1].append(positive_prob)
             generated_tokens.append(generation)
+
+            # TODO: If the current judgment is a mistake, add the surrent sequence and the correct label to the edit pool
+            is_mistake = judgment != correct_label
+            if is_mistake and technique == "kNE":
+                embedding =
+
+            # TODO:Evaluate the accuracy on previous mistakes and some holdout set to compute the edit score. Doing this recursively would be cool.
 
     results_frame = pd.DataFrame(
         {
@@ -96,17 +113,17 @@ def evaluate_editing(experiment_id, dataset_name, dataset, tokenizer, model):
         mistakes = eval_technique(experiment_id, dataset_name, dataset, tokenizer, model, shots, "baseline")
 
         # Evaluate success of label flipping for the model's by with replacing an increasing number of the cases
-        for edit_ratio in [0.25, 0.5, 0.75, 1.0]:
+        for edit_ratio in [0, 0.25, 0.5, 0.75, 1.0]:
             shots = 16
-            exemplar_edit_count = int(shots * edit_ratio)
+            exemplar_edit_count = 1 if edit_ratio == 0 else int(shots * edit_ratio)
             eval_technique(experiment_id, dataset_name, mistakes, tokenizer, model, shots, "label_flipping", exemplar_edit_count)
 
         # # Iterate through the dataset again, this time time saving mistakes to the edit pool. Whenever a new sequence is encountered
         # # which is close enough in embedding space to a mistake in the edit pool, replace a random exemplar with the edit sequence
         # # TODO: Also evaluate on previous mistakes and some holdout set to compute the edit score
-        # for edit_ratio in [0.25, 0.5, 0.75, 1.0]:
-        #     exemplar_edit_count = int(shots * edit_ratio)
-        #     eval_technique(experiment_id, dataset_name, dataset, tokenizer, model, shots, "kNE", exemplar_edit_count)
+        for edit_ratio in [0, 0.25, 0.5, 0.75, 1.0]:
+            exemplar_edit_count = 1 if edit_ratio == 0 else int(shots * edit_ratio)
+            eval_technique(experiment_id, dataset_name, dataset, tokenizer, model, shots, "kNE", exemplar_edit_count)
 
 
 def main():

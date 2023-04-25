@@ -5,7 +5,15 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Current File",
+            "name": "V4 Experiment",
+            "type": "python",
+            "request": "launch",
+            "program": "v4_edit_experiment.py",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
+        {
+            "name": "V3 Experiment",
             "type": "python",
             "request": "launch",
             "program": "v3_edit_experiment.py",
