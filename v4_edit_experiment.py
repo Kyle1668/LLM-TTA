@@ -1,6 +1,7 @@
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from datasets import load_dataset, Dataset, DatasetDict
 from sklearn.metrics import classification_report
+from faiss import IndexIDMap, IndexFlatIP
 from datasets import load_dataset
 from datetime import datetime
 from wilds import get_dataset
@@ -13,6 +14,7 @@ from openicl import (
     PPLInferencer
 )
 import pandas as pd
+import numpy as np
 import torch
 import json
 import os
@@ -133,6 +135,8 @@ def get_retriever(icl_method, data, ice_num=8, index_split='train', test_split='
         return MDLRetriever(dataset_reader=data, ice_num=ice_num, index_split=index_split, test_split=test_split)
     elif icl_method == "random":
         return RandomRetriever(dataset_reader=data, ice_num=ice_num, index_split=index_split, test_split=test_split)
+    elif icl_method == "kne":
+        return IndexIDMap(IndexFlatIP(768))
     else:
         raise Exception("Invalid ICL method")
 
@@ -179,44 +183,101 @@ def get_prompt_template(dataset_name):
     return template
 
 
-def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method):
+def get_judgment(model, tokenizer, template, device, exemplars, input_text):
+    prompt_lines = [template.generate_ice_item(entry, entry["label"]) for entry in exemplars]
+    prompt_lines.append(input_text + ":")
+    prompts = "\n".join(prompt_lines)
+    tokenized_prompt = tokenizer.encode(prompts, return_tensors="pt").to(device)
+    with torch.no_grad():
+        outputs = model.generate(
+                    tokenized_prompt,
+                    max_new_tokens=1,
+                    do_sample=False,
+                    output_scores=True,
+                    return_dict_in_generate=True,
+                    pad_token_id=tokenizer.eos_token_id)
+
+    try:
+        return int(tokenizer.decode(outputs.sequences[:, -1]))
+    except:
+        return -1
+
+
+def get_edit_exemplars(edit_entries, edit_retriever, input_sequence_embedding, exemplar_count, exemplars):
+    # Get edit pool exemplars - filter out -1 indices
+    edit_distances, edit_exemplar_indices = edit_retriever.index.search(input_sequence_embedding, k=exemplar_count)
+    edit_exemplar_indices = [int(index) for index in edit_exemplar_indices[0] if index != -1]
+    edit_exemplars = [edit_entries[index] for index in edit_exemplar_indices]
+
+    # Backfill with exemplars from the original dataset
+    if len(edit_exemplars) < exemplar_count:
+        exemplar_index = 0
+        while exemplar_index < 4:
+            edit_exemplars.append(exemplars[exemplar_index])
+            exemplar_index += 1
+
+    return edit_exemplars
+
+
+def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set):
     print(f"Evaluating {dataset_name} with {model_name} using {icl_method}...")
 
     template = get_prompt_template(dataset_name)
     data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
-    retriever = get_retriever(icl_method, data_reader)
-    edit_retriever = get_retriever("kNE", data_reader)
+    exemplar_retriever = get_retriever(icl_method, data_reader)
+    edit_retriever = get_retriever("kne", data_reader)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    exemplar_count = 4
 
-    inferencer = PPLInferencer(model=model)
+    # inferencer = PPLInferencer(model=model)
+    # predictions = inferencer.inference(retriever, ice_template=template, output_json_filename=output_file_name)
+
     formatted_path_name = dataset_name.replace("_", "-")
     output_file_name = f"{experiment_id}_{dataset_name}_{formatted_path_name}_{icl_method}"
-    # predictions = inferencer.inference(retriever, ice_template=template, output_json_filename=output_file_name)
     original_judgments = []
     edit_entries = []
     num_successfull_edits = 0
 
-    for text, label, group in dataset.get_subset("edit"):
+    for entry in dataset[eval_set]:
+        input_text = entry["text"]
+        input_label = entry["label"]
+        input_sequence_embedding = exemplar_retriever.model.encode([input_text], convert_to_numpy=True)
+        input_sequence_embedding = exemplar_retriever.model.encode([input_text], convert_to_numpy=True)
+        exemplar_distances, exemplar_indices = exemplar_retriever.index.search(input_sequence_embedding, k=exemplar_count)
+        exemplars = [exemplar_retriever.dataset_reader.dataset["train"][int(index)] for index in exemplar_indices[0]]
+        judgment = get_judgment(model, tokenizer, template, device, exemplars, input_text)
+        original_judgments.append(judgment)
 
+        # Perform an edit if the model made a mistake. Add the current input text along with the
+        # correct label to the edit dataset. Also encode the input text and add it to the edit
+        # retriever's index. Lastly, evaluate whether adding the current input to the prompt
+        # along with other edits results in a correct judgment.
+        # TODO: Evaluate accuracy on all previous edits and the holdour set.
+        if eval_set == "edit" and judgment != input_label:
+            edit_entries.append(entry)
+            edit_retriever.add_with_ids(input_sequence_embedding, np.array([len(edit_entries) - 1]))
+            edit_exemplars = get_edit_exemplars(edit_entries, edit_retriever, input_sequence_embedding, exemplar_count, exemplars)
+            edit_judgment = get_judgment(model, tokenizer, template, device, edit_exemplars, input_text)
+            if edit_judgment == input_label:
+                num_successfull_edits += 1
+
+            # TODO: Reun recursively to get test set performance.
 
     if not os.path.exists(f"results/{experiment_id}"):
         os.makedirs(f"results/{experiment_id}")
 
     report_dict = classification_report(data_reader.references, original_judgments, output_dict=True)
+    report_dict["dataset"] = dataset_name
+    report_dict["icl_method"] = icl_method
+    report_dict["model"] = formatted_path_name
+    report_dict["num successfull edits"] = num_successfull_edits
+    report_dict["num edits"] = len(edit_entries)
+    report_dict["edit success rate"] = num_successfull_edits / len(edit_entries)
+
     json.dump(report_dict, open(f"results/{experiment_id}/{output_file_name}_report.json", "w+"), indent=4)
     print(f"Classification Results: {formatted_path_name} {dataset_name} {icl_method}")
     print(classification_report(data_reader.references, original_judgments))
-    icl_report = {
-                    "dataset": dataset_name,
-                    "icl_method": icl_method,
-                    "model": formatted_path_name,
-                    "accuracy": report_dict["accuracy"],
-                    "macro avg f1-score": report_dict["macro avg"]["f1-score"],
-                    "macro avg precision": report_dict["macro avg"]["precision"],
-                    "macro avg recall": report_dict["macro avg"]["recall"],
-                }
-
-    return icl_report
+    return report_dict
 
 
 def main():
@@ -235,7 +296,7 @@ def main():
         print(f"Loading model {model_name}...")
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16).to(device)
+        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16).eval().to(device)
         for dataset_name in dataset_names:
             print(f"Loading dataset {dataset_name}...")
             dataset = get_formatted_dataset(dataset_name, sample_size=100)
@@ -247,7 +308,8 @@ def main():
                     tokenizer,
                     dataset_name,
                     dataset,
-                    icl_method))
+                    icl_method,
+                    "edit"))
 
     all_reports = pd.DataFrame(reports)
     print(all_reports)
