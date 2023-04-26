@@ -168,25 +168,30 @@ def get_prompt_template(dataset_name):
 
 def main():
     experiment_id = f"edit_experiment_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
-    dataset_names = ["wilds_amazon", "wilds_civil_comments", "ag_news"]
-    baseline_icl_methods = ["random", "mdl"]
+    dataset_names = ["wilds_civil_comments", "ag_news", "wilds_amazon"]
+    baseline_icl_methods = ["topk", "random"]
     model_names = [
-        "EleutherAI/pythia-1b-deduped",
-        # "distilgpt2",
+        "decapoda-research/llama-7b-hf",
+        "EleutherAI/pythia-2.8b",
+        "EleutherAI/pythia-1b",
+        "EleutherAI/pythia-410m"
     ]
     reports = []
 
     for model_name in model_names:
+        print(f"Loading model {model_name}...")
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16).to(device)
         for dataset_name in dataset_names:
+            print(f"Loading dataset {dataset_name}...")
+            dataset = get_formatted_dataset(dataset_name, sample_size=5000)
             for icl_method in baseline_icl_methods:
                 print(f"Evaluating {dataset_name} with {model_name} using {icl_method}...")
 
                 template = get_prompt_template(dataset_name)
-                dataset = get_formatted_dataset(dataset_name, sample_size=100)
                 data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
                 retriever = get_retriever(icl_method, data_reader)
                 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-                model = AutoModelForCausalLM.from_pretrained(model_name).to(device)
 
                 inferencer = PPLInferencer(model=model)
                 formatted_path_name = dataset_name.replace("_", "-")
