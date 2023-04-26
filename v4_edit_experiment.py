@@ -1,23 +1,18 @@
+from transformers import AutoTokenizer, AutoModelForCausalLM
+from datasets import load_dataset, Dataset, DatasetDict
+from sklearn.metrics import classification_report
 from datasets import load_dataset
+from datetime import datetime
+from wilds import get_dataset
 from openicl import (
     DatasetReader,
     PromptTemplate,
     TopkRetriever,
     MDLRetriever,
     RandomRetriever,
-    PPLInferencer,
-    GenInferencer
+    PPLInferencer
 )
-from datetime import datetime
-from datasets import load_dataset, Dataset, DatasetDict
-from accelerate import init_empty_weights
-from transformers import AutoTokenizer, AutoModelForCausalLM
-from sklearn.metrics import classification_report
-from wilds import get_dataset
-from wilds.common.data_loaders import get_train_loader
-from tqdm import tqdm
 import pandas as pd
-import numpy as np
 import torch
 import json
 import os
@@ -64,6 +59,12 @@ def get_formatted_dataset(set_name, sample_size=None):
 
             new_frame = new_frame.sample(frac=1)
             hf_dataset[split] = Dataset.from_pandas(new_frame)
+
+    original_test_set = hf_dataset["test"].to_pandas()
+    edit_set = original_test_set.sample(frac=0.5).drop(columns=["__index_level_0__"])
+    test_set = original_test_set.drop(edit_set.index).drop(columns=["__index_level_0__"])
+    hf_dataset["test"] = Dataset.from_pandas(test_set)
+    hf_dataset["edit"] = Dataset.from_pandas(edit_set)
 
     return hf_dataset
 
@@ -178,6 +179,46 @@ def get_prompt_template(dataset_name):
     return template
 
 
+def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method):
+    print(f"Evaluating {dataset_name} with {model_name} using {icl_method}...")
+
+    template = get_prompt_template(dataset_name)
+    data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
+    retriever = get_retriever(icl_method, data_reader)
+    edit_retriever = get_retriever("kNE", data_reader)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    inferencer = PPLInferencer(model=model)
+    formatted_path_name = dataset_name.replace("_", "-")
+    output_file_name = f"{experiment_id}_{dataset_name}_{formatted_path_name}_{icl_method}"
+    # predictions = inferencer.inference(retriever, ice_template=template, output_json_filename=output_file_name)
+    original_judgments = []
+    edit_entries = []
+    num_successfull_edits = 0
+
+    for text, label, group in dataset.get_subset("edit"):
+
+
+    if not os.path.exists(f"results/{experiment_id}"):
+        os.makedirs(f"results/{experiment_id}")
+
+    report_dict = classification_report(data_reader.references, original_judgments, output_dict=True)
+    json.dump(report_dict, open(f"results/{experiment_id}/{output_file_name}_report.json", "w+"), indent=4)
+    print(f"Classification Results: {formatted_path_name} {dataset_name} {icl_method}")
+    print(classification_report(data_reader.references, original_judgments))
+    icl_report = {
+                    "dataset": dataset_name,
+                    "icl_method": icl_method,
+                    "model": formatted_path_name,
+                    "accuracy": report_dict["accuracy"],
+                    "macro avg f1-score": report_dict["macro avg"]["f1-score"],
+                    "macro avg precision": report_dict["macro avg"]["precision"],
+                    "macro avg recall": report_dict["macro avg"]["recall"],
+                }
+
+    return icl_report
+
+
 def main():
     experiment_id = f"edit_experiment_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     dataset_names = ["wilds_civil_comments", "ag_news", "wilds_amazon"]
@@ -192,45 +233,25 @@ def main():
 
     for model_name in model_names:
         print(f"Loading model {model_name}...")
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16).to(device)
         for dataset_name in dataset_names:
             print(f"Loading dataset {dataset_name}...")
             dataset = get_formatted_dataset(dataset_name, sample_size=100)
             for icl_method in baseline_icl_methods:
-                print(f"Evaluating {dataset_name} with {model_name} using {icl_method}...")
-
-                template = get_prompt_template(dataset_name)
-                data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
-                retriever = get_retriever(icl_method, data_reader)
-                device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-                inferencer = PPLInferencer(model=model)
-                formatted_path_name = dataset_name.replace("_", "-")
-                output_file_name = f"{experiment_id}_{dataset_name}_{formatted_path_name}_{icl_method}"
-                predictions = inferencer.inference(retriever, ice_template=template, output_json_filename=output_file_name)
-
-                if not os.path.exists(f"results/{experiment_id}"):
-                    os.makedirs(f"results/{experiment_id}")
-
-                report_dict = classification_report(data_reader.references, predictions, output_dict=True)
-                json.dump(report_dict, open(f"results/{experiment_id}/{output_file_name}_report.json", "w+"), indent=4)
-                print(f"Classification Results: {formatted_path_name} {dataset_name} {icl_method}")
-                print(classification_report(data_reader.references, predictions))
-                reports.append({
-                    "dataset": dataset_name,
-                    "icl_method": icl_method,
-                    "model": formatted_path_name,
-                    "accuracy": report_dict["accuracy"],
-                    "macro avg f1-score": report_dict["macro avg"]["f1-score"],
-                    "macro avg precision": report_dict["macro avg"]["precision"],
-                    "macro avg recall": report_dict["macro avg"]["recall"],
-                })
+                reports.append(evaluate_icl_method(
+                    experiment_id,
+                    model_name,
+                    model,
+                    tokenizer,
+                    dataset_name,
+                    dataset,
+                    icl_method))
 
     all_reports = pd.DataFrame(reports)
     print(all_reports)
     all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
-
 
 
 if __name__ == "__main__":
