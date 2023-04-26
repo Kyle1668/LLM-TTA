@@ -50,8 +50,20 @@ def get_formatted_dataset(set_name, sample_size=None):
         hf_dataset["test"] = hf_dataset["test"].rename_column(hf_sets_columns_mappings[set_name][1], "label")
 
     if sample_size is not None:
-        hf_dataset["train"] = hf_dataset["train"].select(range(sample_size))
-        hf_dataset["test"] = hf_dataset["test"].select(range(sample_size))
+        for split in ["train", "test"]:
+            new_frame = None
+            split_frame = hf_dataset[split].to_pandas()
+            labels = split_frame["label"].unique()
+            sample_size_per_label = sample_size // len(labels)
+            for label in labels:
+                label_samples = split_frame[split_frame["label"] == label].sample(sample_size_per_label)
+                if new_frame is None:
+                    new_frame = label_samples
+                else:
+                    new_frame = pd.concat([new_frame, label_samples])
+
+            new_frame = new_frame.sample(frac=1)
+            hf_dataset[split] = Dataset.from_pandas(new_frame)
 
     return hf_dataset
 
@@ -171,9 +183,9 @@ def main():
     dataset_names = ["wilds_civil_comments", "ag_news", "wilds_amazon"]
     baseline_icl_methods = ["topk", "random"]
     model_names = [
-        "decapoda-research/llama-7b-hf",
-        "EleutherAI/pythia-2.8b",
-        "EleutherAI/pythia-1b",
+        # "decapoda-research/llama-7b-hf",
+        # "EleutherAI/pythia-2.8b",
+        # "EleutherAI/pythia-1b",
         "EleutherAI/pythia-410m"
     ]
     reports = []
