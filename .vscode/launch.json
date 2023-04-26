@@ -10,7 +10,10 @@
             "request": "launch",
             "program": "v4_edit_experiment.py",
             "console": "integratedTerminal",
-            "justMyCode": false
+            "justMyCode": false,
+            "env": {
+                // "CUDA_VISIBLE_DEVICES": "1"
+            }
         },
         {
             "name": "V3 Experiment",

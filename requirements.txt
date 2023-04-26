@@ -12,3 +12,4 @@ tqdm
 black
 pylint
 openicl
+wilds

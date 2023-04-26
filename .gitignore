@@ -1,6 +1,12 @@
 # Created by https://www.toptal.com/developers/gitignore/api/python,data,visualstudiocode,windows,linux,vim
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,data,visualstudiocode,windows,linux,vim
 
+# Don't include experiment reuslts in GIT
+data
+results
+notebooks/data/
+icl_inference_output/
+
 ### Data ###
 *.pt
 *.csv
