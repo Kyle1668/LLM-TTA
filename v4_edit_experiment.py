@@ -167,11 +167,11 @@ def get_prompt_template(dataset_name):
         }
     elif dataset_name == "wilds_amazon":
         tp_dict = {
-            0: "</E>1 Start Review: </text>",
-            1: "</E>2 Start Review: </text>",
-            2: "</E>3 Start Review: </text>",
-            3: "</E>4 Start Review: </text>",
-            4: "</E>5 Start Review: </text>",
+            0: "</E>1 Star Review: </text>",
+            1: "</E>2 Star Review: </text>",
+            2: "</E>3 Star Review: </text>",
+            3: "</E>4 Star Review: </text>",
+            4: "</E>5 Star Review: </text>",
         }
 
     template = PromptTemplate(tp_dict, {'text': '</text>'}, ice_token='</E>')
@@ -196,7 +196,7 @@ def main():
         model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16).to(device)
         for dataset_name in dataset_names:
             print(f"Loading dataset {dataset_name}...")
-            dataset = get_formatted_dataset(dataset_name, sample_size=5000)
+            dataset = get_formatted_dataset(dataset_name, sample_size=100)
             for icl_method in baseline_icl_methods:
                 print(f"Evaluating {dataset_name} with {model_name} using {icl_method}...")
 
