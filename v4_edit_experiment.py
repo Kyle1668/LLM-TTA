@@ -1,5 +1,6 @@
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from datasets import load_dataset, Dataset, DatasetDict
+from sentence_transformers import SentenceTransformer
 from sklearn.metrics import classification_report
 from faiss import IndexIDMap, IndexFlatIP
 from datasets import load_dataset
@@ -13,6 +14,7 @@ from openicl import (
     RandomRetriever,
     PPLInferencer
 )
+from tqdm import tqdm
 import pandas as pd
 import numpy as np
 import torch
@@ -145,38 +147,38 @@ def get_prompt_template(dataset_name):
     tp_dict = None
     if dataset_name == "sst2":
         tp_dict = {
-            0: "</E>Negative Movie Review: </text>",
-            1: "</E>Positive Movie Review: </text>"
+            0: "</text>:0</E>",
+            1: "</text>1</E>"
         }
     elif dataset_name == "ag_news":
         tp_dict = {
-            0: "</E>World (0) Article: </text>",
-            1: "</E>Sports (1) Article: </text>",
-            2: "</E>Business (2) Article: </text>",
-            3: "</E>Sci/Tech (3) Article: </text>",
+            0: "</text>:0</E>",
+            1: "</text>:1</E>",
+            2: "</text>:2</E>",
+            3: "</text>:3</E>",
         }
     elif dataset_name == "toxigen":
         tp_dict = {
-            0: "</E>Non-Toxic: </text>",
-            1: "</E>Toxic: </text>"
+            0: "</text>:0</E>",
+            1: "</text>:1</E>",
         }
     elif dataset_name == "disaster_tweets":
         tp_dict = {
-            0: "</E>Non-Disaster Tweet: </text>",
-            1: "</E>Disaster Tweet: </text>"
+            0: "</text>:0</E>",
+            1: "</text>:1</E>",
         }
     elif dataset_name == "wilds_civil_comments":
         tp_dict = {
-            0: "</E>Not Hate Speech: </text>",
-            1: "</E>Hate Speech: </text>"
+            0: "</text>:0</E>",
+            1: "</text>:1</E>",
         }
     elif dataset_name == "wilds_amazon":
         tp_dict = {
-            0: "</E>1 Star Review: </text>",
-            1: "</E>2 Star Review: </text>",
-            2: "</E>3 Star Review: </text>",
-            3: "</E>4 Star Review: </text>",
-            4: "</E>5 Star Review: </text>",
+            0: "</text>:0</E>",
+            1: "</text>:1</E>",
+            2: "</text>:2</E>",
+            3: "</text>:3</E>",
+            4: "</text>:4</E>",
         }
 
     template = PromptTemplate(tp_dict, {'text': '</text>'}, ice_token='</E>')
@@ -184,8 +186,15 @@ def get_prompt_template(dataset_name):
 
 
 def get_judgment(model, tokenizer, template, device, exemplars, input_text):
-    prompt_lines = [template.generate_ice_item(entry, entry["label"]) for entry in exemplars]
-    prompt_lines.append(input_text + ":")
+    formatted_exemplars = []
+    for i in range(len(exemplars)):
+        formatted_exemplars.append({
+            "label": exemplars[i]["label"],
+            "text": exemplars[i]["text"].replace("\n", " ")
+        })
+
+    prompt_lines = [template.generate_ice_item(entry, entry["label"]) for entry in reversed(formatted_exemplars)]
+    prompt_lines.append(input_text.replace("\n", " ") + ":")
     prompts = "\n".join(prompt_lines)
     tokenized_prompt = tokenizer.encode(prompts, return_tensors="pt").to(device)
     with torch.no_grad():
@@ -220,13 +229,12 @@ def get_edit_exemplars(edit_entries, edit_retriever, input_sequence_embedding, e
 
 
 def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set):
-    print(f"Evaluating {dataset_name} with {model_name} using {icl_method}...")
-
     template = get_prompt_template(dataset_name)
     data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
     exemplar_retriever = get_retriever(icl_method, data_reader)
     edit_retriever = get_retriever("kne", data_reader)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    embedding_model = SentenceTransformer("all-mpnet-base-v2").to(device)
     exemplar_count = 4
 
     # inferencer = PPLInferencer(model=model)
@@ -238,12 +246,17 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
     edit_entries = []
     num_successfull_edits = 0
 
-    for entry in dataset[eval_set]:
+    for entry in tqdm(dataset[eval_set], desc=f"Evaluating {dataset_name} with {model_name} using {icl_method}"):
         input_text = entry["text"]
         input_label = entry["label"]
-        input_sequence_embedding = exemplar_retriever.model.encode([input_text], convert_to_numpy=True)
-        input_sequence_embedding = exemplar_retriever.model.encode([input_text], convert_to_numpy=True)
-        exemplar_distances, exemplar_indices = exemplar_retriever.index.search(input_sequence_embedding, k=exemplar_count)
+
+        # TODO: Update retrievers interface to return sequences for a given string
+        exemplar_distances = exemplar_indices = None
+        if icl_method == "random":
+            exemplar_indices = exemplar_retriever.get_exemplars(input_text, exemplar_count)
+        else:
+            exemplar_distances, exemplar_indices = exemplar_retriever.get_exemplars(input_text, exemplar_count)
+
         exemplars = [exemplar_retriever.dataset_reader.dataset["train"][int(index)] for index in exemplar_indices[0]]
         judgment = get_judgment(model, tokenizer, template, device, exemplars, input_text)
         original_judgments.append(judgment)
@@ -255,6 +268,7 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
         # TODO: Evaluate accuracy on all previous edits and the holdour set.
         if eval_set == "edit" and judgment != input_label:
             edit_entries.append(entry)
+            input_sequence_embedding = embedding_model.encode([input_text], convert_to_numpy=True)
             edit_retriever.add_with_ids(input_sequence_embedding, np.array([len(edit_entries) - 1]))
             edit_exemplars = get_edit_exemplars(edit_entries, edit_retriever, input_sequence_embedding, exemplar_count, exemplars)
             edit_judgment = get_judgment(model, tokenizer, template, device, edit_exemplars, input_text)
@@ -272,7 +286,7 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
     report_dict["model"] = formatted_path_name
     report_dict["num successfull edits"] = num_successfull_edits
     report_dict["num edits"] = len(edit_entries)
-    report_dict["edit success rate"] = num_successfull_edits / len(edit_entries)
+    report_dict["edit success rate"] = num_successfull_edits / len(edit_entries) if len(edit_entries) > 0 else 0
 
     json.dump(report_dict, open(f"results/{experiment_id}/{output_file_name}_report.json", "w+"), indent=4)
     print(f"Classification Results: {formatted_path_name} {dataset_name} {icl_method}")
@@ -283,7 +297,7 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
 def main():
     experiment_id = f"edit_experiment_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     dataset_names = ["wilds_civil_comments", "ag_news", "wilds_amazon"]
-    baseline_icl_methods = ["topk", "random"]
+    baseline_icl_methods = ["random", "topk"]
     model_names = [
         # "decapoda-research/llama-7b-hf",
         # "EleutherAI/pythia-2.8b",
