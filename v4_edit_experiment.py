@@ -68,7 +68,7 @@ def get_formatted_dataset(set_name, sample_size=None):
     edit_set = original_test_set.sample(frac=0.5).drop(columns=["__index_level_0__"])
     test_set = original_test_set.drop(edit_set.index).drop(columns=["__index_level_0__"])
     hf_dataset["test"] = Dataset.from_pandas(test_set)
-    hf_dataset["edit"] = Dataset.from_pandas(edit_set)
+    hf_dataset["prod"] = Dataset.from_pandas(edit_set)
 
     return hf_dataset
 
@@ -212,11 +212,11 @@ def get_judgment(model, tokenizer, template, device, exemplars, input_text):
         return -1
 
 
-def get_edit_exemplars(edit_entries, edit_retriever, input_sequence_embedding, exemplar_count, exemplars):
+def get_edit_exemplars(dataset, edit_retriever, input_sequence_embedding, exemplar_count, exemplars):
     # Get edit pool exemplars - filter out -1 indices
     edit_distances, edit_exemplar_indices = edit_retriever.index.search(input_sequence_embedding, k=exemplar_count)
     edit_exemplar_indices = [int(index) for index in edit_exemplar_indices[0] if index != -1]
-    edit_exemplars = [edit_entries[index] for index in edit_exemplar_indices]
+    edit_exemplars = [dataset["edits"][index] for index in edit_exemplar_indices]
 
     # Backfill with exemplars from the original dataset
     if len(edit_exemplars) < exemplar_count:
@@ -228,7 +228,7 @@ def get_edit_exemplars(edit_entries, edit_retriever, input_sequence_embedding, e
     return edit_exemplars
 
 
-def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, edit_retriever=None, edit_entries=None, embedding_model=None):
+def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, edit_retriever=None, embedding_model=None):
     template = get_prompt_template(dataset_name)
     data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
     exemplar_retriever = get_retriever(icl_method, data_reader)
@@ -237,7 +237,6 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
     embedding_model = SentenceTransformer("all-mpnet-base-v2").to(device) if embedding_model is None else embedding_model
     exemplar_count = 4
     original_judgments = []
-    edit_entries = [] if edit_entries is None else edit_entries
     num_successfull_edits = 0
     prev_edit_accuracies = []
 
@@ -260,29 +259,44 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
         # correct label to the edit dataset. Also encode the input text and add it to the edit
         # retriever's index. Lastly, evaluate whether adding the current input to the prompt
         # along with other edits results in a correct judgment.
-        # TODO: Evaluate accuracy on all previous edits and the holdour set.
-        if eval_set == "edit" and judgment != input_label:
-            edit_entries.append(entry)
+        if eval_set == "prod" and judgment != input_label:
+            if "edits" in dataset:
+                dataset["edits"].append(entry)
+            else:
+                dataset["edits"] = [entry]
+
             input_sequence_embedding = embedding_model.encode([input_text], convert_to_numpy=True)
-            edit_retriever.add_with_ids(input_sequence_embedding, np.array([len(edit_entries) - 1]))
-            edit_exemplars = get_edit_exemplars(edit_entries, edit_retriever, input_sequence_embedding, exemplar_count, exemplars)
+            edit_retriever.add_with_ids(input_sequence_embedding, np.array([len(dataset["edits"]) - 1]))
+            edit_exemplars = get_edit_exemplars(dataset, edit_retriever, input_sequence_embedding, exemplar_count, exemplars)
             edit_judgment = get_judgment(model, tokenizer, template, device, edit_exemplars, input_text)
             if edit_judgment == input_label:
                 num_successfull_edits += 1
 
-            # TODO: Reun recursively to get test set performance. Nedd to pass edit set as well
+            # Record accuracy on the holdout test set
             holdout_set_perf = evaluate_icl_method(
                 experiment_id, model_name, model, tokenizer, dataset_name, dataset,
-                icl_method, "test", edit_retriever, edit_entries)
-
+                icl_method, "test", edit_retriever, embedding_model)
             holdout_accuracy = holdout_set_perf["accuracy"]
             prev_edit_accuracies.append(holdout_accuracy)
 
+            # TODO: Evaluate accuracy on all previous edits and the holdour set.
+            if len(dataset["edits"]) > 0:
+                holdout_set_perf = evaluate_icl_method(
+                    experiment_id, model_name, model, tokenizer, dataset_name, dataset,
+                    icl_method, "edits", edit_retriever, embedding_model)
+                holdout_accuracy = holdout_set_perf["accuracy"]
+                prev_edit_accuracies.append(holdout_accuracy)
+
+
+    return generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, num_successfull_edits)
+
+
+def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, num_successfull_edits):
     if not os.path.exists(f"results/{experiment_id}"):
         os.makedirs(f"results/{experiment_id}")
 
     formatted_model_name = dataset_name.replace("/", "-")
-    report_dict = classification_report(data_reader.references, original_judgments, output_dict=True)
+    report_dict = classification_report([entry["label"] for entry in dataset[eval_set]], original_judgments, output_dict=True)
     icl_report = {
         "dataset": dataset_name,
         "icl_method": icl_method,
@@ -291,13 +305,13 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
         "avg precision": report_dict["macro avg"]["precision"],
         "avg recall": report_dict["macro avg"]["recall"],
         "avg f1": report_dict["macro avg"]["f1-score"],
-        "num edits": len(edit_entries),
+        "num edits": len(dataset["edits"]),
         "num successfull edits": num_successfull_edits,
-        "edit success rate": num_successfull_edits / len(edit_entries) if len(edit_entries) > 0 else 0
+        "edit success rate": num_successfull_edits / len(dataset["edits"]) if len(dataset["edits"]) > 0 else 0
     }
     output_file_name = f"{dataset_name}_{formatted_model_name}_{icl_method}_{model_name}"
 
-    if eval_set == "edit":
+    if eval_set == "prod":
         json.dump(icl_report, open(f"results/{experiment_id}/{output_file_name}_report.json", "w+"), indent=4)
         print(f"Classification Results: {formatted_model_name} {dataset_name} {icl_method}")
         print(classification_report(data_reader.references, original_judgments))
@@ -334,7 +348,7 @@ def main():
                     dataset_name,
                     dataset,
                     icl_method,
-                    "edit"))
+                    "prod"))
 
     all_reports = pd.DataFrame(reports)
     print(all_reports)
