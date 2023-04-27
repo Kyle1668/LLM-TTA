@@ -228,23 +228,18 @@ def get_edit_exemplars(edit_entries, edit_retriever, input_sequence_embedding, e
     return edit_exemplars
 
 
-def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set):
+def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, edit_retriever=None, edit_entries=None, embedding_model=None):
     template = get_prompt_template(dataset_name)
     data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
     exemplar_retriever = get_retriever(icl_method, data_reader)
-    edit_retriever = get_retriever("kne", data_reader)
+    edit_retriever = get_retriever("kne", data_reader) if edit_retriever is None else edit_retriever
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    embedding_model = SentenceTransformer("all-mpnet-base-v2").to(device)
+    embedding_model = SentenceTransformer("all-mpnet-base-v2").to(device) if embedding_model is None else embedding_model
     exemplar_count = 4
-
-    # inferencer = PPLInferencer(model=model)
-    # predictions = inferencer.inference(retriever, ice_template=template, output_json_filename=output_file_name)
-
-    formatted_path_name = dataset_name.replace("_", "-")
-    output_file_name = f"{experiment_id}_{dataset_name}_{formatted_path_name}_{icl_method}"
     original_judgments = []
-    edit_entries = []
+    edit_entries = [] if edit_entries is None else edit_entries
     num_successfull_edits = 0
+    prev_edit_accuracies = []
 
     for entry in tqdm(dataset[eval_set], desc=f"Evaluating {dataset_name} with {model_name} using {icl_method}"):
         input_text = entry["text"]
@@ -275,23 +270,39 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
             if edit_judgment == input_label:
                 num_successfull_edits += 1
 
-            # TODO: Reun recursively to get test set performance.
+            # TODO: Reun recursively to get test set performance. Nedd to pass edit set as well
+            holdout_set_perf = evaluate_icl_method(
+                experiment_id, model_name, model, tokenizer, dataset_name, dataset,
+                icl_method, "test", edit_retriever, edit_entries)
+
+            holdout_accuracy = holdout_set_perf["accuracy"]
+            prev_edit_accuracies.append(holdout_accuracy)
 
     if not os.path.exists(f"results/{experiment_id}"):
         os.makedirs(f"results/{experiment_id}")
 
+    formatted_model_name = dataset_name.replace("/", "-")
     report_dict = classification_report(data_reader.references, original_judgments, output_dict=True)
-    report_dict["dataset"] = dataset_name
-    report_dict["icl_method"] = icl_method
-    report_dict["model"] = formatted_path_name
-    report_dict["num successfull edits"] = num_successfull_edits
-    report_dict["num edits"] = len(edit_entries)
-    report_dict["edit success rate"] = num_successfull_edits / len(edit_entries) if len(edit_entries) > 0 else 0
+    icl_report = {
+        "dataset": dataset_name,
+        "icl_method": icl_method,
+        "model": formatted_model_name,
+        "accuracy": report_dict["accuracy"],
+        "avg precision": report_dict["macro avg"]["precision"],
+        "avg recall": report_dict["macro avg"]["recall"],
+        "avg f1": report_dict["macro avg"]["f1-score"],
+        "num edits": len(edit_entries),
+        "num successfull edits": num_successfull_edits,
+        "edit success rate": num_successfull_edits / len(edit_entries) if len(edit_entries) > 0 else 0
+    }
+    output_file_name = f"{dataset_name}_{formatted_model_name}_{icl_method}_{model_name}"
 
-    json.dump(report_dict, open(f"results/{experiment_id}/{output_file_name}_report.json", "w+"), indent=4)
-    print(f"Classification Results: {formatted_path_name} {dataset_name} {icl_method}")
-    print(classification_report(data_reader.references, original_judgments))
-    return report_dict
+    if eval_set == "edit":
+        json.dump(icl_report, open(f"results/{experiment_id}/{output_file_name}_report.json", "w+"), indent=4)
+        print(f"Classification Results: {formatted_model_name} {dataset_name} {icl_method}")
+        print(classification_report(data_reader.references, original_judgments))
+
+    return icl_report
 
 
 def main():
