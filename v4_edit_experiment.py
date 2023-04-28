@@ -1,4 +1,4 @@
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer, LlamaTokenizer, AutoModelForCausalLM
 from datasets import load_dataset, Dataset, DatasetDict
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics import classification_report
@@ -20,6 +20,9 @@ import numpy as np
 import torch
 import json
 import os
+
+
+ENABLE_EDITS = False
 
 
 def get_formatted_dataset(set_name, sample_size=None):
@@ -48,8 +51,16 @@ def get_formatted_dataset(set_name, sample_size=None):
         hf_dataset["train"] = hf_dataset["train"].rename_column(hf_sets_columns_mappings[set_name][1], "label")
         hf_dataset["test"] = hf_dataset["test"].rename_column(hf_sets_columns_mappings[set_name][1], "label")
 
+    # Create a validation set from the same distirbution as the train set - if none already exist
+    if "validation" not in hf_dataset.keys():
+        train_set = hf_dataset["train"].to_pandas()
+        validation_set = train_set.sample(frac=0.2)
+        train_set = train_set.drop(validation_set.index)
+        hf_dataset["train"] = Dataset.from_pandas(train_set)
+        hf_dataset["validation"] = Dataset.from_pandas(validation_set)
+
     if sample_size is not None:
-        for split in ["train", "test"]:
+        for split in ["train", "validation", "test"]:
             new_frame = None
             split_frame = hf_dataset[split].to_pandas()
             labels = split_frame["label"].unique()
@@ -62,13 +73,16 @@ def get_formatted_dataset(set_name, sample_size=None):
                     new_frame = pd.concat([new_frame, label_samples])
 
             new_frame = new_frame.sample(frac=1)
+            new_frame = new_frame.drop(columns=["__index_level_0__"]) if "__index_level_0__" in new_frame.columns else new_frame
             hf_dataset[split] = Dataset.from_pandas(new_frame)
 
-    original_test_set = hf_dataset["test"].to_pandas()
-    edit_set = original_test_set.sample(frac=0.5).drop(columns=["__index_level_0__"])
-    test_set = original_test_set.drop(edit_set.index).drop(columns=["__index_level_0__"])
-    hf_dataset["test"] = Dataset.from_pandas(test_set)
-    hf_dataset["prod"] = Dataset.from_pandas(edit_set)
+    # Split the test set into a production traffic set from which edits will be made, and a holdout set
+    if ENABLE_EDITS:
+        original_test_set = hf_dataset["test"].to_pandas().drop(columns=["__index_level_0__"])
+        edit_set = original_test_set.sample(frac=0.5)
+        test_set = original_test_set.drop(edit_set.index)
+        hf_dataset["test"] = Dataset.from_pandas(test_set)
+        hf_dataset["prod"] = Dataset.from_pandas(edit_set)
 
     return hf_dataset
 
@@ -304,6 +318,8 @@ def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eva
     edit_success_rate = num_successfull_edits / num_edits if num_edits > 0 else -1
     icl_report = {
         "dataset": dataset_name,
+        "split": eval_set,
+        "dataset size": len(dataset[eval_set]),
         "icl_method": icl_method,
         "model": formatted_model_name,
         "accuracy": report_dict["accuracy"],
@@ -327,37 +343,39 @@ def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eva
 def main():
     experiment_id = f"edit_experiment_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     dataset_names = ["wilds_civil_comments", "ag_news", "wilds_amazon"]
-    baseline_icl_methods = ["mdl", "random", "topk"]
+    baseline_icl_methods = ["random", "topk", "mdl"]
     model_names = [
-        # "decapoda-research/llama-7b-hf",
-        # "EleutherAI/pythia-2.8b",
-        # "EleutherAI/pythia-1b",
+        "decapoda-research/llama-7b-hf",
+        "EleutherAI/pythia-2.8b",
+        "EleutherAI/pythia-1b",
         "EleutherAI/pythia-410m"
     ]
     reports = []
 
     for model_name in model_names:
         print(f"Loading model {model_name}...")
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16).eval().to(device)
+        tokenizer = LlamaTokenizer.from_pretrained(model_name) if "llama" in model_name else AutoTokenizer.from_pretrained(model_name)
+        # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16).eval().to(device)
+        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto").eval()
         for dataset_name in dataset_names:
             print(f"Loading dataset {dataset_name}...")
-            dataset = get_formatted_dataset(dataset_name, sample_size=20)
+            dataset = get_formatted_dataset(dataset_name, sample_size=5000)
             for icl_method in baseline_icl_methods:
-                reports.append(evaluate_icl_method(
-                    experiment_id,
-                    model_name,
-                    model,
-                    tokenizer,
-                    dataset_name,
-                    dataset,
-                    icl_method,
-                    "prod"))
+                for evaluation_set in ["validation", "test"]:
+                    reports.append(evaluate_icl_method(
+                        experiment_id,
+                        model_name,
+                        model,
+                        tokenizer,
+                        dataset_name,
+                        dataset,
+                        icl_method,
+                        evaluation_set))
 
-    all_reports = pd.DataFrame(reports)
-    print(all_reports)
-    all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                    all_reports = pd.DataFrame(reports)
+                    print(all_reports)
+                    all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
 
 
 if __name__ == "__main__":
