@@ -246,10 +246,12 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
 
         # TODO: Update retrievers interface to return sequences for a given string
         exemplar_distances = exemplar_indices = None
-        if icl_method == "random":
-            exemplar_indices = exemplar_retriever.get_exemplars(input_text, exemplar_count)
+        exemplar_indices = None
+        retriever_response = exemplar_retriever.get_exemplars(input_text, exemplar_count)
+        if isinstance(retriever_response, tuple):
+            exemplar_distances, exemplar_indices = retriever_response
         else:
-            exemplar_distances, exemplar_indices = exemplar_retriever.get_exemplars(input_text, exemplar_count)
+            exemplar_indices = retriever_response
 
         exemplars = [exemplar_retriever.dataset_reader.dataset["train"][int(index)] for index in exemplar_indices[0]]
         judgment = get_judgment(model, tokenizer, template, device, exemplars, input_text)
@@ -259,7 +261,8 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
         # correct label to the edit dataset. Also encode the input text and add it to the edit
         # retriever's index. Lastly, evaluate whether adding the current input to the prompt
         # along with other edits results in a correct judgment.
-        if eval_set == "prod" and judgment != input_label:
+        enable_edits = False
+        if eval_set == "prod" and judgment != input_label and enable_edits:
             if "edits" in dataset:
                 dataset["edits"].append(entry)
             else:
@@ -281,10 +284,10 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
 
             # TODO: Evaluate accuracy on all previous edits and the holdour set.
             if len(dataset["edits"]) > 0:
-                holdout_set_perf = evaluate_icl_method(
+                prev_edits_perf = evaluate_icl_method(
                     experiment_id, model_name, model, tokenizer, dataset_name, dataset,
                     icl_method, "edits", edit_retriever, embedding_model)
-                holdout_accuracy = holdout_set_perf["accuracy"]
+                holdout_accuracy = prev_edits_perf["accuracy"]
                 prev_edit_accuracies.append(holdout_accuracy)
 
 
@@ -295,8 +298,10 @@ def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eva
     if not os.path.exists(f"results/{experiment_id}"):
         os.makedirs(f"results/{experiment_id}")
 
-    formatted_model_name = dataset_name.replace("/", "-")
+    formatted_model_name = model_name.replace("/", "-")
     report_dict = classification_report([entry["label"] for entry in dataset[eval_set]], original_judgments, output_dict=True)
+    num_edits = len(dataset["edits"]) if "edits" in dataset else -1
+    edit_success_rate = num_successfull_edits / num_edits if num_edits > 0 else -1
     icl_report = {
         "dataset": dataset_name,
         "icl_method": icl_method,
@@ -305,11 +310,11 @@ def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eva
         "avg precision": report_dict["macro avg"]["precision"],
         "avg recall": report_dict["macro avg"]["recall"],
         "avg f1": report_dict["macro avg"]["f1-score"],
-        "num edits": len(dataset["edits"]),
+        "num edits": num_edits,
         "num successfull edits": num_successfull_edits,
-        "edit success rate": num_successfull_edits / len(dataset["edits"]) if len(dataset["edits"]) > 0 else 0
+        "edit success rate": edit_success_rate
     }
-    output_file_name = f"{dataset_name}_{formatted_model_name}_{icl_method}_{model_name}"
+    output_file_name = f"set={dataset_name}_split={eval_set}_method={icl_method}_model={formatted_model_name}"
 
     if eval_set == "prod":
         json.dump(icl_report, open(f"results/{experiment_id}/{output_file_name}_report.json", "w+"), indent=4)
@@ -322,7 +327,7 @@ def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eva
 def main():
     experiment_id = f"edit_experiment_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     dataset_names = ["wilds_civil_comments", "ag_news", "wilds_amazon"]
-    baseline_icl_methods = ["random", "topk"]
+    baseline_icl_methods = ["mdl", "random", "topk"]
     model_names = [
         # "decapoda-research/llama-7b-hf",
         # "EleutherAI/pythia-2.8b",
@@ -338,7 +343,7 @@ def main():
         model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16).eval().to(device)
         for dataset_name in dataset_names:
             print(f"Loading dataset {dataset_name}...")
-            dataset = get_formatted_dataset(dataset_name, sample_size=100)
+            dataset = get_formatted_dataset(dataset_name, sample_size=20)
             for icl_method in baseline_icl_methods:
                 reports.append(evaluate_icl_method(
                     experiment_id,

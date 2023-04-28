@@ -17,7 +17,7 @@ logger = get_logger(__name__)
 class MDLRetriever(TopkRetriever):
     """MDL In-context Learning Retriever Class
         Class of MDL Retriever.
-        
+
     Attributes:
         dataset_reader (:obj:`DatasetReader`): An instance of the :obj:`DatasetReader` class.
         ice_separator (:obj:`str`, optional): A string that separates each in-context example.
@@ -30,7 +30,7 @@ class MDLRetriever(TopkRetriever):
         index_ds (:obj:`Dataset`): The index dataset. Used to select data for in-context examples.
         test_ds (:obj:`Dataset`): The test dataset. Used to generate prompts for each data.
         accelerator (:obj:`Accelerator`, optional): An instance of the :obj:`Accelerator` class, used for multiprocessing.
-        batch_size (:obj:`int`, optional): Batch size for the :obj:`DataLoader`. 
+        batch_size (:obj:`int`, optional): Batch size for the :obj:`DataLoader`.
         model (:obj:`SentenceTransformer`): An instance of :obj:`SentenceTransformer` class, used to calculate embeddings.
         tokenizer (:obj:`AutoTokenizer`): Tokenizer for :obj:`model`.
         index (:obj:`IndexIDMap`): Index generated with FAISS.
@@ -112,6 +112,39 @@ class MDLRetriever(TopkRetriever):
             rtr_idx_list[idx] = [int(i) for i in rtr_idx_list[idx]]
 
         return rtr_idx_list
+
+    def get_exemplars(self, text, ice_num):
+        embed = self.model.encode([text], show_progress_bar=False)
+        rtr_idx_list = [[]]
+        near_ids = self.index.search(embed, ice_num)[1][0].tolist()
+        candidates = []
+        mdl_scores = []
+        for j in range(self.select_time):
+            if j == 0:
+                rand_idx_list = near_ids[:self.ice_num]
+            else:
+                rand_idx_list = np.random.choice(near_ids, ice_num, replace=False)
+                rand_idx_list = [int(i) for i in rand_idx_list]
+            candidates.append(rand_idx_list)
+
+            ice = self.generate_ice(rand_idx_list, ice_template=self.ice_template)
+            mask_length = len(self.tokenizer(ice + self.ice_eos_token, verbose=False)['input_ids'])
+            if self.labels is None:
+                labels = self.get_labels(self.ice_template, self.prompt_template)
+            else:
+                labels = self.labels
+            prompt_list = []
+            for label in labels:
+                prompt = self.generate_label_prompt(0, ice, label, self.ice_template, self.prompt_template)
+                prompt_list.append(prompt)
+            loss_list = self.cal_ce(prompt_list, mask_length=mask_length)
+            probs = np.exp(-np.array(loss_list))
+            normalized_probs = probs / probs.sum(0, keepdims=True)
+            neg_entropy = -entropy(normalized_probs, label_dim=0)
+            mdl_scores.append(neg_entropy)
+
+        rtr_idx_list[0] = candidates[mdl_scores.index(max(mdl_scores))]
+        return [[int(i) for i in rtr_idx_list[0]]]
 
     def retrieve(self):
         return self.topk_search()
