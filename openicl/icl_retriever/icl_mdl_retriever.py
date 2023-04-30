@@ -151,9 +151,9 @@ class MDLRetriever(TopkRetriever):
 
     def cal_ce(self, input_texts: List[str], mask_length=None):
         if self.metric_model is None:
-            logger.info(f'Load model {self.metric_model} for calculating MDL...')
-            self.metric_model = AutoModelForCausalLM.from_pretrained(self.ce_model_name)
-            self.metric_model.to(self.device)
+            logger.info(f'Load model {self.ce_model_name} for calculating MDL...')
+            self.metric_model = AutoModelForCausalLM.from_pretrained(self.ce_model_name, device_map="auto")
+            # self.metric_model.to(self.device)
         inputs = self.tokenizer(input_texts, padding=True, return_tensors='pt', truncation=True)
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
         outputs = self.metric_model(**inputs)

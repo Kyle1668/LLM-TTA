@@ -342,9 +342,11 @@ def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eva
 
 def main():
     experiment_id = f"edit_experiment_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
-    dataset_names = ["wilds_civil_comments", "ag_news", "wilds_amazon"]
-    baseline_icl_methods = ["random", "topk", "mdl"]
+    # dataset_names = ["wilds_amazon", "wilds_civil_comments", "ag_news"]
+    dataset_names = ["wilds_civil_comments", "ag_news"]
+    baseline_icl_methods = ["mdl", "random", "topk"]
     model_names = [
+        "decapoda-research/llama-65b-hf",
         "decapoda-research/llama-7b-hf",
         "EleutherAI/pythia-2.8b",
         "EleutherAI/pythia-1b",
@@ -360,7 +362,7 @@ def main():
         model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto").eval()
         for dataset_name in dataset_names:
             print(f"Loading dataset {dataset_name}...")
-            dataset = get_formatted_dataset(dataset_name, sample_size=5000)
+            dataset = get_formatted_dataset(dataset_name, sample_size=10000)
             for icl_method in baseline_icl_methods:
                 for evaluation_set in ["validation", "test"]:
                     reports.append(evaluate_icl_method(
