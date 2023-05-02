@@ -25,7 +25,7 @@ import os
 ENABLE_EDITS = False
 
 
-def get_formatted_dataset(set_name, sample_size=None):
+def get_formatted_dataset(set_name, max_examples=None):
     hf_paths = {
         "sst2": "gpt3mix/sst2",
         "toxigen": "skg/toxigen-data",
@@ -59,14 +59,19 @@ def get_formatted_dataset(set_name, sample_size=None):
         hf_dataset["train"] = Dataset.from_pandas(train_set)
         hf_dataset["validation"] = Dataset.from_pandas(validation_set)
 
-    if sample_size is not None:
+    if max_examples is not None:
         for split in ["train", "validation", "test"]:
+            if max_examples >= len(hf_dataset[split]):
+                print(f"WARNING: max_examples ({max_examples}) is greater than the number of examples in the {split} set ({len(hf_dataset[split])}).")
+                continue
+
             new_frame = None
             split_frame = hf_dataset[split].to_pandas()
             labels = split_frame["label"].unique()
-            sample_size_per_label = sample_size // len(labels)
+            max_examples_per_label = max_examples // len(labels)
             for label in labels:
-                label_samples = split_frame[split_frame["label"] == label].sample(sample_size_per_label)
+                current_label_sample_size = max_examples_per_label if len(split_frame[split_frame["label"] == label]) > max_examples_per_label else len(split_frame[split_frame["label"] == label])
+                label_samples = split_frame[split_frame["label"] == label].sample(current_label_sample_size)
                 if new_frame is None:
                     new_frame = label_samples
                 else:
@@ -199,28 +204,32 @@ def get_prompt_template(dataset_name):
     return template
 
 
-def get_judgment(model, tokenizer, template, device, exemplars, input_text):
-    formatted_exemplars = []
-    for i in range(len(exemplars)):
-        formatted_exemplars.append({
-            "label": exemplars[i]["label"],
-            "text": exemplars[i]["text"].replace("\n", " ")
-        })
-
-    prompt_lines = [template.generate_ice_item(entry, entry["label"]) for entry in reversed(formatted_exemplars)]
-    prompt_lines.append(input_text.replace("\n", " ") + ":")
-    prompts = "\n".join(prompt_lines)
-    tokenized_prompt = tokenizer.encode(prompts, return_tensors="pt").to(device)
-    with torch.no_grad():
-        outputs = model.generate(
-                    tokenized_prompt,
-                    max_new_tokens=1,
-                    do_sample=False,
-                    output_scores=True,
-                    return_dict_in_generate=True,
-                    pad_token_id=tokenizer.eos_token_id)
-
+def get_judgment(model, tokenizer, template, device, exemplars, input_text, dataset_name):
     try:
+        formatted_exemplars = []
+        for i in range(len(exemplars)):
+            if exemplars[i]["text"] == "" or exemplars[i]["text"] == None:
+                continue
+            formatted_exemplars.append({
+                "label": exemplars[i]["label"],
+                "text": exemplars[i]["text"].replace("\n", " ")
+            })
+
+        instructions = json.load(open("prompts/instructions.json"))[dataset_name]
+        formatted_instructions = f"Task: {instructions}\n"
+        prompt_lines = [formatted_instructions] + [template.generate_ice_item(entry, entry["label"]).replace("\n", " ") for entry in reversed(formatted_exemplars)]
+        prompt_lines.append(input_text.replace("\n", " ") + ":")
+        prompts = "\n".join(prompt_lines)
+        tokenized_prompt = tokenizer.encode(prompts, return_tensors="pt").to(device)
+        with torch.no_grad():
+            outputs = model.generate(
+                        tokenized_prompt,
+                        max_new_tokens=1,
+                        do_sample=False,
+                        output_scores=True,
+                        return_dict_in_generate=True,
+                        pad_token_id=tokenizer.eos_token_id)
+
         return int(tokenizer.decode(outputs.sequences[:, -1]))
     except:
         return -1
@@ -268,8 +277,10 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
             exemplar_indices = retriever_response
 
         exemplars = [exemplar_retriever.dataset_reader.dataset["train"][int(index)] for index in exemplar_indices[0]]
-        judgment = get_judgment(model, tokenizer, template, device, exemplars, input_text)
+        judgment = get_judgment(model, tokenizer, template, device, exemplars, input_text, dataset_name)
         original_judgments.append(judgment)
+        if judgment == -1:
+            print(f"Warning: {model_name} failed to generate a judgment for the following input: {input_text}")
 
         # Perform an edit if the model made a mistake. Add the current input text along with the
         # correct label to the edit dataset. Also encode the input text and add it to the edit
@@ -343,10 +354,11 @@ def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eva
 def main():
     experiment_id = f"edit_experiment_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     # dataset_names = ["wilds_amazon", "wilds_civil_comments", "ag_news"]
-    dataset_names = ["wilds_civil_comments", "ag_news"]
-    baseline_icl_methods = ["mdl", "random", "topk"]
+    dataset_names = ["wilds_civil_comments"]
+    baseline_icl_methods = ["topk", "random", "mdl"]
     model_names = [
         "decapoda-research/llama-65b-hf",
+        "decapoda-research/llama-30b-hf",
         "decapoda-research/llama-7b-hf",
         "EleutherAI/pythia-2.8b",
         "EleutherAI/pythia-1b",
@@ -362,7 +374,7 @@ def main():
         model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto").eval()
         for dataset_name in dataset_names:
             print(f"Loading dataset {dataset_name}...")
-            dataset = get_formatted_dataset(dataset_name, sample_size=10000)
+            dataset = get_formatted_dataset(dataset_name, max_examples=10000)
             for icl_method in baseline_icl_methods:
                 for evaluation_set in ["validation", "test"]:
                     reports.append(evaluate_icl_method(

@@ -3,5 +3,7 @@
   "disaster_tweets": "Return 1 if the following sequence is a disaster tweet, 0 otherwise.",
   "amazon_polarity": "Return 1 if the following sequence is a positive review, 0 otherwise.",
   "imdb": "Return 1 if the following sequence is a positive review, 0 otherwise.",
-  "sst2": "Return 1 if the sentiment of the text is positive, 0 otherwise."
+  "sst2": "Return 1 if the sentiment of the text is positive, 0 otherwise.",
+  "wilds_civil_comments": "Given a piece of text, your task is to classify whether it contains hate speech or not. If the text does not contain hate speech, return 0. If it does contain hate speech, return 1.",
+  "wilds_amazon": "The following is a review with 1-5 stars. Return 1, 2, 3, 4, or 5 for how many stars the review has."
 }
