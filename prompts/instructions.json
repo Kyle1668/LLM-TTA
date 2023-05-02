@@ -5,5 +5,6 @@
   "imdb": "Return 1 if the following sequence is a positive review, 0 otherwise.",
   "sst2": "Return 1 if the sentiment of the text is positive, 0 otherwise.",
   "wilds_civil_comments": "Given a piece of text, your task is to classify whether it contains hate speech or not. If the text does not contain hate speech, return 0. If it does contain hate speech, return 1.",
-  "wilds_amazon": "The following is a review with 1-5 stars. Return 1, 2, 3, 4, or 5 for how many stars the review has."
+  "wilds_amazon": "The following is a review with 1-5 stars. Return 1, 2, 3, 4, or 5 for how many stars the review has.",
+  "scotus": "Given the legal text, classify whether the topic of the case is of the following. Return the integer ID for each category.\n\nCriminal Procedure = 0, Civil Rights = 1, First Amendment = 2, Due Process = 3, Privacy = 4, Attorneys = 5, Unions = 6, Economic Activity = 7, Judicial Power = 8, Federalism = 9, Federal Taxation = 10"
 }

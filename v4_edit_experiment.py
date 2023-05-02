@@ -42,7 +42,12 @@ def get_formatted_dataset(set_name, max_examples=None):
 
     hf_dataset = None
     hf_path = hf_paths[set_name] if set_name in hf_paths else set_name
-    hf_dataset = load_wilds_dataset(hf_path) if set_name.startswith("wilds_") else load_dataset(hf_path)
+    if set_name.startswith("wilds_"):
+        hf_dataset = load_wilds_dataset(hf_path)
+    elif set_name == "scotus":
+        hf_dataset = load_scotus_dataset()
+    else:
+        hf_dataset = load_dataset(hf_path)
 
     if "text" not in hf_dataset["train"][0].keys():
         hf_dataset["train"] = hf_dataset["train"].rename_column(hf_sets_columns_mappings[set_name][0], "text")
@@ -91,6 +96,14 @@ def get_formatted_dataset(set_name, max_examples=None):
 
     return hf_dataset
 
+
+def load_scotus_dataset():
+    train_set = pd.read_csv("datasets/scotus_train.csv")
+    test_set = pd.read_csv("datasets/scotus_test.csv")
+    full_dataset = DatasetDict()
+    full_dataset["train"] = Dataset.from_pandas(train_set)
+    full_dataset["test"] = Dataset.from_pandas(test_set)
+    return full_dataset
 
 def load_wilds_dataset(dataset_name):
     if dataset_name == "wilds_civil_comments":
@@ -149,7 +162,18 @@ def load_wilds_dataset(dataset_name):
         raise Exception("Invalid WILDS dataset")
 
 
-def get_retriever(icl_method, data, ice_num=8, index_split='train', test_split='test'):
+def get_retriever(icl_method, data, dataset_name, index_split='train', test_split='test'):
+    dataset_ice_nums = {
+        "sst2": 16,
+        "ag_news": 6,
+        "toxigenic": 6,
+        "disaster_tweets": 32,
+        "wilds_civil_comments": 16,
+        "wilds_amazon": 16,
+        "scotus": 4
+    }
+    ice_num = dataset_ice_nums[dataset_name]
+
     if icl_method == "topk":
         return TopkRetriever(dataset_reader=data, ice_num=ice_num, index_split=index_split, test_split=test_split)
     elif icl_method == "mdl":
@@ -199,6 +223,20 @@ def get_prompt_template(dataset_name):
             3: "</text>:3</E>",
             4: "</text>:4</E>",
         }
+    elif dataset_name == "scotus":
+        tp_dict = {
+            0: "\n</text> - Catagory=0</E>",
+            1: "\n</text> - Catagory=1</E>",
+            2: "\n</text> - Catagory=2</E>",
+            3: "\n</text> - Catagory=3</E>",
+            4: "\n</text> - Catagory=4</E>",
+            5: "\n</text> - Catagory=5</E>",
+            6: "\n</text> - Catagory=6</E>",
+            7: "\n</text> - Catagory=7</E>",
+            8: "\n</text> - Catagory=8</E>",
+            9: "\n</text> - Catagory=9</E>",
+            10: "\n</text> - Catagory=10</E>",
+        }
 
     template = PromptTemplate(tp_dict, {'text': '</text>'}, ice_token='</E>')
     return template
@@ -212,13 +250,14 @@ def get_judgment(model, tokenizer, template, device, exemplars, input_text, data
                 continue
             formatted_exemplars.append({
                 "label": exemplars[i]["label"],
-                "text": exemplars[i]["text"].replace("\n", " ")
+                "text": (" ".join((exemplars[i]["text"].split()[:50] if len(exemplars[i]["text"].split()) >= 50 else exemplars[i]["text"]))).replace("\n", " ")
             })
 
         instructions = json.load(open("prompts/instructions.json"))[dataset_name]
         formatted_instructions = f"Task: {instructions}\n"
-        prompt_lines = [formatted_instructions] + [template.generate_ice_item(entry, entry["label"]).replace("\n", " ") for entry in reversed(formatted_exemplars)]
-        prompt_lines.append(input_text.replace("\n", " ") + ":")
+        prompt_lines = [formatted_instructions] + ["\n" + template.generate_ice_item(entry, entry["label"]).replace("\n", " ") for entry in reversed(formatted_exemplars)]
+        formatted_input_text = " ".join(input_text.split()[:200] if len(input_text.split()) >= 200 else input_text)
+        prompt_lines.append(formatted_input_text.replace("\n", " ") + " - Catagory=")
         prompts = "\n".join(prompt_lines)
         tokenized_prompt = tokenizer.encode(prompts, return_tensors="pt").to(device)
         with torch.no_grad():
@@ -254,8 +293,8 @@ def get_edit_exemplars(dataset, edit_retriever, input_sequence_embedding, exempl
 def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, edit_retriever=None, embedding_model=None):
     template = get_prompt_template(dataset_name)
     data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
-    exemplar_retriever = get_retriever(icl_method, data_reader)
-    edit_retriever = get_retriever("kne", data_reader) if edit_retriever is None else edit_retriever
+    exemplar_retriever = get_retriever(icl_method, data_reader, dataset_name)
+    edit_retriever = get_retriever("kne", data_reader, dataset_name) if edit_retriever is None else edit_retriever
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     embedding_model = SentenceTransformer("all-mpnet-base-v2").to(device) if embedding_model is None else embedding_model
     exemplar_count = 4
@@ -353,9 +392,17 @@ def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eva
 
 def main():
     experiment_id = f"edit_experiment_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
-    # dataset_names = ["wilds_amazon", "wilds_civil_comments", "ag_news"]
-    dataset_names = ["wilds_civil_comments"]
-    baseline_icl_methods = ["topk", "random", "mdl"]
+    dataset_names = [
+        "scotus"
+        # "wilds_amazon",
+        # "wilds_civil_comments",
+        # "ag_news"
+    ]
+    baseline_icl_methods = [
+        "topk",
+        "random",
+        "mdl"
+    ]
     model_names = [
         "decapoda-research/llama-65b-hf",
         "decapoda-research/llama-30b-hf",
@@ -369,12 +416,10 @@ def main():
     for model_name in model_names:
         print(f"Loading model {model_name}...")
         tokenizer = LlamaTokenizer.from_pretrained(model_name) if "llama" in model_name else AutoTokenizer.from_pretrained(model_name)
-        # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        # model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16).eval().to(device)
         model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto").eval()
         for dataset_name in dataset_names:
             print(f"Loading dataset {dataset_name}...")
-            dataset = get_formatted_dataset(dataset_name, max_examples=10000)
+            dataset = get_formatted_dataset(dataset_name, max_examples=None)
             for icl_method in baseline_icl_methods:
                 for evaluation_set in ["validation", "test"]:
                     reports.append(evaluate_icl_method(

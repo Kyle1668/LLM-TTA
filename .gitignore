@@ -3,6 +3,7 @@
 
 # Don't include experiment reuslts in GIT
 data
+datasets
 results
 notebooks/data/
 icl_inference_output/
