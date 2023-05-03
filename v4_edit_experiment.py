@@ -1,7 +1,7 @@
 from transformers import AutoTokenizer, LlamaTokenizer, AutoModelForCausalLM
 from datasets import load_dataset, Dataset, DatasetDict
 from sentence_transformers import SentenceTransformer
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, ConfusionMatrixDisplay, confusion_matrix
 from faiss import IndexIDMap, IndexFlatIP
 from datasets import load_dataset
 from datetime import datetime
@@ -46,6 +46,8 @@ def get_formatted_dataset(set_name, max_examples=None):
         hf_dataset = load_wilds_dataset(hf_path)
     elif set_name == "scotus":
         hf_dataset = load_scotus_dataset()
+    elif set_name == "ag_news":
+        hf_dataset = load_shifted_agnews_dataset()
     else:
         hf_dataset = load_dataset(hf_path)
 
@@ -104,6 +106,14 @@ def load_scotus_dataset():
     full_dataset["train"] = Dataset.from_pandas(train_set)
     full_dataset["test"] = Dataset.from_pandas(test_set)
     return full_dataset
+
+
+def load_shifted_agnews_dataset():
+    full_dataset = DatasetDict()
+    full_dataset["train"] = Dataset.from_pandas(pd.read_csv("datasets/ag_news_train.csv"))
+    full_dataset["test"] = load_dataset("ag_news", split="test")
+    return full_dataset
+
 
 def load_wilds_dataset(dataset_name):
     if dataset_name == "wilds_civil_comments":
@@ -175,11 +185,11 @@ def get_retriever(icl_method, data, dataset_name, index_split='train', test_spli
     ice_num = dataset_ice_nums[dataset_name]
 
     if icl_method == "topk":
-        return TopkRetriever(dataset_reader=data, ice_num=ice_num, index_split=index_split, test_split=test_split)
+        return TopkRetriever(dataset_reader=data, ice_num=ice_num, index_split=index_split)
     elif icl_method == "mdl":
-        return MDLRetriever(dataset_reader=data, ice_num=ice_num, index_split=index_split, test_split=test_split)
+        return MDLRetriever(dataset_reader=data, ice_num=ice_num, index_split=index_split)
     elif icl_method == "random":
-        return RandomRetriever(dataset_reader=data, ice_num=ice_num, index_split=index_split, test_split=test_split)
+        return RandomRetriever(dataset_reader=data, ice_num=ice_num, index_split=index_split)
     elif icl_method == "kne":
         return IndexIDMap(IndexFlatIP(768))
     else:
@@ -187,56 +197,19 @@ def get_retriever(icl_method, data, dataset_name, index_split='train', test_spli
 
 
 def get_prompt_template(dataset_name):
-    tp_dict = None
-    if dataset_name == "sst2":
-        tp_dict = {
-            0: "</text>:0</E>",
-            1: "</text>1</E>"
-        }
-    elif dataset_name == "ag_news":
-        tp_dict = {
-            0: "</text>:0</E>",
-            1: "</text>:1</E>",
-            2: "</text>:2</E>",
-            3: "</text>:3</E>",
-        }
-    elif dataset_name == "toxigen":
-        tp_dict = {
-            0: "</text>:0</E>",
-            1: "</text>:1</E>",
-        }
-    elif dataset_name == "disaster_tweets":
-        tp_dict = {
-            0: "</text>:0</E>",
-            1: "</text>:1</E>",
-        }
-    elif dataset_name == "wilds_civil_comments":
-        tp_dict = {
-            0: "</text>:0</E>",
-            1: "</text>:1</E>",
-        }
-    elif dataset_name == "wilds_amazon":
-        tp_dict = {
-            0: "</text>:0</E>",
-            1: "</text>:1</E>",
-            2: "</text>:2</E>",
-            3: "</text>:3</E>",
-            4: "</text>:4</E>",
-        }
-    elif dataset_name == "scotus":
-        tp_dict = {
-            0: "\n</text> - Catagory=0</E>",
-            1: "\n</text> - Catagory=1</E>",
-            2: "\n</text> - Catagory=2</E>",
-            3: "\n</text> - Catagory=3</E>",
-            4: "\n</text> - Catagory=4</E>",
-            5: "\n</text> - Catagory=5</E>",
-            6: "\n</text> - Catagory=6</E>",
-            7: "\n</text> - Catagory=7</E>",
-            8: "\n</text> - Catagory=8</E>",
-            9: "\n</text> - Catagory=9</E>",
-            10: "\n</text> - Catagory=10</E>",
-        }
+    dataset_num_labels = {
+        "sst2": 2,
+        "ag_news": 4,
+        "toxigen": 2,
+        "disaster_tweets": 2,
+        "wilds_civil_comments": 2,
+        "wilds_amazon": 5,
+        "scotus": 11
+    }
+
+    tp_dict = {}
+    for i in range(dataset_num_labels[dataset_name]):
+        tp_dict[i] = f"\n</text> - Catagory={i}</E>"
 
     template = PromptTemplate(tp_dict, {'text': '</text>'}, ice_token='</E>')
     return template
@@ -250,14 +223,14 @@ def get_judgment(model, tokenizer, template, device, exemplars, input_text, data
                 continue
             formatted_exemplars.append({
                 "label": exemplars[i]["label"],
-                "text": (" ".join((exemplars[i]["text"].split()[:50] if len(exemplars[i]["text"].split()) >= 50 else exemplars[i]["text"]))).replace("\n", " ")
+                "text": (" ".join(exemplars[i]["text"].split()[:50]) if len(exemplars[i]["text"].split()) >= 50 else exemplars[i]["text"]).replace("\n", " ")
             })
 
         instructions = json.load(open("prompts/instructions.json"))[dataset_name]
-        formatted_instructions = f"Task: {instructions}\n"
+        formatted_instructions = f"Task: {instructions}"
         prompt_lines = [formatted_instructions] + ["\n" + template.generate_ice_item(entry, entry["label"]).replace("\n", " ") for entry in reversed(formatted_exemplars)]
-        formatted_input_text = " ".join(input_text.split()[:200] if len(input_text.split()) >= 200 else input_text)
-        prompt_lines.append(formatted_input_text.replace("\n", " ") + " - Catagory=")
+        formatted_input_text = " ".join(input_text.split()[:200]) if len(input_text.split()) >= 200 else input_text
+        prompt_lines.append("\n" + formatted_input_text.replace("\n", " ") + " - Catagory=")
         prompts = "\n".join(prompt_lines)
         tokenized_prompt = tokenizer.encode(prompts, return_tensors="pt").to(device)
         with torch.no_grad():
@@ -386,6 +359,8 @@ def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eva
         json.dump(icl_report, open(f"results/{experiment_id}/{output_file_name}_report.json", "w+"), indent=4)
         print(f"Classification Results: {formatted_model_name} {dataset_name} {icl_method}")
         print(classification_report(data_reader.references, original_judgments))
+        confusion_matrix_fig = ConfusionMatrixDisplay(confusion_matrix=confusion_matrix(data_reader.references, original_judgments))
+        confusion_matrix_fig.figure_.savefig(f"results/{experiment_id}/{output_file_name}_confusion_matrix.png")
 
     return icl_report
 
@@ -393,22 +368,22 @@ def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eva
 def main():
     experiment_id = f"edit_experiment_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     dataset_names = [
-        "scotus"
-        # "wilds_amazon",
-        # "wilds_civil_comments",
-        # "ag_news"
+        "ag_news",
+        "scotus",
+        "wilds_amazon",
+        "wilds_civil_comments",
     ]
     baseline_icl_methods = [
         "topk",
         "random",
-        "mdl"
+        # "mdl"
     ]
     model_names = [
-        "decapoda-research/llama-65b-hf",
-        "decapoda-research/llama-30b-hf",
-        "decapoda-research/llama-7b-hf",
-        "EleutherAI/pythia-2.8b",
-        "EleutherAI/pythia-1b",
+        # "decapoda-research/llama-65b-hf",
+        # "decapoda-research/llama-30b-hf",
+        # "decapoda-research/llama-7b-hf",
+        # "EleutherAI/pythia-2.8b",
+        # "EleutherAI/pythia-1b",
         "EleutherAI/pythia-410m"
     ]
     reports = []
@@ -419,7 +394,7 @@ def main():
         model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto").eval()
         for dataset_name in dataset_names:
             print(f"Loading dataset {dataset_name}...")
-            dataset = get_formatted_dataset(dataset_name, max_examples=None)
+            dataset = get_formatted_dataset(dataset_name, max_examples=100)
             for icl_method in baseline_icl_methods:
                 for evaluation_set in ["validation", "test"]:
                     reports.append(evaluate_icl_method(
