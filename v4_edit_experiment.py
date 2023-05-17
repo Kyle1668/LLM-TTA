@@ -215,35 +215,46 @@ def get_prompt_template(dataset_name):
     return template
 
 
+def generate_prompt(model_name, template, exemplars, input_text, dataset_name):
+    formatted_exemplars = []
+    for i in range(len(exemplars)):
+        if exemplars[i]["text"] == "" or exemplars[i]["text"] == None:
+            continue
+        formatted_exemplars.append({
+            "label": exemplars[i]["label"],
+            "text": (" ".join(exemplars[i]["text"].split()[:50]) if len(exemplars[i]["text"].split()) >= 50 else exemplars[i]["text"]).replace("\n", " ").lstrip()
+        })
+
+    instructions = json.load(open("prompts/instructions.json", encoding="utf-8"))[dataset_name]
+    formatted_instructions = f"Task: {instructions}"
+    prompt_lines = [formatted_instructions] + ["\n" + template.generate_ice_item(entry, entry["label"]).replace("\n", " ").lstrip() for entry in reversed(formatted_exemplars)]
+    formatted_input_text = " ".join(input_text.split()[:200]) if len(input_text.split()) >= 200 else input_text
+    prompt_lines.append("\n" + formatted_input_text.replace("\n", " ") + " - Catagory=")
+    prompt = "\n".join(prompt_lines).replace("</s>", " ")
+
+    supported_chat_prompts = {
+        "TheBloke/stable-vicuna-13B-HF": f"### Human: {prompt}\n### Assistant: "
+    }
+
+    return supported_chat_prompts[model_name] if model_name in supported_chat_prompts else prompt
+
+
 def get_judgment(model, tokenizer, template, device, exemplars, input_text, dataset_name):
+    prompts = generate_prompt(model.name_or_path, template, exemplars, input_text, dataset_name)
+    tokenized_prompt = tokenizer.encode(prompts, return_tensors="pt").to(device)
+    with torch.no_grad():
+        outputs = model.generate(
+                    tokenized_prompt,
+                    max_new_tokens=1,
+                    do_sample=False,
+                    output_scores=True,
+                    return_dict_in_generate=True,
+                    pad_token_id=tokenizer.eos_token_id)
+
     try:
-        formatted_exemplars = []
-        for i in range(len(exemplars)):
-            if exemplars[i]["text"] == "" or exemplars[i]["text"] == None:
-                continue
-            formatted_exemplars.append({
-                "label": exemplars[i]["label"],
-                "text": (" ".join(exemplars[i]["text"].split()[:50]) if len(exemplars[i]["text"].split()) >= 50 else exemplars[i]["text"]).replace("\n", " ")
-            })
-
-        instructions = json.load(open("prompts/instructions.json"))[dataset_name]
-        formatted_instructions = f"Task: {instructions}"
-        prompt_lines = [formatted_instructions] + ["\n" + template.generate_ice_item(entry, entry["label"]).replace("\n", " ") for entry in reversed(formatted_exemplars)]
-        formatted_input_text = " ".join(input_text.split()[:200]) if len(input_text.split()) >= 200 else input_text
-        prompt_lines.append("\n" + formatted_input_text.replace("\n", " ") + " - Catagory=")
-        prompts = "\n".join(prompt_lines)
-        tokenized_prompt = tokenizer.encode(prompts, return_tensors="pt").to(device)
-        with torch.no_grad():
-            outputs = model.generate(
-                        tokenized_prompt,
-                        max_new_tokens=1,
-                        do_sample=False,
-                        output_scores=True,
-                        return_dict_in_generate=True,
-                        pad_token_id=tokenizer.eos_token_id)
-
         return int(tokenizer.decode(outputs.sequences[:, -1]))
     except:
+        print(f"Error: {tokenizer.decode(outputs.sequences[:, -1])} - unable to convert to int")
         return -1
 
 
@@ -368,8 +379,8 @@ def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eva
 def main():
     experiment_id = f"edit_experiment_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     dataset_names = [
-        "ag_news",
         "scotus",
+        "ag_news",
         "wilds_amazon",
         "wilds_civil_comments",
     ]
@@ -379,11 +390,12 @@ def main():
         # "mdl"
     ]
     model_names = [
-        # "decapoda-research/llama-65b-hf",
-        # "decapoda-research/llama-30b-hf",
-        # "decapoda-research/llama-7b-hf",
-        # "EleutherAI/pythia-2.8b",
-        # "EleutherAI/pythia-1b",
+        "TheBloke/stable-vicuna-13B-HF",
+        "decapoda-research/llama-65b-hf",
+        "decapoda-research/llama-30b-hf",
+        "decapoda-research/llama-7b-hf",
+        "EleutherAI/pythia-2.8b",
+        "EleutherAI/pythia-1b",
         "EleutherAI/pythia-410m"
     ]
     reports = []
