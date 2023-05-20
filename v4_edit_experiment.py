@@ -103,9 +103,10 @@ def get_formatted_dataset(set_name, max_examples=None):
 
 def load_civil_comments_and_toxigen_dataset() -> DatasetDict:
     civil_comments = load_wilds_dataset("wilds_civil_comments")
-    toxigen = load_dataset("skg/toxigen-data", "train", use_auth_token=True).rename_column("generation", "text").rename_column("prompt_label", "label")
+    toxigen = load_dataset("skg/toxigen-data", "train", use_auth_token=True).rename_column("prompt", "text").rename_column("prompt_label", "label")
+    formatted_toxigen = toxigen["train"].map(lambda x: {"text": x["text"].replace("- ", "").split("\\n")[0] })
     return DatasetDict({
-        "train": toxigen["train"],
+        "train": formatted_toxigen,
         "test": civil_comments["test"],
     })
 
@@ -196,7 +197,7 @@ def get_retriever(icl_method, data, dataset_name, index_split='train', test_spli
     ice_num = dataset_ice_nums[dataset_name]
 
     if icl_method == "topk":
-        return TopkRetriever(dataset_reader=data, ice_num=ice_num, index_split=index_split)
+        return TopkRetriever(dataset_reader=data, ice_num=ice_num, index_split=index_split, tokenizer_name="sentence-transformers/all-mpnet-base-v2")
     elif icl_method == "mdl":
         return MDLRetriever(dataset_reader=data, ice_num=ice_num, index_split=index_split)
     elif icl_method == "random":
@@ -320,31 +321,28 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
         exemplars = [exemplar_retriever.dataset_reader.dataset["train"][int(index)] for index in exemplar_indices[0]]
 
         if is_adaptive_set:
-            style_transfer_exemplars = "".join([f'- "{exemplar["text"]}"\n' for exemplar in exemplars])
-            task_prompt = f"""The assistant is to rewrite a new text in the style of the example text.
-
-Style Examples:
+            style_transfer_exemplars = "".join([f'"{exemplar["text"].strip()}"\n' for exemplar in exemplars])
+            style_input = input_text.replace('\n', ' ')
+            task_prompt = f"""Paraphrase the input text into the exact writing style of the following examples while keeping the same semantic meaning.
+Examples:
 {style_transfer_exemplars}
-
-Style Input: "{input_text}"
-
-Now parahrase the style input text into the format/style of the examples. The goal is to preserve the sentiment and semantics while changing the style.
-"""
-            input_prompts = f"User: {task_prompt}\nAssistant:\n"
-            tokenized_prompt = tokenizer.encode(input_prompts, return_tensors="pt").to("cuda")
-            outputs = model.generate(
+Input Text: "{style_input}\""""
+            input_prompts = f"User: {task_prompt}\nAssistant:"
+            tokenized_prompt = adaptive_tokenizer.encode(input_prompts, return_tensors="pt").to("cuda")
+            outputs = adaptive_model.generate(
                 tokenized_prompt,
                 max_new_tokens=100,
                 length_penalty=0,
                 early_stopping=True,
-                temperature=0.5,
                 output_scores=True,
                 return_dict_in_generate=True,
                 pad_token_id=tokenizer.eos_token_id)
 
-            generation = tokenizer.decode(outputs["sequences"][0]).split("Assistant:\n")[1].split("</s>")[0].strip()
+            generation = tokenizer.decode(outputs["sequences"][0]).split("\nAssistant:")[1].replace("\n", " ").strip()
             if "###" in generation:
                 generation = generation.split("###")[0]
+            if "</s>" in generation:
+                generation = generation.split("</s>")[0]
 
             print(f"Generation: {generation}")
             input_text = generation
@@ -429,10 +427,10 @@ def main():
     experiment_id = f"edit_experiment_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     dataset_names = [
         "civil_toxigen",
-        "scotus",
-        "ag_news",
-        "wilds_amazon",
-        "wilds_civil_comments",
+        # "scotus",
+        # "ag_news",
+        # "wilds_amazon",
+        # "wilds_civil_comments",
     ]
     baseline_icl_methods = [
         "topk",
@@ -441,9 +439,9 @@ def main():
     ]
     model_names = [
         # "TheBloke/vicuna-13B-1.1-HF",
-        # "decapoda-research/llama-65b-hf",
+        "decapoda-research/llama-65b-hf",
         # "decapoda-research/llama-30b-hf",
-        "decapoda-research/llama-7b-hf",
+        # "decapoda-research/llama-7b-hf",
         "EleutherAI/pythia-2.8b",
         "EleutherAI/pythia-1b",
         "EleutherAI/pythia-410m"
@@ -456,7 +454,7 @@ def main():
         model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto").eval()
         for dataset_name in dataset_names:
             print(f"Loading dataset {dataset_name}...")
-            dataset = get_formatted_dataset(dataset_name, max_examples=100)
+            dataset = get_formatted_dataset(dataset_name, max_examples=500)
             for icl_method in baseline_icl_methods:
                 for evaluation_set in ["test+adaptive", "test", "validation"]:
                     reports.append(evaluate_icl_method(
