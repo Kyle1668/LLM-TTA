@@ -48,6 +48,8 @@ def get_formatted_dataset(set_name, max_examples=None):
         hf_dataset = load_scotus_dataset()
     elif set_name == "ag_news":
         hf_dataset = load_shifted_agnews_dataset()
+    elif set_name == "civil_toxigen":
+        hf_dataset = load_civil_comments_and_toxigen_dataset()
     else:
         hf_dataset = load_dataset(hf_path)
 
@@ -98,6 +100,14 @@ def get_formatted_dataset(set_name, max_examples=None):
 
     return hf_dataset
 
+
+def load_civil_comments_and_toxigen_dataset() -> DatasetDict:
+    civil_comments = load_wilds_dataset("wilds_civil_comments")
+    toxigen = load_dataset("skg/toxigen-data", "train", use_auth_token=True).rename_column("generation", "text").rename_column("prompt_label", "label")
+    return DatasetDict({
+        "train": toxigen["train"],
+        "test": civil_comments["test"],
+    })
 
 def load_scotus_dataset():
     train_set = pd.read_csv("datasets/scotus_train.csv")
@@ -179,6 +189,7 @@ def get_retriever(icl_method, data, dataset_name, index_split='train', test_spli
         "toxigenic": 6,
         "disaster_tweets": 32,
         "wilds_civil_comments": 16,
+        "civil_toxigen": 16,
         "wilds_amazon": 16,
         "scotus": 4
     }
@@ -203,6 +214,7 @@ def get_prompt_template(dataset_name):
         "toxigen": 2,
         "disaster_tweets": 2,
         "wilds_civil_comments": 2,
+        "civil_toxigen": 2,
         "wilds_amazon": 5,
         "scotus": 11
     }
@@ -222,7 +234,7 @@ def generate_prompt(model_name, template, exemplars, input_text, dataset_name):
             continue
         formatted_exemplars.append({
             "label": exemplars[i]["label"],
-            "text": (" ".join(exemplars[i]["text"].split()[:50]) if len(exemplars[i]["text"].split()) >= 50 else exemplars[i]["text"]).replace("\n", " ").lstrip()
+            "text": (" ".join(exemplars[i]["text"].split()[:200]) if len(exemplars[i]["text"].split()) >= 200 else exemplars[i]["text"]).replace("\n", " ").lstrip()
         })
 
     instructions = json.load(open("prompts/instructions.json", encoding="utf-8"))[dataset_name]
@@ -233,7 +245,7 @@ def generate_prompt(model_name, template, exemplars, input_text, dataset_name):
     prompt = "\n".join(prompt_lines).replace("</s>", " ")
 
     supported_chat_prompts = {
-        "TheBloke/stable-vicuna-13B-HF": f"### Human: {prompt}\n### Assistant: "
+        "TheBloke/vicuna-13B-1.1-HF": f"User: {prompt}\nAssistant: "
     }
 
     return supported_chat_prompts[model_name] if model_name in supported_chat_prompts else prompt
@@ -281,12 +293,18 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
     edit_retriever = get_retriever("kne", data_reader, dataset_name) if edit_retriever is None else edit_retriever
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     embedding_model = SentenceTransformer("all-mpnet-base-v2").to(device) if embedding_model is None else embedding_model
-    exemplar_count = 4
+    exemplar_count = 16
     original_judgments = []
     num_successfull_edits = 0
     prev_edit_accuracies = []
+    is_adaptive_set = eval_set.endswith("+adaptive")
+    adaptive_tokenizer = None
+    adaptive_model = None
+    if is_adaptive_set:
+        adaptive_tokenizer = LlamaTokenizer.from_pretrained("TheBloke/vicuna-13B-1.1-HF")
+        adaptive_model = AutoModelForCausalLM.from_pretrained("TheBloke/vicuna-13B-1.1-HF", device_map="auto", torch_dtype=torch.float16).eval()
 
-    for entry in tqdm(dataset[eval_set], desc=f"Evaluating {dataset_name} with {model_name} using {icl_method}"):
+    for entry in tqdm(dataset[eval_set.replace("+adaptive", "")], desc=f"Evaluating {dataset_name}-{eval_set} with {model_name} using {icl_method}"):
         input_text = entry["text"]
         input_label = entry["label"]
 
@@ -300,6 +318,37 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
             exemplar_indices = retriever_response
 
         exemplars = [exemplar_retriever.dataset_reader.dataset["train"][int(index)] for index in exemplar_indices[0]]
+
+        if is_adaptive_set:
+            style_transfer_exemplars = "".join([f'- "{exemplar["text"]}"\n' for exemplar in exemplars])
+            task_prompt = f"""The assistant is to rewrite a new text in the style of the example text.
+
+Style Examples:
+{style_transfer_exemplars}
+
+Style Input: "{input_text}"
+
+Now parahrase the style input text into the format/style of the examples. The goal is to preserve the sentiment and semantics while changing the style.
+"""
+            input_prompts = f"User: {task_prompt}\nAssistant:\n"
+            tokenized_prompt = tokenizer.encode(input_prompts, return_tensors="pt").to("cuda")
+            outputs = model.generate(
+                tokenized_prompt,
+                max_new_tokens=100,
+                length_penalty=0,
+                early_stopping=True,
+                temperature=0.5,
+                output_scores=True,
+                return_dict_in_generate=True,
+                pad_token_id=tokenizer.eos_token_id)
+
+            generation = tokenizer.decode(outputs["sequences"][0]).split("Assistant:\n")[1].split("</s>")[0].strip()
+            if "###" in generation:
+                generation = generation.split("###")[0]
+
+            print(f"Generation: {generation}")
+            input_text = generation
+
         judgment = get_judgment(model, tokenizer, template, device, exemplars, input_text, dataset_name)
         original_judgments.append(judgment)
         if judgment == -1:
@@ -347,13 +396,13 @@ def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eva
         os.makedirs(f"results/{experiment_id}")
 
     formatted_model_name = model_name.replace("/", "-")
-    report_dict = classification_report([entry["label"] for entry in dataset[eval_set]], original_judgments, output_dict=True)
+    report_dict = classification_report([entry["label"] for entry in dataset[eval_set.replace("+adaptive", "")]], original_judgments, output_dict=True)
     num_edits = len(dataset["edits"]) if "edits" in dataset else -1
     edit_success_rate = num_successfull_edits / num_edits if num_edits > 0 else -1
     icl_report = {
         "dataset": dataset_name,
         "split": eval_set,
-        "dataset size": len(dataset[eval_set]),
+        "dataset size": len(dataset[eval_set.replace("+adaptive", "")]),
         "icl_method": icl_method,
         "model": formatted_model_name,
         "accuracy": report_dict["accuracy"],
@@ -379,6 +428,7 @@ def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eva
 def main():
     experiment_id = f"edit_experiment_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     dataset_names = [
+        "civil_toxigen",
         "scotus",
         "ag_news",
         "wilds_amazon",
@@ -390,9 +440,9 @@ def main():
         # "mdl"
     ]
     model_names = [
-        "TheBloke/stable-vicuna-13B-HF",
-        "decapoda-research/llama-65b-hf",
-        "decapoda-research/llama-30b-hf",
+        # "TheBloke/vicuna-13B-1.1-HF",
+        # "decapoda-research/llama-65b-hf",
+        # "decapoda-research/llama-30b-hf",
         "decapoda-research/llama-7b-hf",
         "EleutherAI/pythia-2.8b",
         "EleutherAI/pythia-1b",
@@ -408,7 +458,7 @@ def main():
             print(f"Loading dataset {dataset_name}...")
             dataset = get_formatted_dataset(dataset_name, max_examples=100)
             for icl_method in baseline_icl_methods:
-                for evaluation_set in ["validation", "test"]:
+                for evaluation_set in ["test+adaptive", "test", "validation"]:
                     reports.append(evaluate_icl_method(
                         experiment_id,
                         model_name,
