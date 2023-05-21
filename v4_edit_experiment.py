@@ -50,6 +50,11 @@ def get_formatted_dataset(set_name, max_examples=None):
         hf_dataset = load_shifted_agnews_dataset()
     elif set_name == "civil_toxigen":
         hf_dataset = load_civil_comments_and_toxigen_dataset()
+    elif set_name == "rotten_tomatoes_imdb":
+        hf_dataset = DatasetDict({
+            "train": load_dataset("rotten_tomatoes", split="train"),
+            "test": load_dataset("imdb", split="test")
+        })
     else:
         hf_dataset = load_dataset(hf_path)
 
@@ -191,6 +196,7 @@ def get_retriever(icl_method, data, dataset_name, index_split='train', test_spli
         "disaster_tweets": 32,
         "wilds_civil_comments": 16,
         "civil_toxigen": 16,
+        "rotten_tomatoes_imdb": 16,
         "wilds_amazon": 16,
         "scotus": 4
     }
@@ -216,6 +222,7 @@ def get_prompt_template(dataset_name):
         "disaster_tweets": 2,
         "wilds_civil_comments": 2,
         "civil_toxigen": 2,
+        "rotten_tomatoes_imdb": 8,
         "wilds_amazon": 5,
         "scotus": 11
     }
@@ -329,14 +336,17 @@ Examples:
 Input Text: "{style_input}\""""
             input_prompts = f"User: {task_prompt}\nAssistant:"
             tokenized_prompt = adaptive_tokenizer.encode(input_prompts, return_tensors="pt").to("cuda")
-            outputs = adaptive_model.generate(
-                tokenized_prompt,
-                max_new_tokens=100,
-                length_penalty=0,
-                early_stopping=True,
-                output_scores=True,
-                return_dict_in_generate=True,
-                pad_token_id=tokenizer.eos_token_id)
+            with torch.no_grad():
+                outputs = adaptive_model.generate(
+                    tokenized_prompt,
+                    max_new_tokens=500,
+                    length_penalty=0,
+                    early_stopping=True,
+                    do_sample=True,
+                    temperature=0.7,
+                    output_scores=True,
+                    return_dict_in_generate=True,
+                    pad_token_id=tokenizer.eos_token_id)
 
             generation = tokenizer.decode(outputs["sequences"][0]).split("\nAssistant:")[1].replace("\n", " ").strip()
             if "###" in generation:
@@ -426,6 +436,7 @@ def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eva
 def main():
     experiment_id = f"edit_experiment_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     dataset_names = [
+        "rotten_tomatoes_imdb",
         "civil_toxigen",
         # "scotus",
         # "ag_news",
@@ -434,29 +445,30 @@ def main():
     ]
     baseline_icl_methods = [
         "topk",
-        "random",
+        # "random",
         # "mdl"
     ]
     model_names = [
         # "TheBloke/vicuna-13B-1.1-HF",
-        "decapoda-research/llama-65b-hf",
+        # "decapoda-research/llama-65b-hf",
         # "decapoda-research/llama-30b-hf",
-        # "decapoda-research/llama-7b-hf",
+        "decapoda-research/llama-7b-hf",
         "EleutherAI/pythia-2.8b",
         "EleutherAI/pythia-1b",
-        "EleutherAI/pythia-410m"
+        # "EleutherAI/pythia-410m"
     ]
     reports = []
 
     for model_name in model_names:
         print(f"Loading model {model_name}...")
-        tokenizer = LlamaTokenizer.from_pretrained(model_name) if "llama" in model_name else AutoTokenizer.from_pretrained(model_name)
+        is_llama_based_model = "llama" in model_name or "vicuna" in model_name
+        tokenizer = LlamaTokenizer.from_pretrained(model_name) if is_llama_based_model else AutoTokenizer.from_pretrained(model_name)
         model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto").eval()
         for dataset_name in dataset_names:
             print(f"Loading dataset {dataset_name}...")
-            dataset = get_formatted_dataset(dataset_name, max_examples=500)
+            dataset = get_formatted_dataset(dataset_name, max_examples=1000)
             for icl_method in baseline_icl_methods:
-                for evaluation_set in ["test+adaptive", "test", "validation"]:
+                for evaluation_set in ["validation", "test", "test+adaptive"]:
                     reports.append(evaluate_icl_method(
                         experiment_id,
                         model_name,
