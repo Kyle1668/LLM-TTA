@@ -1,4 +1,4 @@
-from transformers import AutoTokenizer, LlamaTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer, LlamaTokenizer, AutoModelForCausalLM, AutoModelForSequenceClassification, AutoConfig
 from datasets import load_dataset, Dataset, DatasetDict
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics import classification_report, ConfusionMatrixDisplay, confusion_matrix
@@ -38,6 +38,7 @@ def get_formatted_dataset(set_name, max_examples=None):
         "imdb": ("text", "label"),
         "sst2": ("sentence", "label"),
         "ag_news": ("text", "label"),
+        "squad": ("context", "answers", "question"),
     }
 
     hf_dataset = None
@@ -64,6 +65,9 @@ def get_formatted_dataset(set_name, max_examples=None):
     if "label" not in hf_dataset["train"][0].keys():
         hf_dataset["train"] = hf_dataset["train"].rename_column(hf_sets_columns_mappings[set_name][1], "label")
         hf_dataset["test"] = hf_dataset["test"].rename_column(hf_sets_columns_mappings[set_name][1], "label")
+    if is_qa_task := set_name == "squad":
+        hf_dataset["train"] = hf_dataset["train"].rename_column(hf_sets_columns_mappings[set_name][2], "question")
+        hf_dataset["test"] = hf_dataset["test"].rename_column(hf_sets_columns_mappings[set_name][2], "question")
 
     # Create a validation set from the same distirbution as the train set - if none already exist
     if "validation" not in hf_dataset.keys():
@@ -80,16 +84,19 @@ def get_formatted_dataset(set_name, max_examples=None):
                 continue
 
             new_frame = None
-            split_frame = hf_dataset[split].to_pandas()
-            labels = split_frame["label"].unique()
-            max_examples_per_label = max_examples // len(labels)
-            for label in labels:
-                current_label_sample_size = max_examples_per_label if len(split_frame[split_frame["label"] == label]) > max_examples_per_label else len(split_frame[split_frame["label"] == label])
-                label_samples = split_frame[split_frame["label"] == label].sample(current_label_sample_size)
-                if new_frame is None:
-                    new_frame = label_samples
-                else:
-                    new_frame = pd.concat([new_frame, label_samples])
+            if is_qa_task:
+                new_frame.sample(max_examples)
+            else:
+                split_frame = hf_dataset[split].to_pandas()
+                labels = split_frame["label"].unique()
+                max_examples_per_label = max_examples // len(labels)
+                for label in labels:
+                    current_label_sample_size = max_examples_per_label if len(split_frame[split_frame["label"] == label]) > max_examples_per_label else len(split_frame[split_frame["label"] == label])
+                    label_samples = split_frame[split_frame["label"] == label].sample(current_label_sample_size)
+                    if new_frame is None:
+                        new_frame = label_samples
+                    else:
+                        new_frame = pd.concat([new_frame, label_samples])
 
             new_frame = new_frame.sample(frac=1)
             new_frame = new_frame.drop(columns=["__index_level_0__"]) if "__index_level_0__" in new_frame.columns else new_frame
@@ -260,6 +267,12 @@ def generate_prompt(model_name, template, exemplars, input_text, dataset_name):
 
 
 def get_judgment(model, tokenizer, template, device, exemplars, input_text, dataset_name):
+    if model.config.architectures[0].endswith("ForSequenceClassification"):
+        with torch.no_grad():
+            input = tokenizer(input_text, return_tensors="pt").to(device)
+            outputs = model(**input)
+            return int(outputs.logits.argmax(axis=1))
+
     prompts = generate_prompt(model.name_or_path, template, exemplars, input_text, dataset_name)
     tokenized_prompt = tokenizer.encode(prompts, return_tensors="pt").to(device)
     with torch.no_grad():
@@ -294,6 +307,18 @@ def get_edit_exemplars(dataset, edit_retriever, input_sequence_embedding, exempl
     return edit_exemplars
 
 
+def get_exemplars(input_text, exemplar_count, exemplar_retriever):
+    exemplar_distances = exemplar_indices = None
+    exemplar_indices = None
+    retriever_response = exemplar_retriever.get_exemplars(input_text, exemplar_count)
+    if isinstance(retriever_response, tuple):
+        exemplar_distances, exemplar_indices = retriever_response
+    else:
+        exemplar_indices = retriever_response
+
+    return [exemplar_retriever.dataset_reader.dataset["train"][int(index)] for index in exemplar_indices[0]]
+
+
 def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, edit_retriever=None, embedding_model=None):
     template = get_prompt_template(dataset_name)
     data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
@@ -305,6 +330,7 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
     original_judgments = []
     num_successfull_edits = 0
     prev_edit_accuracies = []
+    inference_logs = []
     is_adaptive_set = eval_set.endswith("+adaptive")
     adaptive_tokenizer = None
     adaptive_model = None
@@ -315,52 +341,21 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
     for entry in tqdm(dataset[eval_set.replace("+adaptive", "")], desc=f"Evaluating {dataset_name}-{eval_set} with {model_name} using {icl_method}"):
         input_text = entry["text"]
         input_label = entry["label"]
-
-        # TODO: Update retrievers interface to return sequences for a given string
-        exemplar_distances = exemplar_indices = None
-        exemplar_indices = None
-        retriever_response = exemplar_retriever.get_exemplars(input_text, exemplar_count)
-        if isinstance(retriever_response, tuple):
-            exemplar_distances, exemplar_indices = retriever_response
-        else:
-            exemplar_indices = retriever_response
-
-        exemplars = [exemplar_retriever.dataset_reader.dataset["train"][int(index)] for index in exemplar_indices[0]]
-
+        exemplars = get_exemplars(input_text, exemplar_count, exemplar_retriever)
         if is_adaptive_set:
-            style_transfer_exemplars = "".join([f'"{exemplar["text"].strip()}"\n' for exemplar in exemplars])
-            style_input = input_text.replace('\n', ' ')
-            task_prompt = f"""Paraphrase the input text into the exact writing style of the following examples while keeping the same semantic meaning.
-Examples:
-{style_transfer_exemplars}
-Input Text: "{style_input}\""""
-            input_prompts = f"User: {task_prompt}\nAssistant:"
-            tokenized_prompt = adaptive_tokenizer.encode(input_prompts, return_tensors="pt").to("cuda")
-            with torch.no_grad():
-                outputs = adaptive_model.generate(
-                    tokenized_prompt,
-                    max_new_tokens=500,
-                    length_penalty=0,
-                    early_stopping=True,
-                    do_sample=True,
-                    temperature=0.7,
-                    output_scores=True,
-                    return_dict_in_generate=True,
-                    pad_token_id=tokenizer.eos_token_id)
-
-            generation = tokenizer.decode(outputs["sequences"][0]).split("\nAssistant:")[1].replace("\n", " ").strip()
-            if "###" in generation:
-                generation = generation.split("###")[0]
-            if "</s>" in generation:
-                generation = generation.split("</s>")[0]
-
-            print(f"Generation: {generation}")
-            input_text = generation
+            input_text = get_transferred_input(tokenizer, adaptive_tokenizer, adaptive_model, input_text, exemplars)
 
         judgment = get_judgment(model, tokenizer, template, device, exemplars, input_text, dataset_name)
         original_judgments.append(judgment)
         if judgment == -1:
             print(f"Warning: {model_name} failed to generate a judgment for the following input: {input_text}")
+
+        inference_logs.append({
+            "input": input_text,
+            "original_input": entry["text"] if is_adaptive_set else None,
+            "judgment": judgment,
+            "label": input_label
+        })
 
         # Perform an edit if the model made a mistake. Add the current input text along with the
         # correct label to the edit dataset. Also encode the input text and add it to the edit
@@ -395,8 +390,41 @@ Input Text: "{style_input}\""""
                 holdout_accuracy = prev_edits_perf["accuracy"]
                 prev_edit_accuracies.append(holdout_accuracy)
 
-
+    if not os.path.exists(f"results/{experiment_id}"):
+        os.makedirs(f"results/{experiment_id}")
+    pd.DataFrame(inference_logs).to_csv(f"results/{experiment_id}/{model_name.replace('/', '-')}-{dataset_name}-{eval_set}-{icl_method}-inference-logs.csv")
     return generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, num_successfull_edits)
+
+def get_transferred_input(tokenizer, adaptive_tokenizer, adaptive_model, input_text, exemplars):
+    style_transfer_exemplars = "".join([f'"{exemplar["text"].strip()}"\n' for exemplar in exemplars])
+    style_input = input_text.replace('\n', ' ')
+    task_prompt = f"""Paraphrase the input text into the exact writing style of the following examples while keeping the same semantic meaning.
+Examples:
+{style_transfer_exemplars}
+Input Text: "{style_input}\""""
+    input_prompts = f"User: {task_prompt}\nAssistant:"
+    tokenized_prompt = adaptive_tokenizer.encode(input_prompts, return_tensors="pt").to("cuda")
+    with torch.no_grad():
+        outputs = adaptive_model.generate(
+                    tokenized_prompt,
+                    max_new_tokens=500,
+                    length_penalty=0,
+                    early_stopping=True,
+                    do_sample=True,
+                    temperature=0.7,
+                    output_scores=True,
+                    return_dict_in_generate=True,
+                    pad_token_id=tokenizer.eos_token_id)
+
+    generation = adaptive_tokenizer.decode(outputs["sequences"][0]).split("\nAssistant:")[1].replace("\n", " ").strip()
+    if "###" in generation:
+        generation = generation.split("###")[0]
+    if "</s>" in generation:
+        generation = generation.split("</s>")[0]
+
+    print(f"Generation: {generation}")
+    input_text = generation
+    return input_text
 
 
 def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, num_successfull_edits):
@@ -433,10 +461,23 @@ def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eva
     return icl_report
 
 
+def get_model_objects(model_name):
+    is_llm = not AutoConfig.from_pretrained(model_name).architectures[0].endswith("ForSequenceClassification")
+    is_llama_based_model = is_llm and "llama" in model_name or "vicuna" in model_name
+    tokenizer = LlamaTokenizer.from_pretrained(model_name) if is_llama_based_model else AutoTokenizer.from_pretrained(model_name)
+    model = None
+    if is_llm:
+        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto").eval()
+    else:
+        model = AutoModelForSequenceClassification.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto").eval()
+    return tokenizer, model
+
+
 def main():
     experiment_id = f"edit_experiment_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     dataset_names = [
-        "rotten_tomatoes_imdb",
+        # "squad"
+        # "rotten_tomatoes_imdb",
         "civil_toxigen",
         # "scotus",
         # "ag_news",
@@ -449,26 +490,25 @@ def main():
         # "mdl"
     ]
     model_names = [
+        "tomh/toxigen_roberta",
         # "TheBloke/vicuna-13B-1.1-HF",
         # "decapoda-research/llama-65b-hf",
         # "decapoda-research/llama-30b-hf",
-        "decapoda-research/llama-7b-hf",
-        "EleutherAI/pythia-2.8b",
-        "EleutherAI/pythia-1b",
+        # "decapoda-research/llama-7b-hf",
+        # "EleutherAI/pythia-2.8b",
+        # "EleutherAI/pythia-1b",
         # "EleutherAI/pythia-410m"
     ]
     reports = []
 
     for model_name in model_names:
         print(f"Loading model {model_name}...")
-        is_llama_based_model = "llama" in model_name or "vicuna" in model_name
-        tokenizer = LlamaTokenizer.from_pretrained(model_name) if is_llama_based_model else AutoTokenizer.from_pretrained(model_name)
-        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto").eval()
+        tokenizer, model = get_model_objects(model_name)
         for dataset_name in dataset_names:
             print(f"Loading dataset {dataset_name}...")
-            dataset = get_formatted_dataset(dataset_name, max_examples=1000)
+            dataset = get_formatted_dataset(dataset_name, max_examples=10)
             for icl_method in baseline_icl_methods:
-                for evaluation_set in ["validation", "test", "test+adaptive"]:
+                for evaluation_set in ["test+adaptive", "test", "validation"]:
                     reports.append(evaluate_icl_method(
                         experiment_id,
                         model_name,
