@@ -1,7 +1,8 @@
 from transformers import AutoTokenizer, LlamaTokenizer, AutoModelForCausalLM, AutoModelForSequenceClassification, AutoConfig
 from sentence_transformers import SentenceTransformer
-from datetime import datetime
+from argparse import ArgumentParser
 from openicl import DatasetReader
+from datetime import datetime
 from tqdm import tqdm
 import pandas as pd
 import torch
@@ -113,8 +114,7 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
 
 def get_transferred_input(tokenizer, adaptive_tokenizer, adaptive_model, input_entry, exemplars):
     style_transfer_exemplars = "".join([f'"{exemplar["text"].strip()}"\n' for exemplar in exemplars])
-    input_entry = input_entry["text"]
-    style_input = input_text.replace("\n", " ")
+    style_input = input_entry["text"].replace("\n", " ")
     task_prompt = f"""Paraphrase the input text into the exact writing style of the following examples while keeping the same semantic meaning.
 Examples:
 {style_transfer_exemplars}
@@ -158,43 +158,58 @@ def get_model_objects(model_name):
 
 
 def main():
+    parser = ArgumentParser()
+    parser.add_argument("--model", type=str, default=None)
+    parser.add_argument("--dataset", type=str, default=None)
+    parser.add_argument("--icl_method", type=str, default=None)
+    parser.add_argument("--max_examples", type=int, default=None)
+    args = parser.parse_args()
+
     experiment_id = f"edit_experiment_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
-    dataset_names = [
+    dataset_names = args.dataset.split(",") if args.dataset is not None else [
         "squadshifts_reddit",
-        # "rotten_tomatoes_imdb",
+        "rotten_tomatoes_imdb",
         "civil_toxigen",
-        # "scotus",
-        # "ag_news",
-        # "wilds_amazon",
-        # "wilds_civil_comments",
+        "scotus",
+        "ag_news",
+        "wilds_amazon",
+        "wilds_civil_comments",
     ]
-    baseline_icl_methods = [
+    icl_methods = args.icl_method.split(",") if args.icl_method is not None else [
+        "random",
         "topk",
-        # "random",
         # "mdl"
     ]
-    model_names = [
-        # "tomh/toxigen_roberta",
-        # "TheBloke/vicuna-13B-1.1-HF",
+    model_names = args.model.split(",") if args.model is not None else [
+        "TheBloke/vicuna-13B-1.1-HF",
         "decapoda-research/llama-65b-hf",
         "decapoda-research/llama-30b-hf",
         "decapoda-research/llama-7b-hf",
-        # "EleutherAI/pythia-2.8b",
-        # "EleutherAI/pythia-1b",
-        "EleutherAI/pythia-410m"
+        "EleutherAI/pythia-2.8b",
+        "EleutherAI/pythia-1b",
+        "EleutherAI/pythia-410m",
+        "tomh/toxigen_roberta"
     ]
-    reports = []
 
+    print("--------------------------------------------------")
+    print("Running experiment with the following parameters:")
+    print(f"Experiment ID: {experiment_id}")
+    print(f"Dataset Names: {dataset_names}")
+    print(f"ICL Methods: {icl_methods}")
+    print(f"Model Names: {model_names}")
+    print(f"Max Examples: {args.max_examples}")
+    print("--------------------------------------------------\n")
+
+    reports = []
     for model_name in model_names:
         print(f"Loading model {model_name}...")
         tokenizer, model = get_model_objects(model_name)
 
         for dataset_name in dataset_names:
             print(f"Loading dataset {dataset_name}...")
-            dataset = get_formatted_dataset(dataset_name, max_examples=250)
+            dataset = get_formatted_dataset(dataset_name, max_examples=args.max_examples)
 
-            for icl_method in baseline_icl_methods:
-                # for evaluation_set in ["test+adaptive", "test", "validation"]:
+            for icl_method in icl_methods:
                 for evaluation_set in ["validation", "test", "test+adaptive"]:
                     reports.append(evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set))
                     all_reports = pd.DataFrame(reports)
