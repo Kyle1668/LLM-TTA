@@ -1,0 +1,7 @@
+Extract the answer to the provided question given the context. Here are some examples.
+<exemplars>
+Now extract the answer from the context. Use the response format of the examples.
+
+Context: <context>
+Question: <question>
+Answer:

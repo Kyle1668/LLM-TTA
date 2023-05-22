@@ -1,38 +1,47 @@
-from transformers import AutoTokenizer, LlamaTokenizer, AutoModelForCausalLM, AutoModelForSequenceClassification, AutoConfig
+from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
 from datasets import load_dataset, Dataset, DatasetDict
-from sentence_transformers import SentenceTransformer
-from sklearn.metrics import classification_report, ConfusionMatrixDisplay, confusion_matrix
-from faiss import IndexIDMap, IndexFlatIP
+from metrics_util import SquadMetrics
 from datasets import load_dataset
-from datetime import datetime
 from wilds import get_dataset
-from openicl import DatasetReader, PromptTemplate, TopkRetriever, MDLRetriever, RandomRetriever, PPLInferencer
 from tqdm import tqdm
 import pandas as pd
 import numpy as np
-import torch
 import json
 import os
+
+
+def qa_report(model_answers, gold_answers):
+    f1s = ems = []
+    for model_answer, gold_answer in zip(model_answers, gold_answers):
+        f1s.append(SquadMetrics.f1_score(model_answer, gold_answer))
+        ems.append(SquadMetrics.exact_match_score(model_answer, gold_answer))
+
+    mean_f1 = np.mean(f1s)
+    exact_match_rate = np.sum(ems) / len(ems)
+    return { "f1-score": mean_f1, "exact match rate": exact_match_rate }
 
 
 def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, num_successfull_edits):
     if not os.path.exists(f"results/{experiment_id}"):
         os.makedirs(f"results/{experiment_id}")
 
+    is_qa_task = dataset_name.startswith("squad")
     formatted_model_name = model_name.replace("/", "-")
-    report_dict = classification_report([entry["label"] for entry in dataset[eval_set.replace("+adaptive", "")]], original_judgments, output_dict=True)
-    num_edits = len(dataset["edits"]) if "edits" in dataset else -1
-    edit_success_rate = num_successfull_edits / num_edits if num_edits > 0 else -1
+    gold_labels = [entry["label"] for entry in dataset[eval_set.replace("+adaptive", "")]]
+    report_dict = qa_report(original_judgments, gold_labels) if is_qa_task else classification_report(gold_labels, original_judgments, output_dict=True)
+    num_edits = len(dataset["edits"]) if "edits" in dataset else None
+    edit_success_rate = num_successfull_edits / num_edits if num_edits is not None and num_edits > 0 else None
     icl_report = {
         "dataset": dataset_name,
         "split": eval_set,
         "dataset size": len(dataset[eval_set.replace("+adaptive", "")]),
         "icl_method": icl_method,
         "model": formatted_model_name,
-        "accuracy": report_dict["accuracy"],
-        "avg precision": report_dict["macro avg"]["precision"],
-        "avg recall": report_dict["macro avg"]["recall"],
-        "avg f1": report_dict["macro avg"]["f1-score"],
+        "accuracy": report_dict["accuracy"] if not is_qa_task else None,
+        "avg precision": report_dict["macro avg"]["precision"] if not is_qa_task else None,
+        "avg recall": report_dict["macro avg"]["recall"] if not is_qa_task else None,
+        "avg f1": report_dict["macro avg"]["f1-score"] if not is_qa_task else report_dict["f1-score"],
+        "exact match rate": report_dict["exact match rate"] if is_qa_task else None,
         "num edits": num_edits,
         "num successfull edits": num_successfull_edits,
         "edit success rate": edit_success_rate,
@@ -73,18 +82,28 @@ def get_formatted_dataset(set_name, max_examples=None):
         hf_dataset = load_civil_comments_and_toxigen_dataset()
     elif set_name == "rotten_tomatoes_imdb":
         hf_dataset = DatasetDict({"train": load_dataset("rotten_tomatoes", split="train"), "test": load_dataset("imdb", split="test")})
+    elif set_name.startswith("squadshifts_"):
+        test_set_name = set_name.split("_")[1]
+        train_set = load_dataset("squad", split="train")
+        validaiton_set = load_dataset("squad", split="validation")
+        test_set = load_dataset("squadshifts", test_set_name, split="test")
+        hf_dataset = DatasetDict({"train": train_set, "validation": validaiton_set, "test": test_set})
     else:
         hf_dataset = load_dataset(hf_path)
 
-    if "text" not in hf_dataset["train"][0].keys():
-        hf_dataset["train"] = hf_dataset["train"].rename_column(hf_sets_columns_mappings[set_name][0], "text")
-        hf_dataset["test"] = hf_dataset["test"].rename_column(hf_sets_columns_mappings[set_name][0], "text")
-    if "label" not in hf_dataset["train"][0].keys():
-        hf_dataset["train"] = hf_dataset["train"].rename_column(hf_sets_columns_mappings[set_name][1], "label")
-        hf_dataset["test"] = hf_dataset["test"].rename_column(hf_sets_columns_mappings[set_name][1], "label")
-    if is_qa_task := set_name == "squad":
-        hf_dataset["train"] = hf_dataset["train"].rename_column(hf_sets_columns_mappings[set_name][2], "question")
-        hf_dataset["test"] = hf_dataset["test"].rename_column(hf_sets_columns_mappings[set_name][2], "question")
+    is_qa_task = "squad" in set_name
+    set_name = "squad" if set_name.startswith("squadshifts_") else set_name
+    for split in hf_dataset.keys():
+        if "text" not in hf_dataset[split][0].keys():
+            hf_dataset[split] = hf_dataset[split].rename_column(hf_sets_columns_mappings[set_name][0], "text")
+        if "label" not in hf_dataset[split][0].keys():
+            hf_dataset[split] = hf_dataset[split].rename_column(hf_sets_columns_mappings[set_name][1], "label")
+        if is_qa_task:
+            # hf_dataset["train"] = hf_dataset["train"].rename_column(hf_sets_columns_mappings[set_name][2], "question")
+            # hf_dataset["test"] = hf_dataset["test"].rename_column(hf_sets_columns_mappings[set_name][2], "question")
+            # For Q&A tasks, the label columns may have multiple answers, so we need to convert them to a single answer
+            # TODO: Verify best way to combine answers: " ".join(hf_dataset["test"][0]["label"]["text"])
+            hf_dataset[split] = hf_dataset[split].map(lambda x: {"label": x["label"]["text"][0]})
 
     # Create a validation set from the same distirbution as the train set - if none already exist
     if "validation" not in hf_dataset.keys():
@@ -101,10 +120,10 @@ def get_formatted_dataset(set_name, max_examples=None):
                 continue
 
             new_frame = None
+            split_frame = hf_dataset[split].to_pandas()
             if is_qa_task:
-                new_frame.sample(max_examples)
+                new_frame = split_frame.sample(max_examples)
             else:
-                split_frame = hf_dataset[split].to_pandas()
                 labels = split_frame["label"].unique()
                 max_examples_per_label = max_examples // len(labels)
                 for label in labels:

@@ -8,8 +8,8 @@ class SquadMetrics:
 
     @staticmethod
     def f1_score(prediction, ground_truth):
-        prediction_tokens = _normalize_answer(prediction).split()
-        ground_truth_tokens = _normalize_answer(ground_truth).split()
+        prediction_tokens = SquadMetrics._normalize_answer(prediction).split()
+        ground_truth_tokens = SquadMetrics._normalize_answer(ground_truth).split()
         common = Counter(prediction_tokens) & Counter(ground_truth_tokens)
         num_same = sum(common.values())
         if num_same == 0:
@@ -21,7 +21,7 @@ class SquadMetrics:
 
     @staticmethod
     def exact_match_score(prediction, ground_truth):
-        return _normalize_answer(prediction) == _normalize_answer(ground_truth)
+        return SquadMetrics._normalize_answer(prediction) == SquadMetrics._normalize_answer(ground_truth)
 
     @staticmethod
     def _normalize_answer(s):

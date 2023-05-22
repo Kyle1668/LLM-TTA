@@ -11,22 +11,38 @@ from data_util import generate_icl_report, get_formatted_dataset
 from icl_util import generate_prompt, get_prompt_template, get_retriever, get_exemplars, get_edit_exemplars
 
 
-def get_judgment(model, tokenizer, template, device, exemplars, input_text, dataset_name):
+def get_judgment(model, tokenizer, template, device, exemplars, input_entry, dataset_name):
     if model.config.architectures[0].endswith("ForSequenceClassification"):
         with torch.no_grad():
-            input = tokenizer(input_text, return_tensors="pt").to(device)
-            outputs = model(**input)
+            input_sequence = tokenizer(input_entry["text"], return_tensors="pt").to(device)
+            outputs = model(**input_sequence)
             return int(outputs.logits.argmax(axis=1))
 
-    prompts = generate_prompt(model.name_or_path, template, exemplars, input_text, dataset_name)
+    is_qa_task = dataset_name.startswith("squad")
+    prompts = generate_prompt(model.name_or_path, template, exemplars, input_entry, dataset_name)
     tokenized_prompt = tokenizer.encode(prompts, return_tensors="pt").to(device)
     with torch.no_grad():
-        outputs = model.generate(tokenized_prompt, max_new_tokens=1, do_sample=False, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id)
+        outputs = model.generate(
+            tokenized_prompt,
+            max_new_tokens=50 if is_qa_task else 3,
+            length_penalty=0,
+            early_stopping=True,
+            output_scores=True,
+            return_dict_in_generate=True,
+            pad_token_id=tokenizer.eos_token_id)
+
+        generation = ""
+        for score_tuple in outputs["scores"]:
+            token_index = score_tuple.argmax(dim=1)
+            token = tokenizer.decode(token_index)
+            if token == "\n":
+                break
+            generation += token
 
     try:
-        return int(tokenizer.decode(outputs.sequences[:, -1]))
+        return generation if is_qa_task else int(generation)
     except:
-        print(f"Error: {tokenizer.decode(outputs.sequences[:, -1])} - unable to convert to int")
+        print(f"Error: {generation} - unable to convert to int")
         return -1
 
 
@@ -37,7 +53,6 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
     edit_retriever = get_retriever("kne", data_reader, dataset_name) if edit_retriever is None else edit_retriever
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     embedding_model = SentenceTransformer("all-mpnet-base-v2").to(device) if embedding_model is None else embedding_model
-    exemplar_count = 16
     original_judgments = []
     num_successfull_edits = 0
     prev_edit_accuracies = []
@@ -50,18 +65,17 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
         adaptive_model = AutoModelForCausalLM.from_pretrained("TheBloke/vicuna-13B-1.1-HF", device_map="auto", torch_dtype=torch.float16).eval()
 
     for entry in tqdm(dataset[eval_set.replace("+adaptive", "")], desc=f"Evaluating {dataset_name}-{eval_set} with {model_name} using {icl_method}"):
-        input_text = entry["text"]
-        input_label = entry["label"]
-        exemplars = get_exemplars(input_text, exemplar_count, exemplar_retriever)
+        exemplars = get_exemplars(entry["text"], dataset_name, exemplar_retriever)
         if is_adaptive_set:
-            input_text = get_transferred_input(tokenizer, adaptive_tokenizer, adaptive_model, input_text, exemplars)
+            entry["original_text"] = entry["text"]
+            entry["text"] = get_transferred_input(tokenizer, adaptive_tokenizer, adaptive_model, entry, exemplars)
 
-        judgment = get_judgment(model, tokenizer, template, device, exemplars, input_text, dataset_name)
+        judgment = get_judgment(model, tokenizer, template, device, exemplars, entry, dataset_name)
         original_judgments.append(judgment)
         if judgment == -1:
-            print(f"Warning: {model_name} failed to generate a judgment for the following input: {input_text}")
+            print(f"Warning: {model_name} failed to generate a judgment for the following input: {entry['text']}")
 
-        inference_logs.append({"input": input_text, "original_input": entry["text"] if is_adaptive_set else None, "judgment": judgment, "label": input_label})
+        inference_logs.append({"input": entry["text"], "original_input": entry["text"] if is_adaptive_set else None, "judgment": judgment, "label": entry["label"]})
 
         # Perform an edit if the model made a mistake. Add the current input text along with the
         # correct label to the edit dataset. Also encode the input text and add it to the edit
@@ -97,8 +111,9 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
     return generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, num_successfull_edits)
 
 
-def get_transferred_input(tokenizer, adaptive_tokenizer, adaptive_model, input_text, exemplars):
+def get_transferred_input(tokenizer, adaptive_tokenizer, adaptive_model, input_entry, exemplars):
     style_transfer_exemplars = "".join([f'"{exemplar["text"].strip()}"\n' for exemplar in exemplars])
+    input_entry = input_entry["text"]
     style_input = input_text.replace("\n", " ")
     task_prompt = f"""Paraphrase the input text into the exact writing style of the following examples while keeping the same semantic meaning.
 Examples:
@@ -145,7 +160,7 @@ def get_model_objects(model_name):
 def main():
     experiment_id = f"edit_experiment_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     dataset_names = [
-        # "squad"
+        "squadshifts_reddit",
         # "rotten_tomatoes_imdb",
         "civil_toxigen",
         # "scotus",
@@ -161,9 +176,9 @@ def main():
     model_names = [
         # "tomh/toxigen_roberta",
         # "TheBloke/vicuna-13B-1.1-HF",
-        # "decapoda-research/llama-65b-hf",
-        # "decapoda-research/llama-30b-hf",
-        # "decapoda-research/llama-7b-hf",
+        "decapoda-research/llama-65b-hf",
+        "decapoda-research/llama-30b-hf",
+        "decapoda-research/llama-7b-hf",
         # "EleutherAI/pythia-2.8b",
         # "EleutherAI/pythia-1b",
         "EleutherAI/pythia-410m"
@@ -176,7 +191,7 @@ def main():
 
         for dataset_name in dataset_names:
             print(f"Loading dataset {dataset_name}...")
-            dataset = get_formatted_dataset(dataset_name, max_examples=50)
+            dataset = get_formatted_dataset(dataset_name, max_examples=250)
 
             for icl_method in baseline_icl_methods:
                 # for evaluation_set in ["test+adaptive", "test", "validation"]:
