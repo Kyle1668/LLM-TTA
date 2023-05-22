@@ -1,269 +1,14 @@
 from transformers import AutoTokenizer, LlamaTokenizer, AutoModelForCausalLM, AutoModelForSequenceClassification, AutoConfig
-from datasets import load_dataset, Dataset, DatasetDict
 from sentence_transformers import SentenceTransformer
-from sklearn.metrics import classification_report, ConfusionMatrixDisplay, confusion_matrix
-from faiss import IndexIDMap, IndexFlatIP
-from datasets import load_dataset
 from datetime import datetime
-from wilds import get_dataset
-from openicl import (
-    DatasetReader,
-    PromptTemplate,
-    TopkRetriever,
-    MDLRetriever,
-    RandomRetriever,
-    PPLInferencer
-)
+from openicl import DatasetReader
 from tqdm import tqdm
 import pandas as pd
-import numpy as np
 import torch
-import json
 import os
 
-
-ENABLE_EDITS = False
-
-
-def get_formatted_dataset(set_name, max_examples=None):
-    hf_paths = {
-        "sst2": "gpt3mix/sst2",
-        "toxigen": "skg/toxigen-data",
-        "disaster_tweets": "venetis/disaster_tweets"
-    }
-    hf_sets_columns_mappings = {
-        "toxigen": ("prompt", "prompt_label"),
-        "disaster_tweets": ("text", "target"),
-        "amazon_polarity": ("content", "label"),
-        "imdb": ("text", "label"),
-        "sst2": ("sentence", "label"),
-        "ag_news": ("text", "label"),
-        "squad": ("context", "answers", "question"),
-    }
-
-    hf_dataset = None
-    hf_path = hf_paths[set_name] if set_name in hf_paths else set_name
-    if set_name.startswith("wilds_"):
-        hf_dataset = load_wilds_dataset(hf_path)
-    elif set_name == "scotus":
-        hf_dataset = load_scotus_dataset()
-    elif set_name == "ag_news":
-        hf_dataset = load_shifted_agnews_dataset()
-    elif set_name == "civil_toxigen":
-        hf_dataset = load_civil_comments_and_toxigen_dataset()
-    elif set_name == "rotten_tomatoes_imdb":
-        hf_dataset = DatasetDict({
-            "train": load_dataset("rotten_tomatoes", split="train"),
-            "test": load_dataset("imdb", split="test")
-        })
-    else:
-        hf_dataset = load_dataset(hf_path)
-
-    if "text" not in hf_dataset["train"][0].keys():
-        hf_dataset["train"] = hf_dataset["train"].rename_column(hf_sets_columns_mappings[set_name][0], "text")
-        hf_dataset["test"] = hf_dataset["test"].rename_column(hf_sets_columns_mappings[set_name][0], "text")
-    if "label" not in hf_dataset["train"][0].keys():
-        hf_dataset["train"] = hf_dataset["train"].rename_column(hf_sets_columns_mappings[set_name][1], "label")
-        hf_dataset["test"] = hf_dataset["test"].rename_column(hf_sets_columns_mappings[set_name][1], "label")
-    if is_qa_task := set_name == "squad":
-        hf_dataset["train"] = hf_dataset["train"].rename_column(hf_sets_columns_mappings[set_name][2], "question")
-        hf_dataset["test"] = hf_dataset["test"].rename_column(hf_sets_columns_mappings[set_name][2], "question")
-
-    # Create a validation set from the same distirbution as the train set - if none already exist
-    if "validation" not in hf_dataset.keys():
-        train_set = hf_dataset["train"].to_pandas()
-        validation_set = train_set.sample(frac=0.2)
-        train_set = train_set.drop(validation_set.index)
-        hf_dataset["train"] = Dataset.from_pandas(train_set)
-        hf_dataset["validation"] = Dataset.from_pandas(validation_set)
-
-    if max_examples is not None:
-        for split in ["train", "validation", "test"]:
-            if max_examples >= len(hf_dataset[split]):
-                print(f"WARNING: max_examples ({max_examples}) is greater than the number of examples in the {split} set ({len(hf_dataset[split])}).")
-                continue
-
-            new_frame = None
-            if is_qa_task:
-                new_frame.sample(max_examples)
-            else:
-                split_frame = hf_dataset[split].to_pandas()
-                labels = split_frame["label"].unique()
-                max_examples_per_label = max_examples // len(labels)
-                for label in labels:
-                    current_label_sample_size = max_examples_per_label if len(split_frame[split_frame["label"] == label]) > max_examples_per_label else len(split_frame[split_frame["label"] == label])
-                    label_samples = split_frame[split_frame["label"] == label].sample(current_label_sample_size)
-                    if new_frame is None:
-                        new_frame = label_samples
-                    else:
-                        new_frame = pd.concat([new_frame, label_samples])
-
-            new_frame = new_frame.sample(frac=1)
-            new_frame = new_frame.drop(columns=["__index_level_0__"]) if "__index_level_0__" in new_frame.columns else new_frame
-            hf_dataset[split] = Dataset.from_pandas(new_frame)
-
-    # Split the test set into a production traffic set from which edits will be made, and a holdout set
-    if ENABLE_EDITS:
-        original_test_set = hf_dataset["test"].to_pandas().drop(columns=["__index_level_0__"])
-        edit_set = original_test_set.sample(frac=0.5)
-        test_set = original_test_set.drop(edit_set.index)
-        hf_dataset["test"] = Dataset.from_pandas(test_set)
-        hf_dataset["prod"] = Dataset.from_pandas(edit_set)
-
-    return hf_dataset
-
-
-def load_civil_comments_and_toxigen_dataset() -> DatasetDict:
-    civil_comments = load_wilds_dataset("wilds_civil_comments")
-    toxigen = load_dataset("skg/toxigen-data", "train", use_auth_token=True).rename_column("prompt", "text").rename_column("prompt_label", "label")
-    formatted_toxigen = toxigen["train"].map(lambda x: {"text": x["text"].replace("- ", "").split("\\n")[0] })
-    return DatasetDict({
-        "train": formatted_toxigen,
-        "test": civil_comments["test"],
-    })
-
-def load_scotus_dataset():
-    train_set = pd.read_csv("datasets/scotus_train.csv")
-    test_set = pd.read_csv("datasets/scotus_test.csv")
-    full_dataset = DatasetDict()
-    full_dataset["train"] = Dataset.from_pandas(train_set)
-    full_dataset["test"] = Dataset.from_pandas(test_set)
-    return full_dataset
-
-
-def load_shifted_agnews_dataset():
-    full_dataset = DatasetDict()
-    full_dataset["train"] = Dataset.from_pandas(pd.read_csv("datasets/ag_news_train.csv"))
-    full_dataset["test"] = load_dataset("ag_news", split="test")
-    return full_dataset
-
-
-def load_wilds_dataset(dataset_name):
-    if dataset_name == "wilds_civil_comments":
-        dataset = get_dataset(dataset="civilcomments", download=True)
-        train_dict = {
-            "text": [],
-            "label": [],
-            "group": []
-        }
-        for text, label, group in dataset.get_subset("train"):
-            train_dict["text"].append(text)
-            train_dict["label"].append(label.item())
-            train_dict["group"].append(group.tolist())
-
-        test_dict = {
-            "text": [],
-            "label": [],
-            "group": []
-        }
-        for text, label, group in dataset.get_subset("test"):
-            test_dict["text"].append(text)
-            test_dict["label"].append(label.item())
-            test_dict["group"].append(group.tolist())
-
-        full_dataset = DatasetDict()
-        full_dataset["train"] = Dataset.from_pandas(pd.DataFrame(train_dict))
-        full_dataset["test"] = Dataset.from_pandas(pd.DataFrame(test_dict))
-        return full_dataset
-    elif dataset_name == "wilds_amazon":
-        dataset = get_dataset(dataset="amazon", download=True)
-        train_dict = {
-            "text": [],
-            "label": [],
-            "group": []
-        }
-        for content, label, group in dataset.get_subset("train"):
-            train_dict["text"].append(content)
-            train_dict["label"].append(label.item())
-            train_dict["group"].append(group.tolist())
-
-        test_dict = {
-            "text": [],
-            "label": [],
-            "group": []
-        }
-        for content, label, group in dataset.get_subset("test"):
-            test_dict["text"].append(content)
-            test_dict["label"].append(label.item())
-            test_dict["group"].append(group.tolist())
-
-        full_dataset = DatasetDict()
-        full_dataset["train"] = Dataset.from_pandas(pd.DataFrame(train_dict))
-        full_dataset["test"] = Dataset.from_pandas(pd.DataFrame(test_dict))
-        return full_dataset
-    else:
-        raise Exception("Invalid WILDS dataset")
-
-
-def get_retriever(icl_method, data, dataset_name, index_split='train', test_split='test'):
-    dataset_ice_nums = {
-        "sst2": 16,
-        "ag_news": 6,
-        "toxigenic": 6,
-        "disaster_tweets": 32,
-        "wilds_civil_comments": 16,
-        "civil_toxigen": 16,
-        "rotten_tomatoes_imdb": 16,
-        "wilds_amazon": 16,
-        "scotus": 4
-    }
-    ice_num = dataset_ice_nums[dataset_name]
-
-    if icl_method == "topk":
-        return TopkRetriever(dataset_reader=data, ice_num=ice_num, index_split=index_split, tokenizer_name="sentence-transformers/all-mpnet-base-v2")
-    elif icl_method == "mdl":
-        return MDLRetriever(dataset_reader=data, ice_num=ice_num, index_split=index_split)
-    elif icl_method == "random":
-        return RandomRetriever(dataset_reader=data, ice_num=ice_num, index_split=index_split)
-    elif icl_method == "kne":
-        return IndexIDMap(IndexFlatIP(768))
-    else:
-        raise Exception("Invalid ICL method")
-
-
-def get_prompt_template(dataset_name):
-    dataset_num_labels = {
-        "sst2": 2,
-        "ag_news": 4,
-        "toxigen": 2,
-        "disaster_tweets": 2,
-        "wilds_civil_comments": 2,
-        "civil_toxigen": 2,
-        "rotten_tomatoes_imdb": 8,
-        "wilds_amazon": 5,
-        "scotus": 11
-    }
-
-    tp_dict = {}
-    for i in range(dataset_num_labels[dataset_name]):
-        tp_dict[i] = f"\n</text> - Catagory={i}</E>"
-
-    template = PromptTemplate(tp_dict, {'text': '</text>'}, ice_token='</E>')
-    return template
-
-
-def generate_prompt(model_name, template, exemplars, input_text, dataset_name):
-    formatted_exemplars = []
-    for i in range(len(exemplars)):
-        if exemplars[i]["text"] == "" or exemplars[i]["text"] == None:
-            continue
-        formatted_exemplars.append({
-            "label": exemplars[i]["label"],
-            "text": (" ".join(exemplars[i]["text"].split()[:200]) if len(exemplars[i]["text"].split()) >= 200 else exemplars[i]["text"]).replace("\n", " ").lstrip()
-        })
-
-    instructions = json.load(open("prompts/instructions.json", encoding="utf-8"))[dataset_name]
-    formatted_instructions = f"Task: {instructions}"
-    prompt_lines = [formatted_instructions] + ["\n" + template.generate_ice_item(entry, entry["label"]).replace("\n", " ").lstrip() for entry in reversed(formatted_exemplars)]
-    formatted_input_text = " ".join(input_text.split()[:200]) if len(input_text.split()) >= 200 else input_text
-    prompt_lines.append("\n" + formatted_input_text.replace("\n", " ") + " - Catagory=")
-    prompt = "\n".join(prompt_lines).replace("</s>", " ")
-
-    supported_chat_prompts = {
-        "TheBloke/vicuna-13B-1.1-HF": f"User: {prompt}\nAssistant: "
-    }
-
-    return supported_chat_prompts[model_name] if model_name in supported_chat_prompts else prompt
+from data_util import generate_icl_report, get_formatted_dataset
+from icl_util import generate_prompt, get_prompt_template, get_retriever, get_exemplars, get_edit_exemplars
 
 
 def get_judgment(model, tokenizer, template, device, exemplars, input_text, dataset_name):
@@ -276,47 +21,13 @@ def get_judgment(model, tokenizer, template, device, exemplars, input_text, data
     prompts = generate_prompt(model.name_or_path, template, exemplars, input_text, dataset_name)
     tokenized_prompt = tokenizer.encode(prompts, return_tensors="pt").to(device)
     with torch.no_grad():
-        outputs = model.generate(
-                    tokenized_prompt,
-                    max_new_tokens=1,
-                    do_sample=False,
-                    output_scores=True,
-                    return_dict_in_generate=True,
-                    pad_token_id=tokenizer.eos_token_id)
+        outputs = model.generate(tokenized_prompt, max_new_tokens=1, do_sample=False, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id)
 
     try:
         return int(tokenizer.decode(outputs.sequences[:, -1]))
     except:
         print(f"Error: {tokenizer.decode(outputs.sequences[:, -1])} - unable to convert to int")
         return -1
-
-
-def get_edit_exemplars(dataset, edit_retriever, input_sequence_embedding, exemplar_count, exemplars):
-    # Get edit pool exemplars - filter out -1 indices
-    edit_distances, edit_exemplar_indices = edit_retriever.index.search(input_sequence_embedding, k=exemplar_count)
-    edit_exemplar_indices = [int(index) for index in edit_exemplar_indices[0] if index != -1]
-    edit_exemplars = [dataset["edits"][index] for index in edit_exemplar_indices]
-
-    # Backfill with exemplars from the original dataset
-    if len(edit_exemplars) < exemplar_count:
-        exemplar_index = 0
-        while exemplar_index < 4:
-            edit_exemplars.append(exemplars[exemplar_index])
-            exemplar_index += 1
-
-    return edit_exemplars
-
-
-def get_exemplars(input_text, exemplar_count, exemplar_retriever):
-    exemplar_distances = exemplar_indices = None
-    exemplar_indices = None
-    retriever_response = exemplar_retriever.get_exemplars(input_text, exemplar_count)
-    if isinstance(retriever_response, tuple):
-        exemplar_distances, exemplar_indices = retriever_response
-    else:
-        exemplar_indices = retriever_response
-
-    return [exemplar_retriever.dataset_reader.dataset["train"][int(index)] for index in exemplar_indices[0]]
 
 
 def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, edit_retriever=None, embedding_model=None):
@@ -350,54 +61,45 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
         if judgment == -1:
             print(f"Warning: {model_name} failed to generate a judgment for the following input: {input_text}")
 
-        inference_logs.append({
-            "input": input_text,
-            "original_input": entry["text"] if is_adaptive_set else None,
-            "judgment": judgment,
-            "label": input_label
-        })
+        inference_logs.append({"input": input_text, "original_input": entry["text"] if is_adaptive_set else None, "judgment": judgment, "label": input_label})
 
         # Perform an edit if the model made a mistake. Add the current input text along with the
         # correct label to the edit dataset. Also encode the input text and add it to the edit
         # retriever's index. Lastly, evaluate whether adding the current input to the prompt
         # along with other edits results in a correct judgment.
-        enable_edits = False
-        if eval_set == "prod" and judgment != input_label and enable_edits:
-            if "edits" in dataset:
-                dataset["edits"].append(entry)
-            else:
-                dataset["edits"] = [entry]
+        # if eval_set == "prod" and judgment != input_label and False:
+        #     if "edits" in dataset:
+        #         dataset["edits"].append(entry)
+        #     else:
+        #         dataset["edits"] = [entry]
 
-            input_sequence_embedding = embedding_model.encode([input_text], convert_to_numpy=True)
-            edit_retriever.add_with_ids(input_sequence_embedding, np.array([len(dataset["edits"]) - 1]))
-            edit_exemplars = get_edit_exemplars(dataset, edit_retriever, input_sequence_embedding, exemplar_count, exemplars)
-            edit_judgment = get_judgment(model, tokenizer, template, device, edit_exemplars, input_text)
-            if edit_judgment == input_label:
-                num_successfull_edits += 1
+        #     input_sequence_embedding = embedding_model.encode([input_text], convert_to_numpy=True)
+        #     edit_retriever.add_with_ids(input_sequence_embedding, np.array([len(dataset["edits"]) - 1]))
+        #     edit_exemplars = get_edit_exemplars(dataset, edit_retriever, input_sequence_embedding, exemplar_count, exemplars)
+        #     edit_judgment = get_judgment(model, tokenizer, template, device, edit_exemplars, input_text)
+        #     if edit_judgment == input_label:
+        #         num_successfull_edits += 1
 
-            # Record accuracy on the holdout test set
-            holdout_set_perf = evaluate_icl_method(
-                experiment_id, model_name, model, tokenizer, dataset_name, dataset,
-                icl_method, "test", edit_retriever, embedding_model)
-            holdout_accuracy = holdout_set_perf["accuracy"]
-            prev_edit_accuracies.append(holdout_accuracy)
+        #     # Record accuracy on the holdout test set
+        #     holdout_set_perf = evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, "test", edit_retriever, embedding_model)
+        #     holdout_accuracy = holdout_set_perf["accuracy"]
+        #     prev_edit_accuracies.append(holdout_accuracy)
 
-            # TODO: Evaluate accuracy on all previous edits and the holdour set.
-            if len(dataset["edits"]) > 0:
-                prev_edits_perf = evaluate_icl_method(
-                    experiment_id, model_name, model, tokenizer, dataset_name, dataset,
-                    icl_method, "edits", edit_retriever, embedding_model)
-                holdout_accuracy = prev_edits_perf["accuracy"]
-                prev_edit_accuracies.append(holdout_accuracy)
+        #     # TODO: Evaluate accuracy on all previous edits and the holdour set.
+        #     if len(dataset["edits"]) > 0:
+        #         prev_edits_perf = evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, "edits", edit_retriever, embedding_model)
+        #         holdout_accuracy = prev_edits_perf["accuracy"]
+        #         prev_edit_accuracies.append(holdout_accuracy)
 
     if not os.path.exists(f"results/{experiment_id}"):
         os.makedirs(f"results/{experiment_id}")
     pd.DataFrame(inference_logs).to_csv(f"results/{experiment_id}/{model_name.replace('/', '-')}-{dataset_name}-{eval_set}-{icl_method}-inference-logs.csv")
     return generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, num_successfull_edits)
 
+
 def get_transferred_input(tokenizer, adaptive_tokenizer, adaptive_model, input_text, exemplars):
     style_transfer_exemplars = "".join([f'"{exemplar["text"].strip()}"\n' for exemplar in exemplars])
-    style_input = input_text.replace('\n', ' ')
+    style_input = input_text.replace("\n", " ")
     task_prompt = f"""Paraphrase the input text into the exact writing style of the following examples while keeping the same semantic meaning.
 Examples:
 {style_transfer_exemplars}
@@ -406,15 +108,16 @@ Input Text: "{style_input}\""""
     tokenized_prompt = adaptive_tokenizer.encode(input_prompts, return_tensors="pt").to("cuda")
     with torch.no_grad():
         outputs = adaptive_model.generate(
-                    tokenized_prompt,
-                    max_new_tokens=500,
-                    length_penalty=0,
-                    early_stopping=True,
-                    do_sample=True,
-                    temperature=0.7,
-                    output_scores=True,
-                    return_dict_in_generate=True,
-                    pad_token_id=tokenizer.eos_token_id)
+            tokenized_prompt,
+            max_new_tokens=500,
+            length_penalty=0,
+            early_stopping=True,
+            do_sample=True,
+            temperature=0.7,
+            output_scores=True,
+            return_dict_in_generate=True,
+            pad_token_id=tokenizer.eos_token_id,
+        )
 
     generation = adaptive_tokenizer.decode(outputs["sequences"][0]).split("\nAssistant:")[1].replace("\n", " ").strip()
     if "###" in generation:
@@ -425,40 +128,6 @@ Input Text: "{style_input}\""""
     print(f"Generation: {generation}")
     input_text = generation
     return input_text
-
-
-def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, num_successfull_edits):
-    if not os.path.exists(f"results/{experiment_id}"):
-        os.makedirs(f"results/{experiment_id}")
-
-    formatted_model_name = model_name.replace("/", "-")
-    report_dict = classification_report([entry["label"] for entry in dataset[eval_set.replace("+adaptive", "")]], original_judgments, output_dict=True)
-    num_edits = len(dataset["edits"]) if "edits" in dataset else -1
-    edit_success_rate = num_successfull_edits / num_edits if num_edits > 0 else -1
-    icl_report = {
-        "dataset": dataset_name,
-        "split": eval_set,
-        "dataset size": len(dataset[eval_set.replace("+adaptive", "")]),
-        "icl_method": icl_method,
-        "model": formatted_model_name,
-        "accuracy": report_dict["accuracy"],
-        "avg precision": report_dict["macro avg"]["precision"],
-        "avg recall": report_dict["macro avg"]["recall"],
-        "avg f1": report_dict["macro avg"]["f1-score"],
-        "num edits": num_edits,
-        "num successfull edits": num_successfull_edits,
-        "edit success rate": edit_success_rate
-    }
-    output_file_name = f"set={dataset_name}_split={eval_set}_method={icl_method}_model={formatted_model_name}"
-
-    if eval_set == "prod":
-        json.dump(icl_report, open(f"results/{experiment_id}/{output_file_name}_report.json", "w+"), indent=4)
-        print(f"Classification Results: {formatted_model_name} {dataset_name} {icl_method}")
-        print(classification_report(data_reader.references, original_judgments))
-        confusion_matrix_fig = ConfusionMatrixDisplay(confusion_matrix=confusion_matrix(data_reader.references, original_judgments))
-        confusion_matrix_fig.figure_.savefig(f"results/{experiment_id}/{output_file_name}_confusion_matrix.png")
-
-    return icl_report
 
 
 def get_model_objects(model_name):
@@ -490,35 +159,29 @@ def main():
         # "mdl"
     ]
     model_names = [
-        "tomh/toxigen_roberta",
+        # "tomh/toxigen_roberta",
         # "TheBloke/vicuna-13B-1.1-HF",
         # "decapoda-research/llama-65b-hf",
         # "decapoda-research/llama-30b-hf",
         # "decapoda-research/llama-7b-hf",
         # "EleutherAI/pythia-2.8b",
         # "EleutherAI/pythia-1b",
-        # "EleutherAI/pythia-410m"
+        "EleutherAI/pythia-410m"
     ]
     reports = []
 
     for model_name in model_names:
         print(f"Loading model {model_name}...")
         tokenizer, model = get_model_objects(model_name)
+
         for dataset_name in dataset_names:
             print(f"Loading dataset {dataset_name}...")
-            dataset = get_formatted_dataset(dataset_name, max_examples=10)
-            for icl_method in baseline_icl_methods:
-                for evaluation_set in ["test+adaptive", "test", "validation"]:
-                    reports.append(evaluate_icl_method(
-                        experiment_id,
-                        model_name,
-                        model,
-                        tokenizer,
-                        dataset_name,
-                        dataset,
-                        icl_method,
-                        evaluation_set))
+            dataset = get_formatted_dataset(dataset_name, max_examples=50)
 
+            for icl_method in baseline_icl_methods:
+                # for evaluation_set in ["test+adaptive", "test", "validation"]:
+                for evaluation_set in ["validation", "test", "test+adaptive"]:
+                    reports.append(evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set))
                     all_reports = pd.DataFrame(reports)
                     print(all_reports)
                     all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
