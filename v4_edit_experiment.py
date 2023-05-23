@@ -1,4 +1,4 @@
-from transformers import AutoTokenizer, LlamaTokenizer, AutoModelForCausalLM, AutoModelForSequenceClassification, AutoConfig
+from transformers import AutoConfig, AutoTokenizer, LlamaTokenizer, AutoModelForCausalLM, AutoModelForSequenceClassification, AutoModelForQuestionAnswering, pipeline
 from sentence_transformers import SentenceTransformer
 from argparse import ArgumentParser
 from openicl import DatasetReader
@@ -9,10 +9,21 @@ import torch
 import os
 
 from data_util import generate_icl_report, get_formatted_dataset
-from icl_util import generate_prompt, get_prompt_template, get_retriever, get_exemplars, get_edit_exemplars
+from icl_util import generate_prompt, get_prompt_template, get_retriever, get_exemplars
 
 
 def get_judgment(model, tokenizer, template, device, exemplars, input_entry, dataset_name):
+    if model.config.architectures[0].endswith("ForQuestionAnswering"):
+        with torch.no_grad():
+            # input_sequence = tokenizer(input_entry["text"], return_tensors="pt").to(device)
+            # outputs = model(**input_sequence)
+            # return outputs.logits.argmax(axis=1)
+            question = input_entry["question"]
+            context = input_entry["text"]
+            question_answerer = pipeline("question-answering", model=model, tokenizer=tokenizer, device="cuda:0")
+            qa_response = question_answerer(question=question, context=context)
+            return qa_response["answer"]
+
     if model.config.architectures[0].endswith("ForSequenceClassification"):
         with torch.no_grad():
             input_sequence = tokenizer(input_entry["text"], return_tensors="pt").to(device)
@@ -76,7 +87,14 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
         if judgment == -1:
             print(f"Warning: {model_name} failed to generate a judgment for the following input: {entry['text']}")
 
-        inference_logs.append({"input": entry["text"], "original_input": entry["text"] if is_adaptive_set else None, "judgment": judgment, "label": entry["label"]})
+        inference_log = {}
+        inference_log["input"] = entry["text"]
+        if is_adaptive_set:
+            inference_log["original_input"] = entry["original_text"]
+        if dataset_name.startswith("squad"):
+            inference_log["question"] = entry["question"]
+        inference_log["label"] = entry["label"]
+        inference_logs.append(inference_log)
 
         # Perform an edit if the model made a mistake. Add the current input text along with the
         # correct label to the edit dataset. Also encode the input text and add it to the edit
@@ -113,7 +131,7 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
 
 
 def get_transferred_input(tokenizer, adaptive_tokenizer, adaptive_model, input_entry, exemplars):
-    style_transfer_exemplars = "".join([f'"{exemplar["text"].strip()}"\n' for exemplar in exemplars])
+    style_transfer_exemplars = "".join([f'{exemplar["text"].strip()}\n' for exemplar in exemplars])
     style_input = input_entry["text"].replace("\n", " ")
     task_prompt = f"""Paraphrase the input text into the exact writing style of the following examples while keeping the same semantic meaning.
 Examples:
@@ -134,7 +152,7 @@ Input Text: "{style_input}\""""
             pad_token_id=tokenizer.eos_token_id,
         )
 
-    generation = adaptive_tokenizer.decode(outputs["sequences"][0]).split("\nAssistant:")[1].replace("\n", " ").strip()
+    generation = adaptive_tokenizer.decode(outputs["sequences"][0]).split("\nAssistant:")[1].replace("\n", " ").replace("</s>", "").strip()
     if "###" in generation:
         generation = generation.split("###")[0]
     if "</s>" in generation:
@@ -146,12 +164,16 @@ Input Text: "{style_input}\""""
 
 
 def get_model_objects(model_name):
-    is_llm = not AutoConfig.from_pretrained(model_name).architectures[0].endswith("ForSequenceClassification")
+    is_qa_model = AutoConfig.from_pretrained(model_name).architectures[0].endswith("ForQuestionAnswering")
+    is_llm = AutoConfig.from_pretrained(model_name).architectures[0].endswith("ForCausalLM")
     is_llama_based_model = is_llm and "llama" in model_name or "vicuna" in model_name
     tokenizer = LlamaTokenizer.from_pretrained(model_name) if is_llama_based_model else AutoTokenizer.from_pretrained(model_name)
     model = None
     if is_llm:
         model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto").eval()
+    elif is_qa_model:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        model = AutoModelForQuestionAnswering.from_pretrained(model_name, torch_dtype=torch.float16).eval().to(device)
     else:
         model = AutoModelForSequenceClassification.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto").eval()
     return tokenizer, model
@@ -168,6 +190,7 @@ def main():
     experiment_id = f"edit_experiment_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     dataset_names = args.dataset.split(",") if args.dataset is not None else [
         "squadshifts_reddit",
+        "squadshifts_amazon",
         "rotten_tomatoes_imdb",
         "civil_toxigen",
         "scotus",
@@ -181,6 +204,7 @@ def main():
         # "mdl"
     ]
     model_names = args.model.split(",") if args.model is not None else [
+        "csarron/bert-base-uncased-squad-v1",
         "TheBloke/vicuna-13B-1.1-HF",
         "decapoda-research/llama-65b-hf",
         "decapoda-research/llama-30b-hf",
