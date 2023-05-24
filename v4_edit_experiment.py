@@ -26,12 +26,12 @@ def get_judgment(model, tokenizer, template, device, exemplars, input_entry, dat
 
     if model.config.architectures[0].endswith("ForSequenceClassification"):
         with torch.no_grad():
-            input_sequence = tokenizer(input_entry["text"], return_tensors="pt").to(device)
+            input_sequence = tokenizer(input_entry["text"], return_tensors="pt", truncation=True).to(device)
             outputs = model(**input_sequence)
             return int(outputs.logits.argmax(axis=1))
 
     is_qa_task = dataset_name.startswith("squad")
-    prompts = generate_prompt(model.name_or_path, template, exemplars, input_entry, dataset_name)
+    prompts = generate_prompt(model.name_or_path, template, exemplars, input_entry["text"], dataset_name)
     tokenized_prompt = tokenizer.encode(prompts, return_tensors="pt").to(device)
     with torch.no_grad():
         outputs = model.generate(
@@ -80,7 +80,7 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
         exemplars = get_exemplars(entry["text"], dataset_name, exemplar_retriever)
         if is_adaptive_set:
             entry["original_text"] = entry["text"]
-            entry["text"] = get_transferred_input(tokenizer, adaptive_tokenizer, adaptive_model, entry, exemplars)
+            entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars)
 
         judgment = get_judgment(model, tokenizer, template, device, exemplars, entry, dataset_name)
         original_judgments.append(judgment)
@@ -93,6 +93,7 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
             inference_log["original_input"] = entry["original_text"]
         if dataset_name.startswith("squad"):
             inference_log["question"] = entry["question"]
+        inference_log["judgment"] = judgment
         inference_log["label"] = entry["label"]
         inference_logs.append(inference_log)
 
@@ -130,10 +131,10 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
     return generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, num_successfull_edits)
 
 
-def get_transferred_input(tokenizer, adaptive_tokenizer, adaptive_model, input_entry, exemplars):
-    style_transfer_exemplars = "".join([f'{exemplar["text"].strip()}\n' for exemplar in exemplars])
+def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemplars):
+    style_transfer_exemplars = "".join([f'"{exemplar["text"].strip()}"\n' for exemplar in exemplars])
     style_input = input_entry["text"].replace("\n", " ")
-    task_prompt = f"""Paraphrase the input text into the exact writing style of the following examples while keeping the same semantic meaning.
+    task_prompt = f"""Paraphrase the input text into the exact writing style of the following examples while keeping the same semantic meaning. Keep all facts and information.
 Examples:
 {style_transfer_exemplars}
 Input Text: "{style_input}\""""
@@ -145,11 +146,11 @@ Input Text: "{style_input}\""""
             max_new_tokens=500,
             length_penalty=0,
             early_stopping=True,
-            do_sample=True,
-            temperature=0.7,
-            output_scores=True,
+            # do_sample=True,
+            # temperature=0.7,
+            # output_scores=True,
             return_dict_in_generate=True,
-            pad_token_id=tokenizer.eos_token_id,
+            # pad_token_id=adaptive_tokenizer.eos_token_id,
         )
 
     generation = adaptive_tokenizer.decode(outputs["sequences"][0]).split("\nAssistant:")[1].replace("\n", " ").replace("</s>", "").strip()
@@ -157,6 +158,8 @@ Input Text: "{style_input}\""""
         generation = generation.split("###")[0]
     if "</s>" in generation:
         generation = generation.split("</s>")[0]
+    if generation.startswith('"') and generation.endswith('"'):
+        generation = generation[1:-1]
 
     print(f"Generation: {generation}")
     input_text = generation
@@ -169,13 +172,13 @@ def get_model_objects(model_name):
     is_llama_based_model = is_llm and "llama" in model_name or "vicuna" in model_name
     tokenizer = LlamaTokenizer.from_pretrained(model_name) if is_llama_based_model else AutoTokenizer.from_pretrained(model_name)
     model = None
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     if is_llm:
         model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto").eval()
     elif is_qa_model:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
         model = AutoModelForQuestionAnswering.from_pretrained(model_name, torch_dtype=torch.float16).eval().to(device)
     else:
-        model = AutoModelForSequenceClassification.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto").eval()
+        model = AutoModelForSequenceClassification.from_pretrained(model_name, torch_dtype=torch.float16).eval().to(device)
     return tokenizer, model
 
 
@@ -183,6 +186,7 @@ def main():
     parser = ArgumentParser()
     parser.add_argument("--model", type=str, default=None)
     parser.add_argument("--dataset", type=str, default=None)
+    parser.add_argument("--splits", type=str, default=None)
     parser.add_argument("--icl_method", type=str, default=None)
     parser.add_argument("--max_examples", type=int, default=None)
     args = parser.parse_args()
@@ -191,6 +195,7 @@ def main():
     dataset_names = args.dataset.split(",") if args.dataset is not None else [
         "squadshifts_reddit",
         "squadshifts_amazon",
+        "imdb_rotten_tomatoes",
         "rotten_tomatoes_imdb",
         "civil_toxigen",
         "scotus",
@@ -203,6 +208,7 @@ def main():
         "topk",
         # "mdl"
     ]
+    splits = args.splits.split(",") if args.splits is not None else ["validation", "test", "test+adaptive"]
     model_names = args.model.split(",") if args.model is not None else [
         "csarron/bert-base-uncased-squad-v1",
         "TheBloke/vicuna-13B-1.1-HF",
@@ -219,6 +225,7 @@ def main():
     print("Running experiment with the following parameters:")
     print(f"Experiment ID: {experiment_id}")
     print(f"Dataset Names: {dataset_names}")
+    print(f"Evalaution Splits: {splits}")
     print(f"ICL Methods: {icl_methods}")
     print(f"Model Names: {model_names}")
     print(f"Max Examples: {args.max_examples}")
@@ -234,7 +241,7 @@ def main():
             dataset = get_formatted_dataset(dataset_name, max_examples=args.max_examples)
 
             for icl_method in icl_methods:
-                for evaluation_set in ["validation", "test", "test+adaptive"]:
+                for evaluation_set in splits:
                     reports.append(evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set))
                     all_reports = pd.DataFrame(reports)
                     print(all_reports)

@@ -5,7 +5,24 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "V4 Experiment",
+            "name": "SQuAD",
+            "type": "python",
+            "request": "launch",
+            "program": "v4_edit_experiment.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                // "CUDA_VISIBLE_DEVICES": "1"
+                "CUDA_VISIBLE_DEVICES": "4,5,6,7"
+            },
+            "args": [
+                "--max_examples=100",
+                "--model=decapoda-research/llama-65b-hf,csarron/bert-base-uncased-squad-v1",
+                "--dataset=squadshifts_reddit,squadshifts_amazon,squadshifts_nyt"
+            ]
+        },
+        {
+            "name": "Sentiment",
             "type": "python",
             "request": "launch",
             "program": "v4_edit_experiment.py",
@@ -17,8 +34,10 @@
             },
             "args": [
                 "--max_examples=50",
-                "--model=csarron/bert-base-uncased-squad-v1",
-                "--dataset=squadshifts_reddit,squadshifts_amazon,squadshifts_nyt"
+                // "--model=lvwerra/distilbert-imdb,decapoda-research/llama-65b-hf",
+                "--model=decapoda-research/llama-7b-hf",
+                "--dataset=imdb_rotten_tomatoes",
+                "--icl_method=topk",
             ]
         },
         {

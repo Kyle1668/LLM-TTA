@@ -12,7 +12,8 @@ def get_num_shots(dataset_name):
         "disaster_tweets": 32,
         "wilds_civil_comments": 16,
         "civil_toxigen": 16,
-        "rotten_tomatoes_imdb": 16,
+        "rotten_tomatoes_imdb": 4,
+        "imdb_rotten_tomatoes": 4,
         "wilds_amazon": 16,
         "scotus": 4
     }
@@ -42,7 +43,8 @@ def get_prompt_template(dataset_name):
         "disaster_tweets": 2,
         "wilds_civil_comments": 2,
         "civil_toxigen": 2,
-        "rotten_tomatoes_imdb": 8,
+        "rotten_tomatoes_imdb": 2,
+        "imdb_rotten_tomatoes": 2,
         "wilds_amazon": 5,
         "scotus": 11}
 
@@ -72,13 +74,13 @@ def generate_classification_prompt(input_text, exemplars, template, dataset_name
         if exemplars[i]["text"] == "" or exemplars[i]["text"] == None:
             continue
         formatted_exemplars.append(
-            {"label": exemplars[i]["label"], "text": (" ".join(exemplars[i]["text"].split()[:200]) if len(exemplars[i]["text"].split()) >= 200 else exemplars[i]["text"]).replace("\n", " ").lstrip()}
+            {"label": exemplars[i]["label"], "text": (" ".join(exemplars[i]["text"].split()[:500]) if len(exemplars[i]["text"].split()) >= 500 else exemplars[i]["text"]).replace("\n", " ").lstrip()}
         )
 
     instructions = json.load(open("prompts/instructions.json", encoding="utf-8"))[dataset_name]
     formatted_instructions = f"Task: {instructions}"
     prompt_lines = [formatted_instructions] + ["\n" + template.generate_ice_item(entry, entry["label"]).replace("\n", " ").lstrip() for entry in reversed(formatted_exemplars)]
-    formatted_input_text = " ".join(input_text.split()[:200]) if len(input_text.split()) >= 200 else input_text
+    formatted_input_text = " ".join(input_text.split()[:500]) if len(input_text.split()) >= 500 else input_text
     prompt_lines.append("\n" + formatted_input_text.replace("\n", " ") + " - Catagory=")
     prompt = "\n".join(prompt_lines).replace("</s>", " ")
     return prompt
