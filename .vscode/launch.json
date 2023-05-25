@@ -34,10 +34,11 @@
             },
             "args": [
                 "--max_examples=50",
-                // "--model=lvwerra/distilbert-imdb,decapoda-research/llama-65b-hf",
-                "--model=decapoda-research/llama-7b-hf",
+                "--model=lvwerra/distilbert-imdb,decapoda-research/llama-65b-hf",
+                // "--model=decapoda-research/llama-7b-hf",
                 "--dataset=imdb_rotten_tomatoes",
                 "--icl_method=topk",
+                "--split=test+adaptive"
             ]
         },
         {

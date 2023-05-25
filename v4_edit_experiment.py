@@ -132,7 +132,8 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
 
 
 def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemplars):
-    style_transfer_exemplars = "".join([f'"{exemplar["text"].strip()}"\n' for exemplar in exemplars])
+    input_token_len = len(adaptive_tokenizer.encode(input_entry["text"]))
+    style_transfer_exemplars = "".join([f'"{exemplar["text"][:input_token_len * 5].strip()}"\n' for exemplar in exemplars])
     style_input = input_entry["text"].replace("\n", " ")
     task_prompt = f"""Paraphrase the input text into the exact writing style of the following examples while keeping the same semantic meaning. Keep all facts and information.
 Examples:
@@ -143,11 +144,11 @@ Input Text: "{style_input}\""""
     with torch.no_grad():
         outputs = adaptive_model.generate(
             tokenized_prompt,
-            max_new_tokens=500,
+            max_new_tokens=300,
             length_penalty=0,
             early_stopping=True,
-            # do_sample=True,
-            # temperature=0.7,
+            do_sample=True,
+            temperature=0.2,
             # output_scores=True,
             return_dict_in_generate=True,
             # pad_token_id=adaptive_tokenizer.eos_token_id,
