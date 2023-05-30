@@ -22,7 +22,7 @@
             ]
         },
         {
-            "name": "Sentiment",
+            "name": "IMDB_RT",
             "type": "python",
             "request": "launch",
             "program": "v4_edit_experiment.py",
@@ -34,11 +34,31 @@
             },
             "args": [
                 "--max_examples=50",
-                "--model=lvwerra/distilbert-imdb,decapoda-research/llama-65b-hf",
-                // "--model=decapoda-research/llama-7b-hf",
+                // "--model=lvwerra/distilbert-imdb,decapoda-research/llama-65b-hf",
+                "--model=lvwerra/bert-imdb",
                 "--dataset=imdb_rotten_tomatoes",
                 "--icl_method=topk",
-                "--split=test+adaptive"
+                // "--split=test+adaptive"
+            ]
+        },
+        {
+            "name": "Adv SST2",
+            "type": "python",
+            "request": "launch",
+            "program": "v4_edit_experiment.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                // "CUDA_VISIBLE_DEVICES": "1"
+                "CUDA_VISIBLE_DEVICES": "4,5,6,7"
+            },
+            "args": [
+                // "--max_examples=50",
+                // "--model=lvwerra/distilbert-imdb,decapoda-research/llama-65b-hf",
+                "--model=assemblyai/distilbert-base-uncased-sst2,philschmid/tiny-bert-sst2-distilled,philschmid/roberta-large-sst2,TheBloke/vicuna-13B-1.1-HF",
+                "--dataset=adv_sst2",
+                "--icl_method=mdl,random,topk",
+                // "--split=test+adaptive"
             ]
         },
         {

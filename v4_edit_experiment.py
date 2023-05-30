@@ -1,4 +1,14 @@
-from transformers import AutoConfig, AutoTokenizer, LlamaTokenizer, AutoModelForCausalLM, AutoModelForSequenceClassification, AutoModelForQuestionAnswering, pipeline
+from transformers import (
+    AutoConfig,
+    AutoTokenizer,
+    LlamaTokenizer,
+    AutoModelForCausalLM,
+    AutoModelForSequenceClassification,
+    GPT2ForSequenceClassification,
+    AutoModelForQuestionAnswering,
+    AutoModelForSeq2SeqLM,
+    pipeline
+)
 from sentence_transformers import SentenceTransformer
 from argparse import ArgumentParser
 from openicl import DatasetReader
@@ -24,7 +34,7 @@ def get_judgment(model, tokenizer, template, device, exemplars, input_entry, dat
             qa_response = question_answerer(question=question, context=context)
             return qa_response["answer"]
 
-    if model.config.architectures[0].endswith("ForSequenceClassification"):
+    if type(model).__name__.endswith("ForSequenceClassification"):
         with torch.no_grad():
             input_sequence = tokenizer(input_entry["text"], return_tensors="pt", truncation=True).to(device)
             outputs = model(**input_sequence)
@@ -52,7 +62,8 @@ def get_judgment(model, tokenizer, template, device, exemplars, input_entry, dat
             generation += token
 
     try:
-        return generation if is_qa_task else int(generation)
+        # generation = generation.replace("</s>", "") if "vicuna" in model.name_or_path else generation
+        return generation if is_qa_task else int(generation.strip()[0])
     except:
         print(f"Error: {generation} - unable to convert to int")
         return -1
@@ -147,11 +158,7 @@ Input Text: "{style_input}\""""
             max_new_tokens=300,
             length_penalty=0,
             early_stopping=True,
-            do_sample=True,
-            temperature=0.2,
-            # output_scores=True,
             return_dict_in_generate=True,
-            # pad_token_id=adaptive_tokenizer.eos_token_id,
         )
 
     generation = adaptive_tokenizer.decode(outputs["sequences"][0]).split("\nAssistant:")[1].replace("\n", " ").replace("</s>", "").strip()
@@ -168,8 +175,9 @@ Input Text: "{style_input}\""""
 
 
 def get_model_objects(model_name):
-    is_qa_model = AutoConfig.from_pretrained(model_name).architectures[0].endswith("ForQuestionAnswering")
-    is_llm = AutoConfig.from_pretrained(model_name).architectures[0].endswith("ForCausalLM")
+    model_config = AutoConfig.from_pretrained(model_name)
+    is_qa_model = model_config.architectures[0].endswith("ForQuestionAnswering")
+    is_llm = model_config.architectures[0].endswith("ForCausalLM")
     is_llama_based_model = is_llm and "llama" in model_name or "vicuna" in model_name
     tokenizer = LlamaTokenizer.from_pretrained(model_name) if is_llama_based_model else AutoTokenizer.from_pretrained(model_name)
     model = None
@@ -205,9 +213,9 @@ def main():
         "wilds_civil_comments",
     ]
     icl_methods = args.icl_method.split(",") if args.icl_method is not None else [
-        "random",
-        "topk",
-        # "mdl"
+        # "random",
+        # "topk",
+        "mdl"
     ]
     splits = args.splits.split(",") if args.splits is not None else ["validation", "test", "test+adaptive"]
     model_names = args.model.split(",") if args.model is not None else [

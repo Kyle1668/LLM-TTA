@@ -4,6 +4,7 @@
   "amazon_polarity": "Return 1 if the following sequence is a positive review, 0 otherwise.",
   "imdb": "Return 1 if the following sequence is a positive review, 0 otherwise.",
   "sst2": "Return 1 if the sentiment of the text is positive, 0 otherwise.",
+  "adv_sst2": "Return 1 if the sentiment of the text is positive, 0 otherwise.",
   "rotten_tomatoes_imdb": "Return 1 if the sentiment of the text is positive, 0 otherwise.",
   "imdb_rotten_tomatoes": "Return 1 if the sentiment of the text is positive, 0 otherwise.",
   "wilds_civil_comments": "Given a piece of text, your task is to classify whether it contains hate speech or not. If the text does not contain hate speech, return 0. If it does contain hate speech, return 1.",

@@ -65,6 +65,7 @@ def get_formatted_dataset(set_name, max_examples=None):
         "disaster_tweets": ("text", "target"),
         "amazon_polarity": ("content", "label"),
         "imdb": ("text", "label"),
+        "adv_sst2": ("sentence", "label"),
         "sst2": ("sentence", "label"),
         "ag_news": ("text", "label"),
         "squad": ("context", "answers", "question"),
@@ -80,6 +81,8 @@ def get_formatted_dataset(set_name, max_examples=None):
         hf_dataset = load_shifted_agnews_dataset()
     elif set_name == "civil_toxigen":
         hf_dataset = load_civil_comments_and_toxigen_dataset()
+    elif set_name == "adv_sst2":
+        hf_dataset = load_adv_sst2()
     elif set_name == "rotten_tomatoes_imdb":
         hf_dataset = DatasetDict({"train": load_dataset("rotten_tomatoes", split="train"), "test": load_dataset("imdb", split="test")})
     elif set_name == "imdb_rotten_tomatoes":
@@ -107,7 +110,7 @@ def get_formatted_dataset(set_name, max_examples=None):
             # TODO: Verify best way to combine answers: " ".join(hf_dataset["test"][0]["label"]["text"])
             hf_dataset[split] = hf_dataset[split].map(lambda x: {"label": x["label"]["text"][0]})
 
-    # Create a validation set from the same distirbution as the train set - if none already exist
+    # Create a validation set from the same dist as the train set - if none already exist
     if "validation" not in hf_dataset.keys():
         train_set = hf_dataset["train"].to_pandas()
         validation_set = train_set.sample(frac=0.2)
@@ -159,6 +162,19 @@ def load_civil_comments_and_toxigen_dataset() -> DatasetDict:
         {
             "train": formatted_toxigen,
             "test": civil_comments["test"],
+        }
+    )
+
+
+def load_adv_sst2() -> DatasetDict:
+    original_dist_train = load_dataset("sst2", split="train")
+    original_dist_eval = load_dataset("sst2", split="validation")
+    adversarial_dist = load_dataset("adv_glue", "adv_sst2")["validation"]
+    return DatasetDict(
+        {
+            "train": original_dist_train,
+            "validation": original_dist_eval,
+            "test": adversarial_dist,
         }
     )
 
