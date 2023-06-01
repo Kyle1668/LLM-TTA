@@ -7,7 +7,7 @@ from transformers import (
     GPT2ForSequenceClassification,
     AutoModelForQuestionAnswering,
     AutoModelForSeq2SeqLM,
-    pipeline
+    pipeline,
 )
 from sentence_transformers import SentenceTransformer
 from argparse import ArgumentParser
@@ -45,13 +45,8 @@ def get_judgment(model, tokenizer, template, device, exemplars, input_entry, dat
     tokenized_prompt = tokenizer.encode(prompts, return_tensors="pt").to(device)
     with torch.no_grad():
         outputs = model.generate(
-            tokenized_prompt,
-            max_new_tokens=50 if is_qa_task else 3,
-            length_penalty=0,
-            early_stopping=True,
-            output_scores=True,
-            return_dict_in_generate=True,
-            pad_token_id=tokenizer.eos_token_id)
+            tokenized_prompt, max_new_tokens=50 if is_qa_task else 3, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id
+        )
 
         generation = ""
         for score_tuple in outputs["scores"]:
@@ -69,26 +64,37 @@ def get_judgment(model, tokenizer, template, device, exemplars, input_entry, dat
         return -1
 
 
-def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, edit_retriever=None, embedding_model=None):
-    template = get_prompt_template(dataset_name)
+def should_get_exemplars(model, eval_set_name):
+    if model.config.architectures[0].endswith("ForCausalLM"):
+        return True
+    if eval_set_name.endswith("+adaptive"):
+        return True
+    return False
+
+
+def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, adaptive_model_name):
+    should_retrieve_exemplars = should_get_exemplars(model, eval_set)
+    icl_method = icl_method if should_retrieve_exemplars else None
+    template = get_prompt_template(dataset_name) if should_retrieve_exemplars else None
     data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
-    exemplar_retriever = get_retriever(icl_method, data_reader, dataset_name)
-    edit_retriever = get_retriever("kne", data_reader, dataset_name) if edit_retriever is None else edit_retriever
+    exemplar_retriever = get_retriever(icl_method, data_reader, dataset_name) if should_retrieve_exemplars else None
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    embedding_model = SentenceTransformer("all-mpnet-base-v2").to(device) if embedding_model is None else embedding_model
     original_judgments = []
     num_successfull_edits = 0
-    prev_edit_accuracies = []
     inference_logs = []
+
     is_adaptive_set = eval_set.endswith("+adaptive")
     adaptive_tokenizer = None
     adaptive_model = None
     if is_adaptive_set:
-        adaptive_tokenizer = LlamaTokenizer.from_pretrained("TheBloke/vicuna-13B-1.1-HF")
-        adaptive_model = AutoModelForCausalLM.from_pretrained("TheBloke/vicuna-13B-1.1-HF", device_map="auto", torch_dtype=torch.float16).eval()
+        adaptive_tokenizer, adaptive_model = get_model_objects(adaptive_model_name)
+        # adaptive_tokenizer = LlamaTokenizer.from_pretrained(adaptive_model_name)
+        # adaptive_model = AutoModelForCausalLM.from_pretrained(adaptive_model_name, device_map="auto", trust_remote_code=True, torch_dtype=torch.float16).eval()
 
-    for entry in tqdm(dataset[eval_set.replace("+adaptive", "")], desc=f"Evaluating {dataset_name}-{eval_set} with {model_name} using {icl_method}"):
-        exemplars = get_exemplars(entry["text"], dataset_name, exemplar_retriever)
+    description = f"Evaluating {dataset_name}-{eval_set} with {model_name} using {icl_method}"
+    description =  f"{description} and {adaptive_model_name} for style transfer" if is_adaptive_set else description
+    for entry in tqdm(dataset[eval_set.replace("+adaptive", "")], desc=description):
+        exemplars = get_exemplars(entry["text"], dataset_name, exemplar_retriever) if should_retrieve_exemplars else None
         if is_adaptive_set:
             entry["original_text"] = entry["text"]
             entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars)
@@ -108,38 +114,10 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
         inference_log["label"] = entry["label"]
         inference_logs.append(inference_log)
 
-        # Perform an edit if the model made a mistake. Add the current input text along with the
-        # correct label to the edit dataset. Also encode the input text and add it to the edit
-        # retriever's index. Lastly, evaluate whether adding the current input to the prompt
-        # along with other edits results in a correct judgment.
-        # if eval_set == "prod" and judgment != input_label and False:
-        #     if "edits" in dataset:
-        #         dataset["edits"].append(entry)
-        #     else:
-        #         dataset["edits"] = [entry]
-
-        #     input_sequence_embedding = embedding_model.encode([input_text], convert_to_numpy=True)
-        #     edit_retriever.add_with_ids(input_sequence_embedding, np.array([len(dataset["edits"]) - 1]))
-        #     edit_exemplars = get_edit_exemplars(dataset, edit_retriever, input_sequence_embedding, exemplar_count, exemplars)
-        #     edit_judgment = get_judgment(model, tokenizer, template, device, edit_exemplars, input_text)
-        #     if edit_judgment == input_label:
-        #         num_successfull_edits += 1
-
-        #     # Record accuracy on the holdout test set
-        #     holdout_set_perf = evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, "test", edit_retriever, embedding_model)
-        #     holdout_accuracy = holdout_set_perf["accuracy"]
-        #     prev_edit_accuracies.append(holdout_accuracy)
-
-        #     # TODO: Evaluate accuracy on all previous edits and the holdour set.
-        #     if len(dataset["edits"]) > 0:
-        #         prev_edits_perf = evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, "edits", edit_retriever, embedding_model)
-        #         holdout_accuracy = prev_edits_perf["accuracy"]
-        #         prev_edit_accuracies.append(holdout_accuracy)
-
     if not os.path.exists(f"results/{experiment_id}"):
         os.makedirs(f"results/{experiment_id}")
     pd.DataFrame(inference_logs).to_csv(f"results/{experiment_id}/{model_name.replace('/', '-')}-{dataset_name}-{eval_set}-{icl_method}-inference-logs.csv")
-    return generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, num_successfull_edits)
+    return generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, adaptive_model_name)
 
 
 def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemplars):
@@ -149,23 +127,35 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
     task_prompt = f"""Paraphrase the input text into the exact writing style of the following examples while keeping the same semantic meaning. Keep all facts and information.
 Examples:
 {style_transfer_exemplars}
+Now rewriter the current input text into the same style as the examples. Only return the new text.
 Input Text: "{style_input}\""""
-    input_prompts = f"User: {task_prompt}\nAssistant:"
+    input_prompts = f"User: {task_prompt}\nAssistant:" if "vicuna" in adaptive_model.config.name_or_path else task_prompt
     tokenized_prompt = adaptive_tokenizer.encode(input_prompts, return_tensors="pt").to("cuda")
     with torch.no_grad():
         outputs = adaptive_model.generate(
             tokenized_prompt,
             max_new_tokens=300,
             length_penalty=0,
+            repetition_penalty=1.0,
             early_stopping=True,
             return_dict_in_generate=True,
         )
 
-    generation = adaptive_tokenizer.decode(outputs["sequences"][0]).split("\nAssistant:")[1].replace("\n", " ").replace("</s>", "").strip()
+    # generation = adaptive_tokenizer.decode(outputs["sequences"][0]).split("\nAssistant:")[1].replace("\n", " ").replace("</s>", "").strip()
+    generation = adaptive_tokenizer.decode(outputs["sequences"][0][len(tokenized_prompt[0]):]).replace("\n", " ").replace("</s>", "").strip()
+
     if "###" in generation:
         generation = generation.split("###")[0]
+    if " Text:" in generation:
+        generation = generation.split(" Text:")[1].strip()
     if "</s>" in generation:
         generation = generation.split("</s>")[0]
+    if "<s>" in generation:
+        generation = generation.replace("<s>", " ").strip()
+    if generation.startswith('"') and generation.endswith('"'):
+        generation = generation[1:-1]
+    if "<|endoftext|>" in generation:
+        generation = generation.split("<|endoftext|>")[0]
     if generation.startswith('"') and generation.endswith('"'):
         generation = generation[1:-1]
 
@@ -175,7 +165,7 @@ Input Text: "{style_input}\""""
 
 
 def get_model_objects(model_name):
-    model_config = AutoConfig.from_pretrained(model_name)
+    model_config = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
     is_qa_model = model_config.architectures[0].endswith("ForQuestionAnswering")
     is_llm = model_config.architectures[0].endswith("ForCausalLM")
     is_llama_based_model = is_llm and "llama" in model_name or "vicuna" in model_name
@@ -183,11 +173,11 @@ def get_model_objects(model_name):
     model = None
     device = "cuda" if torch.cuda.is_available() else "cpu"
     if is_llm:
-        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto").eval()
+        model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, torch_dtype=torch.float16, device_map="auto").eval()
     elif is_qa_model:
-        model = AutoModelForQuestionAnswering.from_pretrained(model_name, torch_dtype=torch.float16).eval().to(device)
+        model = AutoModelForQuestionAnswering.from_pretrained(model_name, trust_remote_code=True, torch_dtype=torch.float16).eval().to(device)
     else:
-        model = AutoModelForSequenceClassification.from_pretrained(model_name, torch_dtype=torch.float16).eval().to(device)
+        model = AutoModelForSequenceClassification.from_pretrained(model_name, trust_remote_code=True, torch_dtype=torch.float16).eval().to(device)
     return tokenizer, model
 
 
@@ -197,38 +187,62 @@ def main():
     parser.add_argument("--dataset", type=str, default=None)
     parser.add_argument("--splits", type=str, default=None)
     parser.add_argument("--icl_method", type=str, default=None)
+    parser.add_argument("--adaptive_model", type=str, default=None)
     parser.add_argument("--max_examples", type=int, default=None)
     args = parser.parse_args()
 
     experiment_id = f"edit_experiment_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
-    dataset_names = args.dataset.split(",") if args.dataset is not None else [
-        "squadshifts_reddit",
-        "squadshifts_amazon",
-        "imdb_rotten_tomatoes",
-        "rotten_tomatoes_imdb",
-        "civil_toxigen",
-        "scotus",
-        "ag_news",
-        "wilds_amazon",
-        "wilds_civil_comments",
-    ]
-    icl_methods = args.icl_method.split(",") if args.icl_method is not None else [
-        # "random",
-        # "topk",
-        "mdl"
-    ]
+    dataset_names = (
+        args.dataset.split(",")
+        if args.dataset is not None
+        else [
+            "squadshifts_reddit",
+            "squadshifts_amazon",
+            "imdb_rotten_tomatoes",
+            "rotten_tomatoes_imdb",
+            "civil_toxigen",
+            "scotus",
+            "ag_news",
+            "wilds_amazon",
+            "wilds_civil_comments",
+        ]
+    )
+    icl_methods = (
+        args.icl_method.split(",")
+        if args.icl_method is not None
+        else [
+            # "random",
+            # "topk",
+            "mdl"
+        ]
+    )
     splits = args.splits.split(",") if args.splits is not None else ["validation", "test", "test+adaptive"]
-    model_names = args.model.split(",") if args.model is not None else [
-        "csarron/bert-base-uncased-squad-v1",
-        "TheBloke/vicuna-13B-1.1-HF",
-        "decapoda-research/llama-65b-hf",
-        "decapoda-research/llama-30b-hf",
-        "decapoda-research/llama-7b-hf",
-        "EleutherAI/pythia-2.8b",
-        "EleutherAI/pythia-1b",
-        "EleutherAI/pythia-410m",
-        "tomh/toxigen_roberta"
-    ]
+    adaptive_model_names = (
+        args.adaptive_model.split(",")
+        if args.adaptive_model is not None
+        else [
+            "tiiuae/falcon-7b-instruct",
+            "TheBloke/vicuna-7B-1.1-HF",
+            "TheBloke/vicuna-13B-1.1-HF",
+        ]
+    )
+    model_names = (
+        args.model.split(",")
+        if args.model is not None
+        else [
+            "csarron/bert-base-uncased-squad-v1",
+            "TheBloke/vicuna-13B-1.1-HF",
+            "decapoda-research/llama-65b-hf",
+            "decapoda-research/llama-30b-hf",
+            "decapoda-research/llama-7b-hf",
+            "EleutherAI/pythia-2.8b",
+            "EleutherAI/pythia-1b",
+            "EleutherAI/pythia-410m",
+            "tomh/toxigen_roberta",
+        ]
+    )
+    # Also evaluate models used for sytle transfer
+    model_names = model_names + adaptive_model_names
 
     print("--------------------------------------------------")
     print("Running experiment with the following parameters:")
@@ -236,7 +250,8 @@ def main():
     print(f"Dataset Names: {dataset_names}")
     print(f"Evalaution Splits: {splits}")
     print(f"ICL Methods: {icl_methods}")
-    print(f"Model Names: {model_names}")
+    print(f"Task Model Names: {model_names}")
+    print(f"Style Model Names: {adaptive_model_names}")
     print(f"Max Examples: {args.max_examples}")
     print("--------------------------------------------------\n")
 
@@ -251,10 +266,17 @@ def main():
 
             for icl_method in icl_methods:
                 for evaluation_set in splits:
-                    reports.append(evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set))
-                    all_reports = pd.DataFrame(reports)
-                    print(all_reports)
-                    all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                    if evaluation_set == "test+adaptive":
+                        for adaptive_model_name in adaptive_model_names:
+                            reports.append(evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, adaptive_model_name))
+                            all_reports = pd.DataFrame(reports).drop_duplicates()
+                            print(all_reports)
+                            all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                    else:
+                        reports.append(evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, None))
+                        all_reports = pd.DataFrame(reports).drop_duplicates()
+                        print(all_reports)
+                        all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
 
 
 if __name__ == "__main__":

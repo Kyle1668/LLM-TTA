@@ -21,7 +21,7 @@ def qa_report(model_answers, gold_answers):
     return { "f1-score": mean_f1, "exact match rate": exact_match_rate }
 
 
-def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, num_successfull_edits):
+def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, adaptive_model_name):
     if not os.path.exists(f"results/{experiment_id}"):
         os.makedirs(f"results/{experiment_id}")
 
@@ -29,22 +29,23 @@ def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eva
     formatted_model_name = model_name.replace("/", "-")
     gold_labels = [entry["label"] for entry in dataset[eval_set.replace("+adaptive", "")]]
     report_dict = qa_report(original_judgments, gold_labels) if is_qa_task else classification_report(gold_labels, original_judgments, output_dict=True)
-    num_edits = len(dataset["edits"]) if "edits" in dataset else None
-    edit_success_rate = num_successfull_edits / num_edits if num_edits is not None and num_edits > 0 else None
+    reported_name_map = {
+        "validation": "In-Distribution",
+        "test": "Out-of-Distribution",
+        "test+adaptive": "OOD w/ Style Transfer"
+    }
     icl_report = {
         "dataset": dataset_name,
-        "split": eval_set,
+        "split": reported_name_map[eval_set],
         "dataset size": len(dataset[eval_set.replace("+adaptive", "")]),
         "icl_method": icl_method,
-        "model": formatted_model_name,
+        "task model": formatted_model_name,
+        "style transfer model": adaptive_model_name if eval_set == "test+adaptive" else None,
         "accuracy": report_dict["accuracy"] if not is_qa_task else None,
         "avg precision": report_dict["macro avg"]["precision"] if not is_qa_task else None,
         "avg recall": report_dict["macro avg"]["recall"] if not is_qa_task else None,
         "avg f1": report_dict["macro avg"]["f1-score"] if not is_qa_task else report_dict["f1-score"],
         "exact match rate": report_dict["exact match rate"] if is_qa_task else None,
-        "num edits": num_edits,
-        "num successfull edits": num_successfull_edits,
-        "edit success rate": edit_success_rate,
     }
     output_file_name = f"set={dataset_name}_split={eval_set}_method={icl_method}_model={formatted_model_name}"
 

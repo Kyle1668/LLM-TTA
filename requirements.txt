@@ -13,3 +13,4 @@ black
 pylint
 openicl
 wilds
+einops
