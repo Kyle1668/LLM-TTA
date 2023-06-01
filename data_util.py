@@ -21,7 +21,7 @@ def qa_report(model_answers, gold_answers):
     return { "f1-score": mean_f1, "exact match rate": exact_match_rate }
 
 
-def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, adaptive_model_name):
+def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, adaptive_model_name, num_shots, num_failed_generations):
     if not os.path.exists(f"results/{experiment_id}"):
         os.makedirs(f"results/{experiment_id}")
 
@@ -41,10 +41,12 @@ def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eva
         "icl_method": icl_method,
         "task model": formatted_model_name,
         "style transfer model": adaptive_model_name if eval_set == "test+adaptive" else None,
+        "exemplar count": num_shots,
         "accuracy": report_dict["accuracy"] if not is_qa_task else None,
         "avg precision": report_dict["macro avg"]["precision"] if not is_qa_task else None,
         "avg recall": report_dict["macro avg"]["recall"] if not is_qa_task else None,
         "avg f1": report_dict["macro avg"]["f1-score"] if not is_qa_task else report_dict["f1-score"],
+        "num failed generations": num_failed_generations,
         "exact match rate": report_dict["exact match rate"] if is_qa_task else None,
     }
     output_file_name = f"set={dataset_name}_split={eval_set}_method={icl_method}_model={formatted_model_name}"

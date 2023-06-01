@@ -45,20 +45,33 @@ def get_judgment(model, tokenizer, template, device, exemplars, input_entry, dat
     tokenized_prompt = tokenizer.encode(prompts, return_tensors="pt").to(device)
     with torch.no_grad():
         outputs = model.generate(
-            tokenized_prompt, max_new_tokens=50 if is_qa_task else 3, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id
+            tokenized_prompt, max_new_tokens=50 if is_qa_task else 50, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id
         )
 
-        generation = ""
-        for score_tuple in outputs["scores"]:
-            token_index = score_tuple.argmax(dim=1)
-            token = tokenizer.decode(token_index)
-            if token == "\n":
-                break
-            generation += token
-
+        generation = tokenizer.decode(outputs["sequences"][0][len(tokenized_prompt[0]):]).split("\n")[0].replace("</s>", "").strip()
     try:
         # generation = generation.replace("</s>", "") if "vicuna" in model.name_or_path else generation
-        return generation if is_qa_task else int(generation.strip()[0])
+        # return generation if is_qa_task else int(generation.strip()[0])
+        if is_qa_task:
+            return generation
+
+        leading_token = generation.strip()[0]
+        if leading_token == "0" or leading_token == "1":
+            return int(leading_token)
+
+        final_tokens = generation.replace("</s>", "").replace("<s>", "")[-2:]
+        if final_tokens[1] == "0" or final_tokens[1] == "1":
+            return int(final_tokens[1])
+        elif final_tokens[0] == "0" or final_tokens[0] == "1":
+            return int(final_tokens[0])
+
+        split_tokens = [word.replace(".", "") for word in generation.split()]
+        if split_tokens[0].lower() in ["positive", "negative"]:
+            return 0 if split_tokens[0].lower() == "negative" else 1
+        if split_tokens[-1].lower() in ["positive", "negative"]:
+            return 0 if split_tokens[-1].lower() == "negative" else 1
+
+        return -1
     except:
         print(f"Error: {generation} - unable to convert to int")
         return -1
@@ -72,7 +85,7 @@ def should_get_exemplars(model, eval_set_name):
     return False
 
 
-def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, adaptive_model_name):
+def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, adaptive_model_name=None, num_shots=None):
     should_retrieve_exemplars = should_get_exemplars(model, eval_set)
     icl_method = icl_method if should_retrieve_exemplars else None
     template = get_prompt_template(dataset_name) if should_retrieve_exemplars else None
@@ -82,6 +95,7 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
     original_judgments = []
     num_successfull_edits = 0
     inference_logs = []
+    num_failed_generations = 0
 
     is_adaptive_set = eval_set.endswith("+adaptive")
     adaptive_tokenizer = None
@@ -94,7 +108,7 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
     description = f"Evaluating {dataset_name}-{eval_set} with {model_name} using {icl_method}"
     description =  f"{description} and {adaptive_model_name} for style transfer" if is_adaptive_set else description
     for entry in tqdm(dataset[eval_set.replace("+adaptive", "")], desc=description):
-        exemplars = get_exemplars(entry["text"], dataset_name, exemplar_retriever) if should_retrieve_exemplars else None
+        exemplars = get_exemplars(entry["text"], dataset_name, exemplar_retriever, num_shots) if should_retrieve_exemplars else None
         if is_adaptive_set:
             entry["original_text"] = entry["text"]
             entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars)
@@ -102,6 +116,7 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
         judgment = get_judgment(model, tokenizer, template, device, exemplars, entry, dataset_name)
         original_judgments.append(judgment)
         if judgment == -1:
+            num_failed_generations += 1
             print(f"Warning: {model_name} failed to generate a judgment for the following input: {entry['text']}")
 
         inference_log = {}
@@ -117,7 +132,7 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
     if not os.path.exists(f"results/{experiment_id}"):
         os.makedirs(f"results/{experiment_id}")
     pd.DataFrame(inference_logs).to_csv(f"results/{experiment_id}/{model_name.replace('/', '-')}-{dataset_name}-{eval_set}-{icl_method}-inference-logs.csv")
-    return generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, adaptive_model_name)
+    return generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, adaptive_model_name, num_shots, num_failed_generations)
 
 
 def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemplars):
@@ -141,9 +156,7 @@ Input Text: "{style_input}\""""
             return_dict_in_generate=True,
         )
 
-    # generation = adaptive_tokenizer.decode(outputs["sequences"][0]).split("\nAssistant:")[1].replace("\n", " ").replace("</s>", "").strip()
     generation = adaptive_tokenizer.decode(outputs["sequences"][0][len(tokenized_prompt[0]):]).replace("\n", " ").replace("</s>", "").strip()
-
     if "###" in generation:
         generation = generation.split("###")[0]
     if " Text:" in generation:
@@ -211,8 +224,8 @@ def main():
         args.icl_method.split(",")
         if args.icl_method is not None
         else [
-            # "random",
-            # "topk",
+            "random",
+            "topk",
             "mdl"
         ]
     )
@@ -221,9 +234,9 @@ def main():
         args.adaptive_model.split(",")
         if args.adaptive_model is not None
         else [
-            "tiiuae/falcon-7b-instruct",
-            "TheBloke/vicuna-7B-1.1-HF",
             "TheBloke/vicuna-13B-1.1-HF",
+            "TheBloke/vicuna-7B-1.1-HF",
+            "tiiuae/falcon-7b-instruct",
         ]
     )
     model_names = (
@@ -242,7 +255,7 @@ def main():
         ]
     )
     # Also evaluate models used for sytle transfer
-    model_names = model_names + adaptive_model_names
+    model_names = adaptive_model_names + model_names
 
     print("--------------------------------------------------")
     print("Running experiment with the following parameters:")
@@ -266,17 +279,30 @@ def main():
 
             for icl_method in icl_methods:
                 for evaluation_set in splits:
+                    # if is llm, incrmeent the shots for every split
+
+                    # if not an llm, only increment the shots for the test+adaptive split
+
                     if evaluation_set == "test+adaptive":
                         for adaptive_model_name in adaptive_model_names:
-                            reports.append(evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, adaptive_model_name))
+                            for num_shots in [4, 8, 16]:
+                                reports.append(evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, adaptive_model_name, num_shots))
+                                all_reports = pd.DataFrame(reports).drop_duplicates()
+                                print(all_reports)
+                                all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                    else:
+                        is_llm = model.config.architectures[0].endswith("ForCausalLM")
+                        if is_llm:
+                            for num_shots in [4, 8, 16]:
+                                reports.append(evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, num_shots=num_shots))
+                                all_reports = pd.DataFrame(reports).drop_duplicates()
+                                print(all_reports)
+                                all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                        else:
+                            reports.append(evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set))
                             all_reports = pd.DataFrame(reports).drop_duplicates()
                             print(all_reports)
                             all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
-                    else:
-                        reports.append(evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, None))
-                        all_reports = pd.DataFrame(reports).drop_duplicates()
-                        print(all_reports)
-                        all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
 
 
 if __name__ == "__main__":

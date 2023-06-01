@@ -53,7 +53,7 @@
                 "CUDA_VISIBLE_DEVICES": "4,5,6,7"
             },
             "args": [
-                "--max_examples=3",
+                "--max_examples=20",
                 // "--model=lvwerra/distilbert-imdb,decapoda-research/llama-65b-hf",
                 "--model=assemblyai/distilbert-base-uncased-sst2,philschmid/tiny-bert-sst2-distilled,philschmid/roberta-large-sst2",
                 "--dataset=adv_sst2",
