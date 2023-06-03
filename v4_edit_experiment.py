@@ -22,7 +22,7 @@ from data_util import generate_icl_report, get_formatted_dataset
 from icl_util import generate_prompt, get_prompt_template, get_retriever, get_exemplars
 
 
-def get_judgment(model, tokenizer, template, device, exemplars, input_entry, dataset_name):
+def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
     if model.config.architectures[0].endswith("ForQuestionAnswering"):
         with torch.no_grad():
             # input_sequence = tokenizer(input_entry["text"], return_tensors="pt").to(device)
@@ -41,8 +41,7 @@ def get_judgment(model, tokenizer, template, device, exemplars, input_entry, dat
             return int(outputs.logits.argmax(axis=1))
 
     is_qa_task = dataset_name.startswith("squad")
-    prompts = generate_prompt(model.name_or_path, template, exemplars, input_entry["text"], dataset_name)
-    tokenized_prompt = tokenizer.encode(prompts, return_tensors="pt").to(device)
+    tokenized_prompt = tokenizer.encode(prompt, return_tensors="pt").to(device)
     with torch.no_grad():
         outputs = model.generate(
             tokenized_prompt, max_new_tokens=50 if is_qa_task else 50, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id
@@ -113,7 +112,8 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
             entry["original_text"] = entry["text"]
             entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars)
 
-        judgment = get_judgment(model, tokenizer, template, device, exemplars, entry, dataset_name)
+        prompt = generate_prompt(model_name, template, exemplars, entry["text"], dataset_name) if should_retrieve_exemplars else None
+        judgment = get_judgment(model, tokenizer, prompt, device, entry, dataset_name)
         original_judgments.append(judgment)
         if judgment == -1:
             num_failed_generations += 1
@@ -126,13 +126,48 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
         if dataset_name.startswith("squad"):
             inference_log["question"] = entry["question"]
         inference_log["judgment"] = judgment
+        inference_log["prompt"] = prompt
         inference_log["label"] = entry["label"]
         inference_logs.append(inference_log)
 
     if not os.path.exists(f"results/{experiment_id}"):
         os.makedirs(f"results/{experiment_id}")
-    pd.DataFrame(inference_logs).to_csv(f"results/{experiment_id}/{model_name.replace('/', '-')}-{dataset_name}-{eval_set}-{icl_method}-inference-logs.csv")
+
+    save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_model_name, num_shots)
     return generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, adaptive_model_name, num_shots, num_failed_generations)
+
+
+def save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_model_name, num_shots):
+    current_logs = pd.DataFrame(inference_logs)
+    model_name = model_name.replace("/", "-")
+    adaptive_model_name = adaptive_model_name.replace("/", "-") if adaptive_model_name is not None else None
+    current_logs.to_csv(f"results/{experiment_id}/{model_name}-{dataset_name}-{eval_set}-{icl_method}-{adaptive_model_name}-{num_shots}-inference-logs.csv", index=False)
+    if eval_set != "test+adaptive":
+        return
+
+    combined_inference_log_file_name = f"{model_name.replace('/', '-')}-{dataset_name}-combined-inference-logs.csv"
+    saved_logs_names = os.listdir(f"results/{experiment_id}")
+    combined_inference_log = pd.read_csv(f"results/{experiment_id}/{combined_inference_log_file_name}") if combined_inference_log_file_name in saved_logs_names else None
+    if combined_inference_log is None:
+        test_baseline_log_file_name = [name for name in os.listdir(f"results/{experiment_id}") if name.startswith(f"{model_name.replace('/', '-')}-{dataset_name}-test-None")][0]
+        test_baseline_log = pd.read_csv(f"results/{experiment_id}/{test_baseline_log_file_name}")
+
+        combined_inference_log = pd.DataFrame()
+        combined_inference_log["label"] = test_baseline_log["label"]
+        combined_inference_log["original input"] = test_baseline_log["input"]
+        combined_inference_log["original judgment"] = test_baseline_log["judgment"]
+
+    for saved_log_name in saved_logs_names:
+        if not saved_log_name.startswith(f"{model_name.replace('/', '-')}-{dataset_name}-{eval_set}"):
+            continue
+
+        prev_log = pd.read_csv(f"results/{experiment_id}/{saved_log_name}")
+        column_name_prefix = f"{adaptive_model_name}-{num_shots}"
+        combined_inference_log[f"{column_name_prefix} Judgment"] = prev_log["judgment"]
+        combined_inference_log[f"{column_name_prefix} Input"] = prev_log["input"]
+        combined_inference_log[f"{column_name_prefix} Prompt"] = prev_log["prompt"]
+    combined_inference_log.to_csv(f"results/{experiment_id}/{combined_inference_log_file_name}")
+
 
 
 def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemplars):
@@ -234,9 +269,9 @@ def main():
         args.adaptive_model.split(",")
         if args.adaptive_model is not None
         else [
-            "TheBloke/vicuna-13B-1.1-HF",
+            # "TheBloke/vicuna-13B-1.1-HF",
             "TheBloke/vicuna-7B-1.1-HF",
-            "tiiuae/falcon-7b-instruct",
+            # "tiiuae/falcon-7b-instruct",
         ]
     )
     model_names = (
@@ -255,7 +290,7 @@ def main():
         ]
     )
     # Also evaluate models used for sytle transfer
-    model_names = adaptive_model_names + model_names
+    model_names =  model_names + adaptive_model_names
 
     print("--------------------------------------------------")
     print("Running experiment with the following parameters:")

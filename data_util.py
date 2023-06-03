@@ -87,9 +87,15 @@ def get_formatted_dataset(set_name, max_examples=None):
     elif set_name == "adv_sst2":
         hf_dataset = load_adv_sst2()
     elif set_name == "rotten_tomatoes_imdb":
-        hf_dataset = DatasetDict({"train": load_dataset("rotten_tomatoes", split="train"), "test": load_dataset("imdb", split="test")})
+        hf_dataset = DatasetDict({
+            "train": load_dataset("rotten_tomatoes", split="train"),
+            "validation": load_dataset("rotten_tomatoes", split="validation"),
+            "test": load_dataset("imdb", split="test")})
     elif set_name == "imdb_rotten_tomatoes":
-        hf_dataset = DatasetDict({"train": load_dataset("imdb", split="test"), "test": load_dataset("rotten_tomatoes", split="test")})
+        hf_dataset = DatasetDict({
+            "train": load_dataset("imdb", split="train"),
+            "validation": load_dataset("imdb", split="test"),
+            "test": load_dataset("rotten_tomatoes", split="test")})
     elif set_name.startswith("squadshifts_"):
         test_set_name = set_name.split("_")[1]
         train_set = load_dataset("squad", split="train")
