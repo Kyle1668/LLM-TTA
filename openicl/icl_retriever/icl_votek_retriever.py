@@ -15,7 +15,7 @@ from accelerate import Accelerator
 class VotekRetriever(TopkRetriever):
     """Vote-k In-context Learning Retriever Class
         Class of Vote-k Retriever.
-        
+
     Attributes:
         dataset_reader (:obj:`DatasetReader`): An instance of the :obj:`DatasetReader` class.
         ice_separator (:obj:`str`, optional): A string that separates each in-context example.
@@ -27,7 +27,7 @@ class VotekRetriever(TopkRetriever):
         index_ds (:obj:`Dataset`): The index dataset. Used to select data for in-context examples.
         test_ds (:obj:`Dataset`): The test dataset. Used to generate prompts for each data.
         accelerator (:obj:`Accelerator`, optional): An instance of the :obj:`Accelerator` class, used for multiprocessing.
-        batch_size (:obj:`int`, optional): Batch size for the :obj:`DataLoader`. 
+        batch_size (:obj:`int`, optional): Batch size for the :obj:`DataLoader`.
         model (:obj:`SentenceTransformer`): An instance of :obj:`SentenceTransformer` class, used to calculate embeddings.
         tokenizer (:obj:`AutoTokenizer`): Tokenizer for :obj:``model``.
         index (:obj:`IndexIDMap`): Index generated with FAISS.
@@ -52,6 +52,10 @@ class VotekRetriever(TopkRetriever):
                          sentence_transformers_model_name, ice_num, index_split, test_split, tokenizer_name, batch_size,
                          accelerator)
         self.votek_k = votek_k
+
+    def get_exemplars(self, text, ice_num):
+        embed = self.model.encode([text], show_progress_bar=False)
+        return self.votek_select(embeddings=embed, select_num=ice_num, k=self.votek_k, overlap_threshold=1)
 
     def votek_select(self, embeddings=None, select_num=None, k=None, overlap_threshold=None, vote_file=None):
         n = len(embeddings)

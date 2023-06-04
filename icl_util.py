@@ -1,5 +1,5 @@
 from faiss import IndexIDMap, IndexFlatIP
-from openicl import PromptTemplate, TopkRetriever, MDLRetriever, RandomRetriever
+from openicl import PromptTemplate, TopkRetriever, MDLRetriever, RandomRetriever, VotekRetriever
 import json
 
 
@@ -29,6 +29,8 @@ def get_retriever(icl_method, data, dataset_name, index_split="train", test_spli
         return MDLRetriever(dataset_reader=data, ice_num=get_num_shots(dataset_name), index_split=index_split)
     elif icl_method == "random":
         return RandomRetriever(dataset_reader=data, ice_num=get_num_shots(dataset_name), index_split=index_split)
+    elif icl_method == "votek":
+        return VotekRetriever(dataset_reader=data, ice_num=get_num_shots(dataset_name), index_split=index_split, test_split=test_split)
     elif icl_method == "kne":
         return IndexIDMap(IndexFlatIP(768))
     else:

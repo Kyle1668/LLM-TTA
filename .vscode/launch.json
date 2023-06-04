@@ -33,11 +33,31 @@
                 "CUDA_VISIBLE_DEVICES": "4,5,6,7"
             },
             "args": [
-                "--max_examples=10",
+                "--max_examples=50",
                 // "--model=lvwerra/distilbert-imdb,decapoda-research/llama-65b-hf",
                 "--model=lvwerra/bert-imdb",
                 "--dataset=imdb_rotten_tomatoes",
-                "--icl_method=topk",
+                "--icl_method=votek,topk,random",
+                // "--split=test+adaptive"
+            ]
+        },
+        {
+            "name": "RT_IMDB",
+            "type": "python",
+            "request": "launch",
+            "program": "v4_edit_experiment.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                // "CUDA_VISIBLE_DEVICES": "1"
+                "CUDA_VISIBLE_DEVICES": "4,5,6,7"
+            },
+            "args": [
+                "--max_examples=1000",
+                // "--model=lvwerra/distilbert-imdb,decapoda-research/llama-65b-hf",
+                "--model=RJZauner/distilbert_rotten_tomatoes_sentiment_classifier",
+                "--dataset=rotten_tomatoes_imdb",
+                "--icl_method=random,topk",
                 // "--split=test+adaptive"
             ]
         },
@@ -53,11 +73,31 @@
                 "CUDA_VISIBLE_DEVICES": "4,5,6,7"
             },
             "args": [
-                // "--max_examples=20",
+                "--max_examples=500",
                 // "--model=lvwerra/distilbert-imdb,decapoda-research/llama-65b-hf",
                 "--model=ficsort/deberta-v3-base-glue-sst2,distilbert-base-uncased-finetuned-sst-2-english,yoshitomo-matsubara/bert-base-uncased-sst2,assemblyai/distilbert-base-uncased-sst2,philschmid/tiny-bert-sst2-distilled,philschmid/roberta-large-sst2",
                 "--dataset=adv_sst2",
-                "--icl_method=random",
+                "--icl_method=topk,random",
+                // "--split=test+adaptive"
+            ]
+        },
+        {
+            "name": "WILDS Amazon",
+            "type": "python",
+            "request": "launch",
+            "program": "v4_edit_experiment.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                // "CUDA_VISIBLE_DEVICES": "1"
+                "CUDA_VISIBLE_DEVICES": "4,5,6,7"
+            },
+            "args": [
+                "--max_examples=50",
+                // "--model=lvwerra/distilbert-imdb,decapoda-research/llama-65b-hf",
+                "--model=fabriceyhc/bert-base-uncased-amazon_polarity",
+                "--dataset=wilds_amazon",
+                "--icl_method=random,topk",
                 // "--split=test+adaptive"
             ]
         },

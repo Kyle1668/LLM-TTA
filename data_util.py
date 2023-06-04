@@ -89,7 +89,7 @@ def get_formatted_dataset(set_name, max_examples=None):
     elif set_name == "rotten_tomatoes_imdb":
         hf_dataset = DatasetDict({
             "train": load_dataset("rotten_tomatoes", split="train"),
-            "validation": load_dataset("rotten_tomatoes", split="validation"),
+            "validation": load_dataset("rotten_tomatoes", split="test"),
             "test": load_dataset("imdb", split="test")})
     elif set_name == "imdb_rotten_tomatoes":
         hf_dataset = DatasetDict({

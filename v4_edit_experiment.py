@@ -110,7 +110,7 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
         exemplars = get_exemplars(entry["text"], dataset_name, exemplar_retriever, num_shots) if should_retrieve_exemplars else None
         if is_adaptive_set:
             entry["original_text"] = entry["text"]
-            entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars)
+            entry["style_prompt"], entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars)
 
         prompt = generate_prompt(model_name, template, exemplars, entry["text"], dataset_name) if should_retrieve_exemplars else None
         judgment = get_judgment(model, tokenizer, prompt, device, entry, dataset_name)
@@ -126,7 +126,10 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
         if dataset_name.startswith("squad"):
             inference_log["question"] = entry["question"]
         inference_log["judgment"] = judgment
-        inference_log["prompt"] = prompt
+        if should_retrieve_exemplars:
+            inference_log["prompt"] = prompt
+        if is_adaptive_set:
+            inference_log["style prompt"] = entry["style_prompt"]
         inference_log["label"] = entry["label"]
         inference_logs.append(inference_log)
 
@@ -165,15 +168,14 @@ def save_inference_log(inference_logs, experiment_id, model_name, dataset_name, 
         column_name_prefix = f"{adaptive_model_name}-{num_shots}"
         combined_inference_log[f"{column_name_prefix} Judgment"] = prev_log["judgment"]
         combined_inference_log[f"{column_name_prefix} Input"] = prev_log["input"]
-        combined_inference_log[f"{column_name_prefix} Prompt"] = prev_log["prompt"]
+        combined_inference_log[f"{column_name_prefix} Prompt"] = prev_log["style prompt"]
     combined_inference_log.to_csv(f"results/{experiment_id}/{combined_inference_log_file_name}")
 
 
 
 def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemplars):
-    input_token_len = len(adaptive_tokenizer.encode(input_entry["text"]))
-    style_transfer_exemplars = "".join([f'"{exemplar["text"][:input_token_len * 5].strip()}"\n' for exemplar in exemplars])
     style_input = input_entry["text"].replace("\n", " ")
+    style_transfer_exemplars = "".join([f'"{exemplar["text"].strip()[:len(style_input)]}"\n' for exemplar in exemplars])
     task_prompt = f"""Paraphrase the input text into the exact writing style of the following examples while keeping the same semantic meaning. Keep all facts and information.
 Examples:
 {style_transfer_exemplars}
@@ -209,7 +211,7 @@ Input Text: "{style_input}\""""
 
     print(f"Generation: {generation}")
     input_text = generation
-    return input_text
+    return input_prompts, input_text
 
 
 def get_model_objects(model_name):
@@ -269,7 +271,7 @@ def main():
         args.adaptive_model.split(",")
         if args.adaptive_model is not None
         else [
-            # "TheBloke/vicuna-13B-1.1-HF",
+            "TheBloke/vicuna-13B-1.1-HF",
             "TheBloke/vicuna-7B-1.1-HF",
             # "tiiuae/falcon-7b-instruct",
         ]
