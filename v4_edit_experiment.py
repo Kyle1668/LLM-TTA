@@ -101,13 +101,13 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
     adaptive_model = None
     if is_adaptive_set:
         adaptive_tokenizer, adaptive_model = get_model_objects(adaptive_model_name)
-        # adaptive_tokenizer = LlamaTokenizer.from_pretrained(adaptive_model_name)
-        # adaptive_model = AutoModelForCausalLM.from_pretrained(adaptive_model_name, device_map="auto", trust_remote_code=True, torch_dtype=torch.float16).eval()
 
     description = f"Evaluating {dataset_name}-{eval_set} with {model_name} using {icl_method}"
-    description =  f"{description} and {adaptive_model_name} for style transfer" if is_adaptive_set else description
+    print(f"{description} and {adaptive_model_name} for style transfer" if is_adaptive_set else description)
     for entry in tqdm(dataset[eval_set.replace("+adaptive", "")], desc=description):
-        exemplars = get_exemplars(entry["text"], dataset_name, exemplar_retriever, num_shots) if should_retrieve_exemplars else None
+        exemplars = mean_exemplar_distance = None
+        if should_retrieve_exemplars:
+            exemplars, mean_exemplar_distance = get_exemplars(entry["text"], dataset_name, exemplar_retriever, num_shots) if should_retrieve_exemplars else None
         if is_adaptive_set:
             entry["original_text"] = entry["text"]
             entry["style_prompt"], entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars)
@@ -123,13 +123,14 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
         inference_log["input"] = entry["text"]
         if is_adaptive_set:
             inference_log["original_input"] = entry["original_text"]
+            inference_log["style prompt"] = entry["style_prompt"]
+            inference_log["mean exemplar distance"] = mean_exemplar_distance
         if dataset_name.startswith("squad"):
             inference_log["question"] = entry["question"]
         inference_log["judgment"] = judgment
         if should_retrieve_exemplars:
             inference_log["prompt"] = prompt
-        if is_adaptive_set:
-            inference_log["style prompt"] = entry["style_prompt"]
+
         inference_log["label"] = entry["label"]
         inference_logs.append(inference_log)
 
@@ -209,7 +210,7 @@ Input Text: "{style_input}\""""
     if generation.startswith('"') and generation.endswith('"'):
         generation = generation[1:-1]
 
-    print(f"Generation: {generation}")
+    # print(f"Generation: {generation}")
     input_text = generation
     return input_prompts, input_text
 
@@ -322,7 +323,7 @@ def main():
 
                     if evaluation_set == "test+adaptive":
                         for adaptive_model_name in adaptive_model_names:
-                            for num_shots in [4, 8, 16]:
+                            for num_shots in [8]:
                                 reports.append(evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, adaptive_model_name, num_shots))
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
                                 print(all_reports)
@@ -330,7 +331,7 @@ def main():
                     else:
                         is_llm = model.config.architectures[0].endswith("ForCausalLM")
                         if is_llm:
-                            for num_shots in [4, 8, 16]:
+                            for num_shots in [8]:
                                 reports.append(evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, num_shots=num_shots))
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
                                 print(all_reports)

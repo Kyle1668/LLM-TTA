@@ -1,5 +1,6 @@
 from faiss import IndexIDMap, IndexFlatIP
 from openicl import PromptTemplate, TopkRetriever, MDLRetriever, RandomRetriever, VotekRetriever
+import numpy as np
 import json
 
 
@@ -133,4 +134,5 @@ def get_exemplars(input_text, dataset_name, exemplar_retriever, exemplar_count=N
     else:
         exemplar_indices = retriever_response
 
-    return [exemplar_retriever.dataset_reader.dataset["train"][int(index)] for index in exemplar_indices[0]]
+    mean_distance = np.mean(exemplar_distances[0]) if exemplar_distances is not None else None
+    return ([exemplar_retriever.dataset_reader.dataset["train"][int(index)] for index in exemplar_indices[0]], mean_distance)

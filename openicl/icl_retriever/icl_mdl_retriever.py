@@ -52,6 +52,8 @@ class MDLRetriever(TopkRetriever):
                  test_split: Optional[str] = 'test',
                  tokenizer_name: Optional[str] = 'gpt2-xl',
                  ce_model_name: Optional[str] = 'gpt2-xl',
+                 tokenizer=None,
+                 ce_model=None,
                  batch_size: Optional[int] = 1,
                  select_time: Optional[int] = 5,
                  accelerator: Optional[Accelerator] = None,
@@ -65,6 +67,8 @@ class MDLRetriever(TopkRetriever):
                          accelerator)
         self.ce_model_name = ce_model_name
         self.candidate_num = candidate_num
+        self.tokenizer = tokenizer
+        self.ce_model = ce_model
         self.select_time = select_time
         self.ice_template = ice_template
         self.prompt_template = prompt_template

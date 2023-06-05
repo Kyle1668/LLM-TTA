@@ -17,8 +17,8 @@
             },
             "args": [
                 "--max_examples=100",
-                "--model=decapoda-research/llama-65b-hf,csarron/bert-base-uncased-squad-v1",
-                "--dataset=squadshifts_reddit,squadshifts_amazon,squadshifts_nyt"
+                "--model=csarron/bert-base-uncased-squad-v1",
+                "--dataset=squadshifts_reddit"
             ]
         },
         {
@@ -30,14 +30,14 @@
             "justMyCode": false,
             "env": {
                 // "CUDA_VISIBLE_DEVICES": "1"
-                "CUDA_VISIBLE_DEVICES": "4,5,6,7"
+                "CUDA_VISIBLE_DEVICES": "1,2,3,4"
             },
             "args": [
-                "--max_examples=50",
+                "--max_examples=10",
                 // "--model=lvwerra/distilbert-imdb,decapoda-research/llama-65b-hf",
                 "--model=lvwerra/bert-imdb",
                 "--dataset=imdb_rotten_tomatoes",
-                "--icl_method=votek,topk,random",
+                "--icl_method=topk,random",
                 // "--split=test+adaptive"
             ]
         },
@@ -73,9 +73,9 @@
                 "CUDA_VISIBLE_DEVICES": "4,5,6,7"
             },
             "args": [
-                "--max_examples=500",
-                // "--model=lvwerra/distilbert-imdb,decapoda-research/llama-65b-hf",
-                "--model=ficsort/deberta-v3-base-glue-sst2,distilbert-base-uncased-finetuned-sst-2-english,yoshitomo-matsubara/bert-base-uncased-sst2,assemblyai/distilbert-base-uncased-sst2,philschmid/tiny-bert-sst2-distilled,philschmid/roberta-large-sst2",
+                "--max_examples=200",
+                "--model=distilbert-base-uncased-finetuned-sst-2-english",
+                // "--model=ficsort/deberta-v3-base-glue-sst2,distilbert-base-uncased-finetuned-sst-2-english,yoshitomo-matsubara/bert-base-uncased-sst2,assemblyai/distilbert-base-uncased-sst2,philschmid/tiny-bert-sst2-distilled,philschmid/roberta-large-sst2",
                 "--dataset=adv_sst2",
                 "--icl_method=topk,random",
                 // "--split=test+adaptive"
