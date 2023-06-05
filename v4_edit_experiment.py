@@ -112,7 +112,7 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
             entry["original_text"] = entry["text"]
             entry["style_prompt"], entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars)
 
-        prompt = generate_prompt(model_name, template, exemplars, entry["text"], dataset_name) if should_retrieve_exemplars else None
+        prompt = generate_prompt(model_name, template, exemplars, entry, dataset_name) if should_retrieve_exemplars else None
         judgment = get_judgment(model, tokenizer, prompt, device, entry, dataset_name)
         original_judgments.append(judgment)
         if judgment == -1:
@@ -211,8 +211,7 @@ Input Text: "{style_input}\""""
         generation = generation[1:-1]
 
     # print(f"Generation: {generation}")
-    input_text = generation
-    return input_prompts, input_text
+    return input_prompts, generation
 
 
 def get_model_objects(model_name):

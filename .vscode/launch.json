@@ -17,7 +17,7 @@
             },
             "args": [
                 "--max_examples=100",
-                "--model=csarron/bert-base-uncased-squad-v1",
+                "--model=valhalla/t5-base-e2e-qg,csarron/bert-base-uncased-squad-v1",
                 "--dataset=squadshifts_reddit"
             ]
         },

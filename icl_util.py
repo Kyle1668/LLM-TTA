@@ -62,13 +62,13 @@ def get_prompt_template(dataset_name):
     return template
 
 
-def generate_qa_prompt(exemplars, input):
+def generate_qa_prompt(exemplars, input_entry):
     formatted_exemplars = [f"\nContext: {exemplar['text']}\nQuestion: {exemplar['question']}\nAnswer: {exemplar['label']}\n" for exemplar in exemplars]
     with open("prompts/squad.txt", encoding="utf-8") as f:
         prompt = f.read()
         prompt = prompt.replace("<exemplars>", "".join(formatted_exemplars))
-        prompt = prompt.replace("<context>", input["text"])
-        prompt = prompt.replace("<question>", input["question"])
+        prompt = prompt.replace("<context>", input_entry["text"])
+        prompt = prompt.replace("<question>", input_entry["question"])
 
     return prompt
 
@@ -97,12 +97,12 @@ def generate_classification_prompt(input_text, exemplars, template, dataset_name
     return prompt
 
 
-def generate_prompt(model_name, template, exemplars, input_text, dataset_name):
+def generate_prompt(model_name, template, exemplars, input_entry, dataset_name):
     prompt = None
     if dataset_name.startswith("squad"):
-        prompt = generate_qa_prompt(exemplars, input_text)
+        prompt = generate_qa_prompt(exemplars, input_entry)
     else:
-        prompt = generate_classification_prompt(input_text, exemplars, template, dataset_name)
+        prompt = generate_classification_prompt(input_entry["text"], exemplars, template, dataset_name)
 
     supported_chat_prompts = {"TheBloke/vicuna-13B-1.1-HF": f"User: {prompt}\nAssistant:"}
     return supported_chat_prompts[model_name] if model_name in supported_chat_prompts else prompt
