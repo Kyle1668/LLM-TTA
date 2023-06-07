@@ -22,6 +22,24 @@
             ]
         },
         {
+            "name": "Ag_News_Twitter",
+            "type": "python",
+            "request": "launch",
+            "program": "v4_edit_experiment.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                // "CUDA_VISIBLE_DEVICES": "1"
+                "CUDA_VISIBLE_DEVICES": "1,2,3,4"
+            },
+            "args": [
+                "--max_examples=200",
+                "--model=JiaqiLee/bert-agnews",
+                "--dataset=ag_news_twitter",
+                "--icl_method=random,topk,mdl",
+            ]
+        },
+        {
             "name": "IMDB_RT",
             "type": "python",
             "request": "launch",
@@ -33,7 +51,7 @@
                 "CUDA_VISIBLE_DEVICES": "1,2,3,4"
             },
             "args": [
-                "--max_examples=10",
+                "--max_examples=50",
                 // "--model=lvwerra/distilbert-imdb,decapoda-research/llama-65b-hf",
                 "--model=lvwerra/bert-imdb",
                 "--dataset=imdb_rotten_tomatoes",

@@ -86,6 +86,8 @@ def get_formatted_dataset(set_name, max_examples=None):
         hf_dataset = load_civil_comments_and_toxigen_dataset()
     elif set_name == "adv_sst2":
         hf_dataset = load_adv_sst2()
+    elif set_name == "ag_news_twitter":
+        hf_dataset = load_ag_news_twitter()
     elif set_name == "rotten_tomatoes_imdb":
         hf_dataset = DatasetDict({
             "train": load_dataset("rotten_tomatoes", split="train"),
@@ -161,6 +163,13 @@ def get_formatted_dataset(set_name, max_examples=None):
         hf_dataset["prod"] = Dataset.from_pandas(edit_set)
 
     return hf_dataset
+
+
+def load_ag_news_twitter():
+    ag_news = load_dataset("ag_news")
+    tweets = pd.read_csv("/home/kyle/repos/Parameter-Free-LM-Editing/datasets/ag_news_twitter/shifted_test_set_small_vicunna.csv")
+    formatted_tweets = Dataset.from_pandas(tweets.rename(columns={"generated_summary": "text"}))
+    return DatasetDict({"train": ag_news["train"], "validaiton": ag_news["test"], "test": formatted_tweets})
 
 
 def load_civil_comments_and_toxigen_dataset() -> DatasetDict:
