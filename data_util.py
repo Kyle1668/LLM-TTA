@@ -169,7 +169,7 @@ def load_ag_news_twitter():
     ag_news = load_dataset("ag_news")
     tweets = pd.read_csv("/home/kyle/repos/Parameter-Free-LM-Editing/datasets/ag_news_twitter/shifted_test_set_small_vicunna.csv")
     formatted_tweets = Dataset.from_pandas(tweets.rename(columns={"generated_summary": "text"}))
-    return DatasetDict({"train": ag_news["train"], "validaiton": ag_news["test"], "test": formatted_tweets})
+    return DatasetDict({"train": ag_news["train"], "validation": ag_news["test"], "test": formatted_tweets})
 
 
 def load_civil_comments_and_toxigen_dataset() -> DatasetDict:

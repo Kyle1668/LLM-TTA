@@ -176,17 +176,21 @@ def save_inference_log(inference_logs, experiment_id, model_name, dataset_name, 
 
 def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemplars):
     style_input = input_entry["text"].replace("\n", " ")
-    style_transfer_exemplars = "".join([f'"{exemplar["text"].strip()[:len(style_input)]}"\n' for exemplar in exemplars])
+    # style_transfer_exemplars = "".join([f'"{exemplar["text"].strip()[:len(style_input)]}"\n' for exemplar in exemplars])
+    style_transfer_exemplars = "".join([f'"{exemplar["text"].strip()}"\n' for exemplar in exemplars])
     task_prompt = f"""Paraphrase the input text into the exact writing style of the following examples while keeping the same semantic meaning. Keep all facts and information.
 Examples:
 {style_transfer_exemplars}
-Now rewriter the current input text into the same style as the examples. Only return the new text.
+Now paraphrase the current input text into the same style as the examples. Only return the paraphrased text for the below input text. MAke sure to keep all facts, information, and meaning.
+
 Input Text: "{style_input}\""""
     input_prompts = f"User: {task_prompt}\nAssistant:" if "vicuna" in adaptive_model.config.name_or_path else task_prompt
     tokenized_prompt = adaptive_tokenizer.encode(input_prompts, return_tensors="pt").to("cuda")
     with torch.no_grad():
         outputs = adaptive_model.generate(
             tokenized_prompt,
+            do_sample=True,
+            temperature=0.7,
             max_new_tokens=300,
             length_penalty=0,
             repetition_penalty=1.0,
@@ -272,9 +276,9 @@ def main():
         if args.adaptive_model is not None
         else [
             # "tiiuae/falcon-40b-instruct",
-            "TheBloke/vicuna-13B-1.1-HF",
             "TheBloke/vicuna-7B-1.1-HF",
-            # "tiiuae/falcon-7b-instruct",
+            "tiiuae/falcon-7b-instruct",
+            "TheBloke/vicuna-13B-1.1-HF",
         ]
     )
     model_names = (
