@@ -280,9 +280,9 @@ def main():
         if args.adaptive_model is not None
         else [
             # "tiiuae/falcon-40b-instruct",
+            "TheBloke/vicuna-13B-1.1-HF",
             "TheBloke/vicuna-7B-1.1-HF",
             "tiiuae/falcon-7b-instruct",
-            "TheBloke/vicuna-13B-1.1-HF",
         ]
     )
     model_names = (

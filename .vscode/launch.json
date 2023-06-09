@@ -33,7 +33,7 @@
                 "CUDA_VISIBLE_DEVICES": "1,2,3,4"
             },
             "args": [
-                "--max_examples=100",
+                "--max_examples=50",
                 "--model=mosesju/distilbert-base-uncased-finetuned-news,nateraw/bert-base-uncased-ag-news",
                 "--dataset=ag_news_twitter",
                 "--icl_method=static,topk,mdl",
@@ -55,7 +55,7 @@
                 // "--model=lvwerra/distilbert-imdb,decapoda-research/llama-65b-hf",
                 "--model=lvwerra/bert-imdb",
                 "--dataset=imdb_rotten_tomatoes",
-                "--icl_method=topk,random",
+                "--icl_method=static,topk,random",
                 // "--split=test+adaptive"
             ]
         },
