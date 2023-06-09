@@ -1,0 +1,20 @@
+{
+    "ag_news_twitter": [
+        {
+            "text": "Talks End With No U.S. Climate Deal A U.N. conference ended early Saturday with a vague plan for informal new talks on how to slow global warming but without a U.S. commitment to multilateral negotiations on next steps, including emissions controls.",
+            "label": "0"
+        },
+        {
+            "text": "Bryant stumbles as Lakers lose to Wizards LOS ANGELES, (AFP) - Kobe Bryant committed a foot foul from the free throw line with 4.4 seconds left as the Washington Wizards snapped an 11 game road losing streak by beating Los Angeles Lakers 120-116.",
+            "label": "1"
+        },
+        {
+            "text": "Wall St. Bears Claw Back Into the Black (Reuters) Reuters - Short-sellers, Wall Street's dwindling\band of ultra-cynics, are seeing green again.",
+            "label": "2"
+        },
+        {
+            "text": "Apple to open second Japanese retail store this month (MacCentral) MacCentral - Apple Computer Inc. will open its second Japanese retail store later this month in the western Japanese city of Osaka, it said Thursday.",
+            "label": "3"
+        }
+    ]
+}

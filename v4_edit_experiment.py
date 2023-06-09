@@ -19,7 +19,7 @@ import torch
 import os
 
 from data_util import generate_icl_report, get_formatted_dataset
-from icl_util import generate_prompt, get_prompt_template, get_retriever, get_exemplars
+from icl_util import generate_prompt, get_prompt_template, get_retriever, get_static_exemplars, get_dynamic_exemplars
 
 
 def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
@@ -89,7 +89,6 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
     icl_method = icl_method if should_retrieve_exemplars else None
     template = get_prompt_template(dataset_name) if should_retrieve_exemplars else None
     data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
-    exemplar_retriever = get_retriever(icl_method, data_reader, dataset_name) if should_retrieve_exemplars else None
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     original_judgments = []
     num_successfull_edits = 0
@@ -107,7 +106,12 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
     for entry in tqdm(dataset[eval_set.replace("+adaptive", "")], desc=description):
         exemplars = mean_exemplar_distance = None
         if should_retrieve_exemplars:
-            exemplars, mean_exemplar_distance = get_exemplars(entry["text"], dataset_name, exemplar_retriever, num_shots) if should_retrieve_exemplars else None
+            if icl_method == "static":
+                exemplars = get_static_exemplars(dataset_name)
+            else:
+                exemplar_retriever = get_retriever(icl_method, data_reader, dataset_name) if should_retrieve_exemplars else None
+                exemplars, mean_exemplar_distance = get_dynamic_exemplars(entry["text"], dataset_name, exemplar_retriever, num_shots) if should_retrieve_exemplars else None
+
         if is_adaptive_set:
             entry["original_text"] = entry["text"]
             entry["style_prompt"], entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars)
@@ -190,7 +194,7 @@ Input Text: "{style_input}\""""
         outputs = adaptive_model.generate(
             tokenized_prompt,
             do_sample=True,
-            temperature=0.7,
+            temperature=0.1,
             max_new_tokens=300,
             length_penalty=0,
             repetition_penalty=1.0,
@@ -265,7 +269,7 @@ def main():
         args.icl_method.split(",")
         if args.icl_method is not None
         else [
-            "random",
+            "static",
             "topk",
             "mdl"
         ]
@@ -321,13 +325,9 @@ def main():
 
             for icl_method in icl_methods:
                 for evaluation_set in splits:
-                    # if is llm, incrmeent the shots for every split
-
-                    # if not an llm, only increment the shots for the test+adaptive split
-
                     if evaluation_set == "test+adaptive":
                         for adaptive_model_name in adaptive_model_names:
-                            for num_shots in [8]:
+                            for num_shots in [4]:
                                 reports.append(evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, adaptive_model_name, num_shots))
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
                                 print(all_reports)
@@ -335,7 +335,7 @@ def main():
                     else:
                         is_llm = model.config.architectures[0].endswith("ForCausalLM")
                         if is_llm:
-                            for num_shots in [8]:
+                            for num_shots in [4]:
                                 reports.append(evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, num_shots=num_shots))
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
                                 print(all_reports)

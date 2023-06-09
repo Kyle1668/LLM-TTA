@@ -72,6 +72,7 @@ def get_formatted_dataset(set_name, max_examples=None):
         "sst2": ("sentence", "label"),
         "ag_news": ("text", "label"),
         "squad": ("context", "answers", "question"),
+        "ag_news_twitter": ("tweet summary", "label"),
     }
 
     hf_dataset = None
@@ -167,7 +168,7 @@ def get_formatted_dataset(set_name, max_examples=None):
 
 def load_ag_news_twitter():
     ag_news = load_dataset("ag_news")
-    tweets = pd.read_csv("/home/kyle/repos/Parameter-Free-LM-Editing/datasets/ag_news_twitter/shifted_test_set_small_vicunna.csv")
+    tweets = pd.read_csv("datasets/ag_news_twitter/shifted_test_set_gpt3.csv")
     formatted_tweets = Dataset.from_pandas(tweets.rename(columns={"generated_summary": "text"}))
     return DatasetDict({"train": ag_news["train"], "validation": ag_news["test"], "test": formatted_tweets})
 

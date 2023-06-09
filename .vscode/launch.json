@@ -36,7 +36,7 @@
                 "--max_examples=100",
                 "--model=mosesju/distilbert-base-uncased-finetuned-news,nateraw/bert-base-uncased-ag-news",
                 "--dataset=ag_news_twitter",
-                "--icl_method=random,topk,mdl",
+                "--icl_method=static,topk,mdl",
             ]
         },
         {

@@ -126,7 +126,13 @@ def get_edit_exemplars(dataset, edit_retriever, input_sequence_embedding, exempl
     return edit_exemplars
 
 
-def get_exemplars(input_text, dataset_name, exemplar_retriever, exemplar_count=None):
+def get_static_exemplars(dataset_name):
+    exemplars_file_path = "prompts/exemplars.json"
+    exemplars_file = json.load(open(exemplars_file_path, encoding="utf-8"))
+    return exemplars_file[dataset_name]
+
+
+def get_dynamic_exemplars(input_text, dataset_name, exemplar_retriever, exemplar_count=None):
     exemplar_count = get_num_shots(dataset_name) if exemplar_count is None else exemplar_count
     exemplar_distances = exemplar_indices = None
     exemplar_indices = None
