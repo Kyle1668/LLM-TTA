@@ -33,7 +33,7 @@
                 "CUDA_VISIBLE_DEVICES": "1,2,3,4"
             },
             "args": [
-                "--max_examples=50",
+                "--max_examples=10",
                 "--model=mosesju/distilbert-base-uncased-finetuned-news,nateraw/bert-base-uncased-ag-news",
                 "--dataset=ag_news_twitter",
                 "--icl_method=static,topk,mdl",

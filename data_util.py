@@ -21,7 +21,7 @@ def qa_report(model_answers, gold_answers):
     return { "f1-score": mean_f1, "exact match rate": exact_match_rate }
 
 
-def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, adaptive_model_name, num_shots, num_failed_generations):
+def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, adaptive_model_name, num_shots=None, num_failed_generations=None):
     if not os.path.exists(f"results/{experiment_id}"):
         os.makedirs(f"results/{experiment_id}")
 
