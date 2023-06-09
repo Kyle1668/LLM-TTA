@@ -21,6 +21,17 @@ def qa_report(model_answers, gold_answers):
     return { "f1-score": mean_f1, "exact match rate": exact_match_rate }
 
 
+def get_split_log_name(eval_set, adaptive_model_name):
+    if eval_set == "validation":
+        return "In-Distribution"
+    elif eval_set == "test":
+        return "Out-of-Distribution"
+    elif adaptive_model_name == "Test-Time Augmentation":
+        return "OOD w/ Test-Time Augmentation"
+    else:
+        return "OOD w/ Style Transfer"
+
+
 def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, adaptive_model_name, num_shots=None, num_failed_generations=None):
     if not os.path.exists(f"results/{experiment_id}"):
         os.makedirs(f"results/{experiment_id}")
@@ -29,14 +40,10 @@ def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eva
     formatted_model_name = model_name.replace("/", "-")
     gold_labels = [entry["label"] for entry in dataset[eval_set.replace("+adaptive", "")]]
     report_dict = qa_report(original_judgments, gold_labels) if is_qa_task else classification_report(gold_labels, original_judgments, output_dict=True)
-    reported_name_map = {
-        "validation": "In-Distribution",
-        "test": "Out-of-Distribution",
-        "test+adaptive": "OOD w/ Style Transfer"
-    }
+
     icl_report = {
         "dataset": dataset_name,
-        "split": reported_name_map[eval_set],
+        "split": get_split_log_name(eval_set, adaptive_model_name),
         "dataset size": len(dataset[eval_set.replace("+adaptive", "")]),
         "icl_method": icl_method,
         "task model": formatted_model_name,
