@@ -35,6 +35,8 @@ def get_retriever(icl_method, data, dataset_name, index_split="train", test_spli
         return VotekRetriever(dataset_reader=data, ice_num=get_num_shots(dataset_name), index_split=index_split, test_split=test_split)
     elif icl_method == "kne":
         return IndexIDMap(IndexFlatIP(768))
+    elif icl_method == "static":
+        return None
     else:
         raise Exception("Invalid ICL method")
 

@@ -84,37 +84,40 @@ def should_get_exemplars(model, eval_set_name):
     return False
 
 
-def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, adaptive_model_name=None, num_shots=None):
+def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, adaptive_technique=None, num_shots=None):
     should_retrieve_exemplars = should_get_exemplars(model, eval_set)
     icl_method = icl_method if should_retrieve_exemplars else None
     template = get_prompt_template(dataset_name) if should_retrieve_exemplars else None
     data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     original_judgments = []
-    num_successfull_edits = 0
     inference_logs = []
     num_failed_generations = 0
+    exemplar_retriever = get_retriever(icl_method, data_reader, dataset_name) if should_retrieve_exemplars else None
 
     is_adaptive_set = eval_set.endswith("+adaptive")
+    is_style_transfer_eval = is_adaptive_set and not adaptive_technique.startswith("baseline_")
     adaptive_tokenizer = None
     adaptive_model = None
-    if is_adaptive_set:
-        adaptive_tokenizer, adaptive_model = get_model_objects(adaptive_model_name)
+    if is_style_transfer_eval:
+        adaptive_tokenizer, adaptive_model = get_model_objects(adaptive_technique)
 
     description = f"Evaluating {dataset_name}-{eval_set} with {model_name} using {icl_method}"
-    print(f"{description} and {adaptive_model_name} for style transfer" if is_adaptive_set else description)
+    print(f"{description} and {adaptive_technique} for adaptation" if is_adaptive_set else description)
     for entry in tqdm(dataset[eval_set.replace("+adaptive", "")], desc=description):
         exemplars = mean_exemplar_distance = None
         if should_retrieve_exemplars:
             if icl_method == "static":
                 exemplars = get_static_exemplars(dataset_name)
             else:
-                exemplar_retriever = get_retriever(icl_method, data_reader, dataset_name) if should_retrieve_exemplars else None
                 exemplars, mean_exemplar_distance = get_dynamic_exemplars(entry["text"], dataset_name, exemplar_retriever, num_shots) if should_retrieve_exemplars else None
 
         if is_adaptive_set:
-            entry["original_text"] = entry["text"]
-            entry["style_prompt"], entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars)
+            if is_style_transfer_eval:
+                entry["original_text"] = entry["text"]
+                entry["style_prompt"], entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars)
+            elif adaptive_technique == "baseline_test_time_augmentation":
+                get_
 
         prompt = generate_prompt(model_name, template, exemplars, entry, dataset_name) if should_retrieve_exemplars else None
         judgment = get_judgment(model, tokenizer, prompt, device, entry, dataset_name)
@@ -141,15 +144,15 @@ def evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_nam
     if not os.path.exists(f"results/{experiment_id}"):
         os.makedirs(f"results/{experiment_id}")
 
-    save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_model_name, num_shots)
-    return generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, adaptive_model_name, num_shots, num_failed_generations)
+    save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_technique, num_shots)
+    return generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, adaptive_technique, num_shots, num_failed_generations)
 
 
-def save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_model_name, num_shots):
+def save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_technique, num_shots):
     current_logs = pd.DataFrame(inference_logs)
     model_name = model_name.replace("/", "-")
-    adaptive_model_name = adaptive_model_name.replace("/", "-") if adaptive_model_name is not None else None
-    current_logs.to_csv(f"results/{experiment_id}/{model_name}-{dataset_name}-{eval_set}-{icl_method}-{adaptive_model_name}-{num_shots}-inference-logs.csv", index=False)
+    adaptive_technique = adaptive_technique.replace("/", "-") if adaptive_technique is not None else None
+    current_logs.to_csv(f"results/{experiment_id}/{model_name}-{dataset_name}-{eval_set}-{icl_method}-{adaptive_technique}-{num_shots}-inference-logs.csv", index=False)
     if eval_set != "test+adaptive":
         return
 
@@ -170,7 +173,7 @@ def save_inference_log(inference_logs, experiment_id, model_name, dataset_name, 
             continue
 
         prev_log = pd.read_csv(f"results/{experiment_id}/{saved_log_name}")
-        column_name_prefix = f"{adaptive_model_name}-{num_shots}"
+        column_name_prefix = f"{adaptive_technique}-{num_shots}"
         combined_inference_log[f"{column_name_prefix} Judgment"] = prev_log["judgment"]
         combined_inference_log[f"{column_name_prefix} Input"] = prev_log["input"]
         combined_inference_log[f"{column_name_prefix} Prompt"] = prev_log["style prompt"]
@@ -244,6 +247,7 @@ def main():
     parser.add_argument("--model", type=str, default=None)
     parser.add_argument("--dataset", type=str, default=None)
     parser.add_argument("--splits", type=str, default=None)
+    parser.add_argument("--baseline", type=str, default=None)
     parser.add_argument("--icl_method", type=str, default=None)
     parser.add_argument("--adaptive_model", type=str, default=None)
     parser.add_argument("--max_examples", type=int, default=None)
@@ -285,6 +289,15 @@ def main():
             "tiiuae/falcon-7b-instruct",
         ]
     )
+    baselines = (
+        args.baseline.split(",")
+        if args.baseline is not None
+        else [
+            "baseline_test_time_augmentation",
+            # "baseline_memos",
+            # "baseline_fine_tuning",
+        ]
+    )
     model_names = (
         args.model.split(",")
         if args.model is not None
@@ -302,6 +315,7 @@ def main():
     )
     # Also evaluate models used for sytle transfer
     model_names =  model_names + adaptive_model_names
+    adaptive_techniques = baselines + adaptive_model_names
 
     print("--------------------------------------------------")
     print("Running experiment with the following parameters:")
@@ -311,6 +325,7 @@ def main():
     print(f"ICL Methods: {icl_methods}")
     print(f"Task Model Names: {model_names}")
     print(f"Style Model Names: {adaptive_model_names}")
+    print(f"Baselines: {baselines}")
     print(f"Max Examples: {args.max_examples}")
     print("--------------------------------------------------\n")
 
@@ -326,9 +341,9 @@ def main():
             for icl_method in icl_methods:
                 for evaluation_set in splits:
                     if evaluation_set == "test+adaptive":
-                        for adaptive_model_name in adaptive_model_names:
+                        for adaptive_technique in adaptive_techniques:
                             for num_shots in [4]:
-                                reports.append(evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, adaptive_model_name, num_shots))
+                                reports.append(evaluate_icl_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, adaptive_technique, num_shots))
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
                                 print(all_reports)
                                 all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
