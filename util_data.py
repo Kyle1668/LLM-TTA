@@ -21,22 +21,24 @@ def qa_report(model_answers, gold_answers):
     return { "f1-score": mean_f1, "exact match rate": exact_match_rate }
 
 
-def get_split_log_name(eval_set, adaptive_model_name):
+def get_split_log_name(eval_set, adaptive_method_name):
     if eval_set == "validation":
         return "In-Distribution"
     elif eval_set == "test":
         return "Out-of-Distribution"
-    elif adaptive_model_name == "Test-Time Augmentation":
+    elif adaptive_method_name == "Test-Time Augmentation":
         return "OOD w/ TTA"
-    elif adaptive_model_name == "Fine-Tuning":
+    elif adaptive_method_name == "Fine-Tuning":
         return "OOD w/ Fine-Tuning"
-    elif adaptive_model_name == "MEMO":
+    elif adaptive_method_name == "MEMO":
         return "OOD w/ MEMO"
+    elif adaptive_method_name == "No Adaptation":
+        return "OOD"
     else:
         return "OOD w/ Style Transfer"
 
 
-def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, adaptive_model_name, num_shots=None, num_failed_generations=None):
+def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, adaptive_method_name, num_shots=None, num_failed_generations=None):
     if not os.path.exists(f"results/{experiment_id}"):
         os.makedirs(f"results/{experiment_id}")
 
@@ -47,11 +49,11 @@ def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eva
 
     icl_report = {
         "dataset": dataset_name,
-        "split": get_split_log_name(eval_set, adaptive_model_name),
+        "split": get_split_log_name(eval_set, adaptive_method_name),
         "dataset size": len(dataset[eval_set.replace("+adaptive", "")]),
         "icl_method": icl_method,
         "task model": formatted_model_name,
-        "style transfer model": adaptive_model_name if eval_set == "test+adaptive" else None,
+        "style transfer model": adaptive_method_name if eval_set == "test+adaptive" else None,
         "exemplar count": num_shots,
         "accuracy": report_dict["accuracy"] if not is_qa_task else None,
         "avg precision": report_dict["macro avg"]["precision"] if not is_qa_task else None,
@@ -84,6 +86,7 @@ def get_formatted_dataset(set_name, max_examples=None):
         "ag_news": ("text", "label"),
         "squad": ("context", "answers", "question"),
         "ag_news_twitter": ("tweet summary", "label"),
+        "boss_sentiment": ("Text", "Label"),
     }
 
     hf_dataset = None
@@ -91,7 +94,7 @@ def get_formatted_dataset(set_name, max_examples=None):
     if set_name.startswith("wilds_"):
         hf_dataset = load_wilds_dataset(hf_path)
     elif set_name == "boss_sentiment":
-        hf_dataset = load_boss_sentiment_task(hf_path)
+        hf_dataset = load_boss_sentiment_task()
     elif set_name == "scotus":
         hf_dataset = load_scotus_dataset()
     elif set_name == "ag_news":
@@ -144,7 +147,7 @@ def get_formatted_dataset(set_name, max_examples=None):
         hf_dataset["validation"] = Dataset.from_pandas(validation_set)
 
     if max_examples is not None:
-        for split in ["train", "validation", "test"]:
+        for split in hf_dataset.keys():
             if max_examples >= len(hf_dataset[split]):
                 print(f"WARNING: max_examples ({max_examples}) is greater than the number of examples in the {split} set ({len(hf_dataset[split])}).")
                 continue
@@ -185,6 +188,25 @@ def load_boss_sentiment_task():
     ID: Amazon Review Data (2018)
     OOD: DynaSent, SemEval, and SST
     """
+    amazon_eval = pd.read_csv("datasets/boss_benchmark/SentimentAnalysis/amazon/test.tsv", sep="\t")
+    amazon_train = pd.read_csv("datasets/boss_benchmark/SentimentAnalysis/amazon/train.tsv", sep="\t")
+    dynasent = pd.read_csv("datasets/boss_benchmark/SentimentAnalysis/dynasent/test.tsv", sep="\t")
+    semeval = pd.read_csv("datasets/boss_benchmark/SentimentAnalysis/semeval/test.tsv", sep="\t")
+    sst5 = pd.read_csv("datasets/boss_benchmark/SentimentAnalysis/sst5/test.tsv", sep="\t")
+
+    # amazon_eval.rename(columns={"Text": "text", "Label": "label"}, inplace=True)
+    # amazon_train.rename(columns={"Text": "text", "Label": "label"}, inplace=True)
+    # dynasent.rename(columns={"sentence": "text", "label": "label"}, inplace=True)
+    # semeval.rename(columns={"sentence": "text", "label": "label"}, inplace=True)
+    # sst5.rename(columns={"sentence": "text", "label": "label"}, inplace=True)
+
+    return DatasetDict({
+        "train": Dataset.from_pandas(amazon_train),
+        "validation": Dataset.from_pandas(amazon_eval),
+        "dynasent": Dataset.from_pandas(dynasent),
+        "semval": Dataset.from_pandas(semeval),
+        "sst5": Dataset.from_pandas(sst5)
+    })
 
 def load_ag_news_twitter():
     ag_news = load_dataset("ag_news")

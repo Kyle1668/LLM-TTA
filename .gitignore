@@ -5,6 +5,7 @@
 data
 datasets
 trained_models
+trained_models
 results
 notebooks/data/
 icl_inference_output/

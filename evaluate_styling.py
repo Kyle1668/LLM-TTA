@@ -35,7 +35,7 @@ def main():
         ]
     )
     icl_methods = args.icl_method.split(",") if args.icl_method is not None else ["static", "topk", "mdl"]
-    splits = args.splits.split(",") if args.splits is not None else ["validation", "test", "test+adaptive"]
+    splits = args.splits.split(",") if args.splits is not None else None
     adaptive_model_names = (
         args.adaptive_model.split(",")
         if args.adaptive_model is not None
@@ -64,13 +64,13 @@ def main():
     )
     # Also evaluate models used for sytle transfer
     model_names = model_names + adaptive_model_names
-    adaptive_methods = baselines + adaptive_model_names
+    adaptive_methods = ["No Adaptation"] + baselines + adaptive_model_names
 
     print("--------------------------------------------------")
     print("Running experiment with the following parameters:")
     print(f"Experiment ID: {experiment_id}")
     print(f"Dataset Names: {dataset_names}")
-    print(f"Evalaution Splits: {splits}")
+    # print(f"Evalaution Splits: {splits}")
     print(f"ICL Methods: {icl_methods}")
     print(f"Task Model Names: {model_names}")
     print(f"Style Model Names: {adaptive_model_names}")
@@ -85,19 +85,25 @@ def main():
         for dataset_name in dataset_names:
             print(f"Loading dataset {dataset_name}...")
             dataset = get_formatted_dataset(dataset_name, max_examples=args.max_examples)
+            splits = splits if splits is not None else [split for split in dataset.keys() if split != "train"]
 
             for icl_method in icl_methods:
                 for evaluation_set in splits:
-                    if evaluation_set == "test+adaptive":
+                    if evaluation_set not in ["validation"]:
                         for adaptive_method in adaptive_methods:
-                            if adaptive_method == "test_time_augmentation":
+                            if adaptive_method == "No Adaptation":
+                                reports.append(evaluate_styling_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, adaptive_method, None))
+                                all_reports = pd.DataFrame(reports).drop_duplicates()
+                                print(all_reports)
+                                all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                            elif adaptive_method == "test_time_augmentation":
                                 tta_report = evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method)
                                 reports.append(tta_report)
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
                                 print(all_reports)
                                 all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
                             elif adaptive_method == "memo":
-                                memo_report = evaluate_memo(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method)
+                                memo_report = evaluate_memo(experiment_id, model_name, model, tokenizer, dataset_name, dataset, evaluation_set, icl_method)
                                 reports.append(memo_report)
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
                                 print(all_reports)
@@ -112,7 +118,8 @@ def main():
                                 # as to not affect the next experiment
                                 tokenizer, model = get_model_objects(model_name)
                             elif adaptive_method == "fine-tuning":
-                                ft_report = evaluate_fine_tuning(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method)
+                                dataset_name = f"{dataset_name}_{evaluation_set}" if dataset_name.startswith("boss_") else dataset_name
+                                ft_report = evaluate_fine_tuning(experiment_id, model_name, model, tokenizer, dataset_name, dataset, evaluation_set, icl_method)
                                 reports.append(ft_report)
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
                                 print(all_reports)

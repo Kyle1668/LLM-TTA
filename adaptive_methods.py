@@ -77,7 +77,7 @@ def should_get_exemplars(model, eval_set_name):
     return False
 
 
-def evaluate_styling_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, adaptive_model_name=None, num_shots=None):
+def evaluate_styling_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, adaptive_method_name=None, num_shots=None):
     should_retrieve_exemplars = should_get_exemplars(model, eval_set)
     icl_method = icl_method if should_retrieve_exemplars else None
     template = get_prompt_template(dataset_name) if should_retrieve_exemplars else None
@@ -92,11 +92,11 @@ def evaluate_styling_method(experiment_id, model_name, model, tokenizer, dataset
     adaptive_tokenizer = None
     adaptive_model = None
     if is_adaptive_set:
-        adaptive_tokenizer, adaptive_model = get_model_objects(adaptive_model_name)
+        adaptive_tokenizer, adaptive_model = get_model_objects(adaptive_method_name)
 
     description = f"Evaluating {dataset_name}-{eval_set} with {model_name} using {icl_method}"
-    print(f"{description} and {adaptive_model_name} for style transfer" if is_adaptive_set else description)
-    for entry in tqdm(dataset[eval_set.replace("+adaptive", "")], desc=description):
+    print(f"{description} and {adaptive_method_name} for style transfer" if is_adaptive_set else description)
+    for entry in tqdm(dataset[eval_set.replace("+adaptive", "")]):
         exemplars = mean_exemplar_distance = None
         if should_retrieve_exemplars:
             if icl_method == "static":
@@ -134,15 +134,16 @@ def evaluate_styling_method(experiment_id, model_name, model, tokenizer, dataset
     if not os.path.exists(f"results/{experiment_id}"):
         os.makedirs(f"results/{experiment_id}")
 
-    save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_model_name, num_shots)
-    return generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, adaptive_model_name, num_shots, num_failed_generations)
+    dataset_name = f"{dataset_name}_{eval_set}" if dataset_name.startswith("boss_") else dataset_name
+    save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots)
+    return generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, adaptive_method_name, num_shots, num_failed_generations)
 
 
-def save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_model_name, num_shots):
+def save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots):
     current_logs = pd.DataFrame(inference_logs)
     model_name = model_name.replace("/", "-")
-    adaptive_model_name = adaptive_model_name.replace("/", "-") if adaptive_model_name is not None else None
-    current_logs.to_csv(f"results/{experiment_id}/{model_name}-{dataset_name}-{eval_set}-{icl_method}-{adaptive_model_name}-{num_shots}-inference-logs.csv", index=False)
+    adaptive_method_name = adaptive_method_name.replace("/", "-") if adaptive_method_name is not None else None
+    current_logs.to_csv(f"results/{experiment_id}/{model_name}-{dataset_name}-{eval_set}-{icl_method}-{adaptive_method_name}-{num_shots}-inference-logs.csv", index=False)
     if eval_set != "test+adaptive":
         return
 
@@ -163,7 +164,7 @@ def save_inference_log(inference_logs, experiment_id, model_name, dataset_name, 
             continue
 
         prev_log = pd.read_csv(f"results/{experiment_id}/{saved_log_name}")
-        column_name_prefix = f"{adaptive_model_name}-{num_shots}"
+        column_name_prefix = f"{adaptive_method_name}-{num_shots}"
         combined_inference_log[f"{column_name_prefix} Judgment"] = prev_log["judgment"]
         combined_inference_log[f"{column_name_prefix} Input"] = prev_log["input"]
         combined_inference_log[f"{column_name_prefix} Prompt"] = prev_log["style prompt"]
@@ -221,8 +222,8 @@ def evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer,
     inference_logs = []
     aug = naw.ContextualWordEmbsAug(action="insert")
 
-    description = f"Evaluating {dataset_name} with {model_name} using TTA baseline"
-    for entry in tqdm(dataset[eval_set.replace("+adaptive", "")], desc=description):
+    print(f"Evaluating {dataset_name} with {model_name} using TTA baseline")
+    for entry in tqdm(dataset[eval_set.replace("+adaptive", "")]):
         original_text_input = entry["text"]
         augmented_inputs = aug.augment(original_text_input, n=4)
         logits = []
@@ -254,16 +255,15 @@ def evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer,
 
 
 # TODO: Add support for LLM inference
-def evaluate_memo(experiment_id, task_model_name, task_model, task_tokenizer, dataset_name, dataset, icl_method):
-    eval_set = "test+adaptive"
+def evaluate_memo(experiment_id, task_model_name, task_model, task_tokenizer, dataset_name, dataset, eval_set, icl_method):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     paraphrase_tokenizer, paraphrase_model = get_model_objects("humarin/chatgpt_paraphraser_on_T5_base")
     optimizer = AdamW(task_model.parameters(), lr=0.0000003)
 
     inference_logs = []
     entropies = []
-    description = f"Evaluating {dataset_name} with {task_model_name} using MEMO baseline"
-    for entry in tqdm(dataset[eval_set.replace("+adaptive", "")], desc=description):
+    print(f"Evaluating {dataset_name} with {task_model_name} using MEMO baseline")
+    for entry in tqdm(dataset[eval_set]):
         task_model.train()
         optimizer.zero_grad()
 
@@ -343,16 +343,15 @@ def get_paraphrase_augmentations(
     return res
 
 
-def evaluate_fine_tuning(experiment_id, task_model_name, task_model, task_tokenizer, dataset_name, dataset, icl_method):
-    eval_set = "test+adaptive"
+def evaluate_fine_tuning(experiment_id, task_model_name, task_model, task_tokenizer, dataset_name, dataset, eval_set, icl_method):
     device = task_model.device
     optimizer = AdamW(task_model.parameters(), lr=2e-5)
     criterion = torch.nn.CrossEntropyLoss()
-    task_dataset = GenericDataset(dataset["test"])
+    task_dataset = GenericDataset(dataset[eval_set])
     data_loader = DataLoader(task_dataset, batch_size=16)
 
-    description = f"Fine-Tuning {task_model_name} on {dataset_name}"
-    for batch_inputs, batch_labels in tqdm(data_loader, desc=description):
+    print(f"Fine-Tuning {task_model_name} on {dataset_name}")
+    for batch_inputs, batch_labels in tqdm(data_loader):
         task_model.train()
         optimizer.zero_grad()
         tokenized_batch = task_tokenizer(batch_inputs, padding=True, truncation=True, return_tensors="pt").to(device)
@@ -367,8 +366,8 @@ def evaluate_fine_tuning(experiment_id, task_model_name, task_model, task_tokeni
     optimizer.zero_grad()
     inference_logs = []
 
-    description = f"Evaluating {dataset_name} with {task_model_name} using fine-tuning baseline"
-    for entry in tqdm(dataset[eval_set.replace("+adaptive", "")], desc=description):
+    print(f"Evaluating {dataset_name} with {task_model_name} using fine-tuning baseline")
+    for entry in tqdm(dataset[eval_set]):
         with torch.no_grad():
             eval_text = entry["text"]
             eval_label = entry["label"]
