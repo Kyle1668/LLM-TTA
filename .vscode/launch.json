@@ -10,7 +10,11 @@
             "request": "launch",
             "program": "train_models.py",
             "console": "integratedTerminal",
-            "justMyCode": true
+            "justMyCode": true,
+            "env": {
+                // "CUDA_VISIBLE_DEVICES": "1"
+                "CUDA_VISIBLE_DEVICES": "7"
+            },
         },
         {
             "name": "SQuAD",
