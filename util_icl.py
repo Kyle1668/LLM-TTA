@@ -18,6 +18,7 @@ def get_num_shots(dataset_name):
         "rotten_tomatoes_imdb": 4,
         "imdb_rotten_tomatoes": 8,
         "wilds_amazon": 16,
+        "boss_sentiment": 6,
         "scotus": 4
     }
     dataset_name = "squad" if dataset_name.startswith("squad") else dataset_name

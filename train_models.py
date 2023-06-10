@@ -18,31 +18,29 @@ from adaptive_methods import GenericDataset
 
 
 def get_dataset(dataset_name):
-    if dataset_name == "boss_sentiment":
-        # TOOD: Add validation set and perofrm hyperparameter tuning
-        train_set = pd.read_csv("datasets/boss_benchmark/SentimentAnalysis/amazon/train.tsv", sep="\t")
-        train_set.rename(columns={"Text": "text", "Label": "label"}, inplace=True)
-        test_set = pd.read_csv("datasets/boss_benchmark/SentimentAnalysis/amazon/test.tsv", sep="\t")
-        test_set.rename(columns={"Text": "text", "Label": "label"}, inplace=True)
-        return DatasetDict(
-            {
-                "train": Dataset.from_pandas(train_set),
-                "test": Dataset.from_pandas(test_set),
-            }
-        )
-    elif dataset_name == "boss_toxicity":
-        train_set = pd.read_csv("datasets/boss_benchmark/ToxicDetection/civil_comments/train.tsv", sep="\t")
-        train_set.rename(columns={"Text": "text", "Label": "label"}, inplace=True)
-        test_set = pd.read_csv("datasets/boss_benchmark/ToxicDetection/civil_comments/test.tsv", sep="\t")
-        test_set.rename(columns={"Text": "text", "Label": "label"}, inplace=True)
-        return DatasetDict(
-            {
-                "train": Dataset.from_pandas(train_set),
-                "test": Dataset.from_pandas(test_set),
-            }
-        )
-    else:
-        return load_dataset(dataset_name)
+    dataset_paths = {
+        "boss_sentiment": {
+            "train": "datasets/boss_benchmark/SentimentAnalysis/amazon/train.tsv",
+            "test": "datasets/boss_benchmark/SentimentAnalysis/amazon/test.tsv",
+        },
+        "boss_toxicity": {
+            "train": "datasets/boss_benchmark/ToxicDetection/civil_comments/train.tsv",
+            "test": "datasets/boss_benchmark/ToxicDetection/civil_comments/test.tsv",
+        },
+    }
+
+    train_set = pd.read_csv(dataset_paths[dataset_name]["train"], sep="\t").dropna()
+    train_set.rename(columns={"Text": "text", "Label": "label"}, inplace=True)
+    test_set = pd.read_csv(dataset_paths[dataset_name]["test"], sep="\t").dropna()
+    test_set.rename(columns={"Text": "text", "Label": "label"}, inplace=True)
+    # train_set = train_set.sample(100)
+    # test_set = test_set.sample(100)
+    return DatasetDict(
+        {
+            "train": Dataset.from_pandas(train_set),
+            "test": Dataset.from_pandas(test_set),
+        }
+    )
 
 
 def train_model(model, tokenizer, training_set):
@@ -70,17 +68,17 @@ def train_model(model, tokenizer, training_set):
 def evaluate_model(experiment_id, dataset_name, model, tokenizer, test_set, epoch) -> float:
     model.eval()
     prepped_test_set = GenericDataset(test_set)
-    test_loader = DataLoader(prepped_test_set, batch_size=1, shuffle=True)
+    test_loader = DataLoader(prepped_test_set, batch_size=32, shuffle=True)
 
     predicitons = []
     labels = []
-    for eval_text, eval_label in tqdm(test_loader, desc="Evaluating Model"):
+    for eval_text, eval_labels in tqdm(test_loader, desc="Evaluating Model"):
         with torch.no_grad():
             tokenized_input = tokenizer(eval_text, padding=True, truncation=True, return_tensors="pt").to(model.device)
             eval_logits = model(**tokenized_input).logits
-            eval_prediciton = torch.argmax(eval_logits, dim=1)
-            predicitons.append(eval_prediciton.detach().item())
-            labels.append(eval_label.detach().item())
+            eval_predicitons = torch.argmax(eval_logits, dim=1)
+            predicitons += eval_predicitons.tolist()
+            labels += eval_labels.tolist()
 
     print(classification_report(labels, predicitons))
     report = classification_report(labels, predicitons, output_dict=True)
@@ -103,10 +101,10 @@ def evaluate_model(experiment_id, dataset_name, model, tokenizer, test_set, epoc
 if __name__ == "__main__":
     experiment_id = f"edit_experiment_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     datasets = [
-        {
-            "name": "boss_sentiment",
-            "num_classes": 3,
-        },
+        # {
+        #     "name": "boss_sentiment",
+        #     "num_classes": 3,
+        # },
         {
             "name": "boss_toxicity",
             "num_classes": 2,
@@ -132,7 +130,6 @@ if __name__ == "__main__":
                 train_loss = train_model(model, tokenizer, training_set)
                 test_set_perf = evaluate_model(experiment_id, dataset_name, model, tokenizer, test_set, epoch)
                 epoch_accuracies.append(test_set_perf)
-
 
             # Accuracy for each epoch
             print(epoch_accuracies)
