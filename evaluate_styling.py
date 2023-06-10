@@ -94,25 +94,25 @@ def main():
                             if adaptive_method == "No Adaptation":
                                 reports.append(evaluate_styling_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, adaptive_method, None))
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
-                                print(all_reports)
+                                print(all_reports[["dataset", "split", "dataset size", "accuracy", "avg f1"]])
                                 all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
                             elif adaptive_method == "test_time_augmentation":
-                                tta_report = evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method)
+                                tta_report = evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, evaluation_set, icl_method)
                                 reports.append(tta_report)
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
-                                print(all_reports)
+                                print(all_reports[["dataset", "split", "dataset size", "accuracy", "avg f1"]])
                                 all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
                             elif adaptive_method == "memo":
                                 memo_report = evaluate_memo(experiment_id, model_name, model, tokenizer, dataset_name, dataset, evaluation_set, icl_method)
                                 reports.append(memo_report)
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
-                                print(all_reports)
+                                print(all_reports[["dataset", "split", "dataset size", "accuracy", "avg f1"]])
 
                                 # Now evaluate on the in-distribution set to assess potential catastrophic forgetting
                                 forgetting_report = evaluate_styling_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, "validation", adaptive_method, 0)
                                 reports.append(forgetting_report)
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
-                                print(all_reports)
+                                print(all_reports[["dataset", "split", "dataset size", "accuracy", "avg f1"]])
 
                                 # Since MEMO updates the model's parameters, we need to reload the model so
                                 # as to not affect the next experiment
@@ -122,13 +122,13 @@ def main():
                                 ft_report = evaluate_fine_tuning(experiment_id, model_name, model, tokenizer, dataset_name, dataset, evaluation_set, icl_method)
                                 reports.append(ft_report)
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
-                                print(all_reports)
+                                print(all_reports[["dataset", "split", "dataset size", "accuracy", "avg f1"]])
 
                                 # Now evaluate on the in-distribution set to assess potential catastrophic forgetting
                                 forgetting_report = evaluate_styling_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, "validation", adaptive_method, 0)
                                 reports.append(forgetting_report)
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
-                                print(all_reports)
+                                print(all_reports[["dataset", "split", "dataset size", "accuracy", "avg f1"]])
 
                                 # Since fine-tuning the model further updates the model's parameters, we
                                 # need to reload the model so as to not affect the next experiment
@@ -137,7 +137,7 @@ def main():
                                 for num_shots in [4]:
                                     reports.append(evaluate_styling_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, adaptive_method, num_shots))
                                     all_reports = pd.DataFrame(reports).drop_duplicates()
-                                    print(all_reports)
+                                    print(all_reports[["dataset", "split", "dataset size", "accuracy", "avg f1"]])
                                     all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
                     else:
                         is_llm = model.config.architectures[0].endswith("ForCausalLM")
@@ -145,12 +145,12 @@ def main():
                             for num_shots in [4]:
                                 reports.append(evaluate_styling_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, num_shots=num_shots))
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
-                                print(all_reports)
+                                print(all_reports[["dataset", "split", "dataset size", "accuracy", "avg f1"]])
                                 all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
                         else:
                             reports.append(evaluate_styling_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set))
                             all_reports = pd.DataFrame(reports).drop_duplicates()
-                            print(all_reports)
+                            print(all_reports[["dataset", "split", "dataset size", "accuracy", "avg f1"]])
                             all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
 
 

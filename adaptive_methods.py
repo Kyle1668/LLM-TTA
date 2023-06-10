@@ -88,7 +88,7 @@ def evaluate_styling_method(experiment_id, model_name, model, tokenizer, dataset
     num_failed_generations = 0
     exemplar_retriever = get_retriever(icl_method, data_reader, dataset_name) if should_retrieve_exemplars else None
 
-    is_adaptive_set = eval_set.endswith("+adaptive")
+    is_adaptive_set = adaptive_method_name is not None and adaptive_method_name != "No Adaptation"
     adaptive_tokenizer = None
     adaptive_model = None
     if is_adaptive_set:
@@ -216,8 +216,7 @@ Input Text: "{style_input}\""""
 
 
 # TODO: Add support for LLM inference
-def evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method):
-    eval_set = "test+adaptive"
+def evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, eval_set, icl_method):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     inference_logs = []
     aug = naw.ContextualWordEmbsAug(action="insert")
