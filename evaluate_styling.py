@@ -3,8 +3,8 @@ from datetime import datetime
 import pandas as pd
 
 from adaptive_methods import evaluate_test_time_augmentation, evaluate_styling_method, evaluate_fine_tuning, evaluate_memo
-from data_util import get_formatted_dataset
-from modeling_util import get_model_objects
+from util_data import get_formatted_dataset
+from util_modeling import get_model_objects
 
 
 def main():

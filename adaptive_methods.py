@@ -8,9 +8,9 @@ import pandas as pd
 import torch
 import os
 
-from data_util import generate_icl_report
-from modeling_util import get_model_objects
-from icl_util import generate_prompt, get_prompt_template, get_retriever, get_static_exemplars, get_dynamic_exemplars
+from util_data import generate_icl_report
+from util_modeling import get_model_objects
+from util_icl import generate_prompt, get_prompt_template, get_retriever, get_static_exemplars, get_dynamic_exemplars
 
 
 # TODO: Return logits for LLMs and QA
@@ -343,7 +343,6 @@ def get_paraphrase_augmentations(
     return res
 
 
-
 def evaluate_fine_tuning(experiment_id, task_model_name, task_model, task_tokenizer, dataset_name, dataset, icl_method):
     eval_set = "test+adaptive"
     device = task_model.device
@@ -392,7 +391,6 @@ def evaluate_fine_tuning(experiment_id, task_model_name, task_model, task_tokeni
     data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
     original_judgments = [log["judgment"] for log in inference_logs]
     return generate_icl_report(experiment_id, task_model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, "Fine-Tuning")
-
 
 
 class GenericDataset(Dataset):

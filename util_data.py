@@ -1,6 +1,6 @@
 from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
 from datasets import load_dataset, Dataset, DatasetDict
-from metrics_util import SquadMetrics
+from util_metrics import SquadMetrics
 from datasets import load_dataset
 from wilds import get_dataset
 from tqdm import tqdm
@@ -90,6 +90,8 @@ def get_formatted_dataset(set_name, max_examples=None):
     hf_path = hf_paths[set_name] if set_name in hf_paths else set_name
     if set_name.startswith("wilds_"):
         hf_dataset = load_wilds_dataset(hf_path)
+    elif set_name == "boss_sentiment":
+        hf_dataset = load_boss_sentiment_task(hf_path)
     elif set_name == "scotus":
         hf_dataset = load_scotus_dataset()
     elif set_name == "ag_news":
@@ -176,6 +178,13 @@ def get_formatted_dataset(set_name, max_examples=None):
 
     return hf_dataset
 
+
+def load_boss_sentiment_task():
+    """
+    Boss sentiment ananlysis taks is composed of a single ID set and three OOD sets
+    ID: Amazon Review Data (2018)
+    OOD: DynaSent, SemEval, and SST
+    """
 
 def load_ag_news_twitter():
     ag_news = load_dataset("ag_news")

@@ -9,7 +9,7 @@ import torch
 import json
 import os
 
-from data_util import (
+from util_data import (
     get_formatted_dataset,
     get_static_examplars,
     get_complete_prompt,

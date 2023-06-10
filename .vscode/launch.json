@@ -5,6 +5,14 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Model Training",
+            "type": "python",
+            "request": "launch",
+            "program": "train_models.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
             "name": "SQuAD",
             "type": "python",
             "request": "launch",
