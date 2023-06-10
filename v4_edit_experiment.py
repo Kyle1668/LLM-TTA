@@ -102,12 +102,24 @@ def main():
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
                                 print(all_reports)
 
+                                # Now evaluate on the in-distribution set to assess potential catastrophic forgetting
+                                forgetting_report = evaluate_styling_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, "validation", adaptive_method, 0)
+                                reports.append(forgetting_report)
+                                all_reports = pd.DataFrame(reports).drop_duplicates()
+                                print(all_reports)
+
                                 # Since MEMO updates the model's parameters, we need to reload the model so
                                 # as to not affect the next experiment
                                 tokenizer, model = get_model_objects(model_name)
                             elif adaptive_method == "fine-tuning":
                                 ft_report = evaluate_fine_tuning(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method)
                                 reports.append(ft_report)
+                                all_reports = pd.DataFrame(reports).drop_duplicates()
+                                print(all_reports)
+
+                                # Now evaluate on the in-distribution set to assess potential catastrophic forgetting
+                                forgetting_report = evaluate_styling_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, "validation", adaptive_method, 0)
+                                reports.append(forgetting_report)
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
                                 print(all_reports)
 
