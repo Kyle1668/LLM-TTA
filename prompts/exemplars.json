@@ -52,5 +52,31 @@
             "text": "that loves its characters and communicates something rather beautiful about human nature ",
             "label": "1"
         }
+    ],
+    "boss_sentiment": [
+        {
+            "text": "The quality was not as good as expected.",
+            "label": "0"
+        },
+        {
+            "text": "One of my favorites",
+            "label": "1"
+        },
+        {
+            "text": "Overall: 6/10 - not horrible, but you can get better products for a lower price",
+            "label": "2"
+        },
+        {
+            "text": "Bland. If you're used to a dark roast this will let you down.",
+            "label": "0"
+        },
+        {
+            "text": "I believe in name brand when it comes to wire wheels. I do not like the bits of wire that break off of cheap brand wheels and stick into my arm. Dewalt wire wheels do hold up and last longer than others.",
+            "label": "1"
+        },
+        {
+            "text": "I'm a Roy Rogers fan , but didn't like the way it was chopped up. So much was taken out of the picture.",
+            "label": "2"
+        }
     ]
 }

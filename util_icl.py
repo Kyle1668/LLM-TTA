@@ -48,6 +48,8 @@ def get_prompt_template(dataset_name):
         "squad": 1,
         "ag_news": 4,
         "ag_news_twitter": 4,
+        "boss_sentiment": 3,
+        "boss_toxicity": 2,
         "toxigen": 2,
         "disaster_tweets": 2,
         "wilds_civil_comments": 2,

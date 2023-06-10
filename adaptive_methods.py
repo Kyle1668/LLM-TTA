@@ -69,15 +69,11 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
         return -1
 
 
-def should_get_exemplars(model, eval_set_name):
-    if model.config.architectures[0].endswith("ForCausalLM"):
-        return True
-    if eval_set_name.endswith("+adaptive"):
-        return True
-    return False
+def should_get_exemplars(model, is_adaptive_set):
+    return model.config.architectures[0].endswith("ForCausalLM") or is_adaptive_set
 
 
-def evaluate_styling_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, adaptive_method_name=None, num_shots=None):
+def evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, num_shots=None):
     should_retrieve_exemplars = should_get_exemplars(model, eval_set)
     icl_method = icl_method if should_retrieve_exemplars else None
     template = get_prompt_template(dataset_name) if should_retrieve_exemplars else None
@@ -88,7 +84,54 @@ def evaluate_styling_method(experiment_id, model_name, model, tokenizer, dataset
     num_failed_generations = 0
     exemplar_retriever = get_retriever(icl_method, data_reader, dataset_name) if should_retrieve_exemplars else None
 
+    description = f"Evaluating {dataset_name}-{eval_set} with {model_name} using {icl_method}"
+    for entry in tqdm(dataset[eval_set.replace("+adaptive", "")]):
+        exemplars = mean_exemplar_distance = None
+        if should_retrieve_exemplars:
+            if icl_method == "static":
+                exemplars = get_static_exemplars(dataset_name)
+            else:
+                exemplars, mean_exemplar_distance = get_dynamic_exemplars(entry["text"], dataset_name, exemplar_retriever, num_shots) if should_retrieve_exemplars else None
+
+        prompt = generate_prompt(model_name, template, exemplars, entry, dataset_name) if should_retrieve_exemplars else None
+        judgment = get_judgment(model, tokenizer, prompt, device, entry, dataset_name)
+        judgment = judgment[0] if isinstance(judgment, tuple) else judgment
+        original_judgments.append(judgment)
+        if judgment == -1:
+            num_failed_generations += 1
+            print(f"Warning: {model_name} failed to generate a judgment for the following input: {entry['text']}")
+
+        inference_log = {}
+        inference_log["input"] = entry["text"]
+        if dataset_name.startswith("squad"):
+            inference_log["question"] = entry["question"]
+        inference_log["judgment"] = judgment
+        if should_retrieve_exemplars:
+            inference_log["prompt"] = prompt
+
+        inference_log["label"] = entry["label"]
+        inference_logs.append(inference_log)
+
+    if not os.path.exists(f"results/{experiment_id}"):
+        os.makedirs(f"results/{experiment_id}")
+
+    dataset_name = f"{dataset_name}_{eval_set}" if dataset_name.startswith("boss_") else dataset_name
+    save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, "No Adaptation", num_shots)
+    return generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, "No Adaptation", num_shots, num_failed_generations)
+
+
+def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, adaptive_method_name=None, num_shots=None):
     is_adaptive_set = adaptive_method_name is not None and adaptive_method_name != "No Adaptation"
+    should_retrieve_exemplars = should_get_exemplars(model, evaluate_style_transfer)
+    icl_method = icl_method if should_retrieve_exemplars else None
+    template = get_prompt_template(dataset_name) if should_retrieve_exemplars else None
+    data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    original_judgments = []
+    inference_logs = []
+    num_failed_generations = 0
+    exemplar_retriever = get_retriever(icl_method, data_reader, dataset_name) if should_retrieve_exemplars else None
+
     adaptive_tokenizer = None
     adaptive_model = None
     if is_adaptive_set:
