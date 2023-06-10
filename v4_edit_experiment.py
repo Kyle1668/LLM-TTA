@@ -2,7 +2,7 @@ from argparse import ArgumentParser
 from datetime import datetime
 import pandas as pd
 
-from adaptive_methods import evaluate_test_time_augmentation, evaluate_styling_method
+from adaptive_methods import evaluate_test_time_augmentation, evaluate_memo, evaluate_styling_method
 from data_util import get_formatted_dataset
 from modeling_util import get_model_objects
 
@@ -46,7 +46,7 @@ def main():
             "tiiuae/falcon-7b-instruct",
         ]
     )
-    baselines = args.baseline.split(",") if args.baseline is not None else ["test_time_augmentation", "memos", "fine-tune"]
+    baselines = args.baseline.split(",") if args.baseline is not None else ["memo", "test_time_augmentation", "fine-tune"]
     model_names = (
         args.model.split(",")
         if args.model is not None
@@ -96,8 +96,15 @@ def main():
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
                                 print(all_reports)
                                 all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
-                            elif adaptive_method == "memos":
-                                continue
+                            elif adaptive_method == "memo":
+                                memo_report = evaluate_memo(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method)
+                                reports.append(memo_report)
+                                all_reports = pd.DataFrame(reports).drop_duplicates()
+                                print(all_reports)
+
+                                # Since MEMO updates the model's parameters, we need to reload the model so
+                                # as to not affect the next experiment
+                                tokenizer, model = get_model_objects(model_name)
                             elif adaptive_method == "fine-tune":
                                 continue
                             else:

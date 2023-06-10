@@ -34,7 +34,7 @@
             },
             "args": [
                 "--max_examples=10",
-                "--model=mosesju/distilbert-base-uncased-finetuned-news,nateraw/bert-base-uncased-ag-news",
+                "--model=nateraw/bert-base-uncased-ag-news,mosesju/distilbert-base-uncased-finetuned-news",
                 "--dataset=ag_news_twitter",
                 "--icl_method=static,topk,mdl",
             ]

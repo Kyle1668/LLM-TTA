@@ -15,3 +15,4 @@ openicl
 wilds
 einops
 nlpaug
+scipy

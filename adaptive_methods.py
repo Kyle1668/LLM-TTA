@@ -1,5 +1,6 @@
 from transformers import pipeline
 from openicl import DatasetReader
+from torch.optim import AdamW
 from tqdm import tqdm
 import nlpaug.augmenter.word as naw
 import pandas as pd
@@ -252,4 +253,87 @@ def evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer,
     return generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, "Test-Time Augmentation")
 
 
+# TODO: Add support for LLM inference
+def evaluate_memo(experiment_id, task_model_name, task_model, task_tokenizer, dataset_name, dataset, icl_method):
+    eval_set = "test+adaptive"
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    paraphrase_tokenizer, paraphrase_model = get_model_objects("humarin/chatgpt_paraphraser_on_T5_base")
+    optimizer = AdamW(task_model.parameters(), lr=0.000003)
 
+    inference_logs = []
+    entropies = []
+    description = f"Evaluating {dataset_name} with {task_model_name} using MEMO baseline"
+    for entry in tqdm(dataset[eval_set.replace("+adaptive", "")], desc=description):
+        task_model.train()
+        optimizer.zero_grad()
+
+        # Get the augmentations for the current input and compute the marginal
+        # entropy. Then backpropagate the marginal entropy before predicting.
+        original_text_input = entry["text"]
+        augmentations = paraphrase(original_text_input, paraphrase_tokenizer, paraphrase_model, device)
+        aug_tokens = task_tokenizer(augmentations, return_tensors="pt", padding="longest").to(device)
+        aug_logits = task_model(**aug_tokens).logits
+        aug_probs = aug_logits.softmax(dim=1)
+        marginal_probs = aug_probs.mean(dim=0)
+        marginal_entropy = -torch.sum(marginal_probs * torch.log(marginal_probs))
+        marginal_entropy.backward()
+        entropies.append(marginal_entropy.item())
+        optimizer.step()
+
+        # Make the prediciton for the current original input with the new model weights
+        with torch.no_grad():
+            task_model.eval()
+            input_tokens = task_tokenizer(original_text_input, return_tensors="pt").to(device)
+            input_logits = task_model(**input_tokens).logits
+            final_judgment = torch.argmax(input_logits).detach().item()
+
+            inference_log = {}
+            inference_log["input"] = entry["text"]
+            inference_log["label"] = entry["label"]
+            inference_log["judgment"] = final_judgment
+            inference_log["original_input"] = entry["text"]
+            inference_log["style prompt"] = ", ".join(augmentations)
+            inference_logs.append(inference_log)
+
+    if not os.path.exists(f"results/{experiment_id}"):
+        os.makedirs(f"results/{experiment_id}")
+
+    save_inference_log(inference_logs, experiment_id, task_model_name, dataset_name, icl_method, eval_set, "memo", None)
+    data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
+    original_judgments = [log["judgment"] for log in inference_logs]
+    return generate_icl_report(experiment_id, task_model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, "MEMO")
+
+
+
+
+def paraphrase(
+    question,
+    paraphrase_tokenizer,
+    paraphrase_model,
+    device,
+    num_beams=5,
+    num_beam_groups=5,
+    num_return_sequences=5,
+    repetition_penalty=10.0,
+    diversity_penalty=3.0,
+    no_repeat_ngram_size=2,
+    temperature=0.7,
+    max_length=128
+):
+    input_ids = paraphrase_tokenizer(
+        f'paraphrase: {question}',
+        return_tensors="pt", padding="longest",
+        max_length=max_length,
+        truncation=True,
+    ).input_ids.to(device)
+
+    outputs = paraphrase_model.generate(
+        input_ids, temperature=temperature, repetition_penalty=repetition_penalty,
+        num_return_sequences=num_return_sequences, no_repeat_ngram_size=no_repeat_ngram_size,
+        num_beams=num_beams, num_beam_groups=num_beam_groups,
+        max_length=max_length, diversity_penalty=diversity_penalty
+    )
+
+    res = paraphrase_tokenizer.batch_decode(outputs, skip_special_tokens=True)
+
+    return res
