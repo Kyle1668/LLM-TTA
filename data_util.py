@@ -27,7 +27,7 @@ def get_split_log_name(eval_set, adaptive_model_name):
     elif eval_set == "test":
         return "Out-of-Distribution"
     elif adaptive_model_name == "Test-Time Augmentation":
-        return "OOD w/ Test-Time Augmentation"
+        return "OOD w/ TTA"
     elif adaptive_model_name == "MEMO":
         return "OOD w/ MEMO"
     else:
