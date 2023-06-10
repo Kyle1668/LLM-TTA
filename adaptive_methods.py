@@ -1,3 +1,4 @@
+from torch.utils.data import DataLoader, Dataset
 from transformers import pipeline
 from openicl import DatasetReader
 from torch.optim import AdamW
@@ -39,7 +40,7 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
             tokenized_prompt, max_new_tokens=50 if is_qa_task else 50, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id
         )
 
-        generation = tokenizer.decode(outputs["sequences"][0][len(tokenized_prompt[0]):]).split("\n")[0].replace("</s>", "").strip()
+        generation = tokenizer.decode(outputs["sequences"][0][len(tokenized_prompt[0]) :]).split("\n")[0].replace("</s>", "").strip()
     try:
         # generation = generation.replace("</s>", "") if "vicuna" in model.name_or_path else generation
         # return generation if is_qa_task else int(generation.strip()[0])
@@ -169,7 +170,6 @@ def save_inference_log(inference_logs, experiment_id, model_name, dataset_name, 
     combined_inference_log.to_csv(f"results/{experiment_id}/{combined_inference_log_file_name}")
 
 
-
 def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemplars):
     style_input = input_entry["text"].replace("\n", " ")
     # style_transfer_exemplars = "".join([f'"{exemplar["text"].strip()[:len(style_input)]}"\n' for exemplar in exemplars])
@@ -194,7 +194,7 @@ Input Text: "{style_input}\""""
             return_dict_in_generate=True,
         )
 
-    generation = adaptive_tokenizer.decode(outputs["sequences"][0][len(tokenized_prompt[0]):]).replace("\n", " ").replace("</s>", "").strip()
+    generation = adaptive_tokenizer.decode(outputs["sequences"][0][len(tokenized_prompt[0]) :]).replace("\n", " ").replace("</s>", "").strip()
     if "###" in generation:
         generation = generation.split("###")[0]
     if " Text:" in generation:
@@ -258,7 +258,7 @@ def evaluate_memo(experiment_id, task_model_name, task_model, task_tokenizer, da
     eval_set = "test+adaptive"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     paraphrase_tokenizer, paraphrase_model = get_model_objects("humarin/chatgpt_paraphraser_on_T5_base")
-    optimizer = AdamW(task_model.parameters(), lr=0.000003)
+    optimizer = AdamW(task_model.parameters(), lr=0.0000003)
 
     inference_logs = []
     entropies = []
@@ -270,7 +270,7 @@ def evaluate_memo(experiment_id, task_model_name, task_model, task_tokenizer, da
         # Get the augmentations for the current input and compute the marginal
         # entropy. Then backpropagate the marginal entropy before predicting.
         original_text_input = entry["text"]
-        augmentations = paraphrase(original_text_input, paraphrase_tokenizer, paraphrase_model, device)
+        augmentations = get_paraphrase_augmentations(original_text_input, paraphrase_tokenizer, paraphrase_model, device)
         aug_tokens = task_tokenizer(augmentations, return_tensors="pt", padding="longest").to(device)
         aug_logits = task_model(**aug_tokens).logits
         aug_probs = aug_logits.softmax(dim=1)
@@ -304,9 +304,7 @@ def evaluate_memo(experiment_id, task_model_name, task_model, task_tokenizer, da
     return generate_icl_report(experiment_id, task_model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, "MEMO")
 
 
-
-
-def paraphrase(
+def get_paraphrase_augmentations(
     question,
     paraphrase_tokenizer,
     paraphrase_model,
@@ -318,22 +316,91 @@ def paraphrase(
     diversity_penalty=3.0,
     no_repeat_ngram_size=2,
     temperature=0.7,
-    max_length=128
+    max_length=128,
 ):
     input_ids = paraphrase_tokenizer(
-        f'paraphrase: {question}',
-        return_tensors="pt", padding="longest",
+        f"paraphrase: {question}",
+        return_tensors="pt",
+        padding="longest",
         max_length=max_length,
         truncation=True,
     ).input_ids.to(device)
 
     outputs = paraphrase_model.generate(
-        input_ids, temperature=temperature, repetition_penalty=repetition_penalty,
-        num_return_sequences=num_return_sequences, no_repeat_ngram_size=no_repeat_ngram_size,
-        num_beams=num_beams, num_beam_groups=num_beam_groups,
-        max_length=max_length, diversity_penalty=diversity_penalty
+        input_ids,
+        temperature=temperature,
+        repetition_penalty=repetition_penalty,
+        num_return_sequences=num_return_sequences,
+        no_repeat_ngram_size=no_repeat_ngram_size,
+        num_beams=num_beams,
+        num_beam_groups=num_beam_groups,
+        max_length=max_length,
+        diversity_penalty=diversity_penalty,
     )
 
     res = paraphrase_tokenizer.batch_decode(outputs, skip_special_tokens=True)
 
     return res
+
+
+
+def evaluate_fine_tuning(experiment_id, task_model_name, task_model, task_tokenizer, dataset_name, dataset, icl_method):
+    eval_set = "test+adaptive"
+    device = task_model.device
+    optimizer = AdamW(task_model.parameters(), lr=2e-5)
+    criterion = torch.nn.CrossEntropyLoss()
+    task_dataset = GenericDataset(dataset["test"])
+    data_loader = DataLoader(task_dataset, batch_size=16)
+
+    description = f"Fine-Tuning {task_model_name} on {dataset_name}"
+    for batch_inputs, batch_labels in tqdm(data_loader, desc=description):
+        task_model.train()
+        optimizer.zero_grad()
+        tokenized_batch = task_tokenizer(batch_inputs, padding=True, truncation=True, return_tensors="pt").to(device)
+        labels = batch_labels.to(device)
+
+        logits = task_model(**tokenized_batch).logits
+        loss = criterion(logits, labels)
+        loss.backward()
+        optimizer.step()
+
+    task_model.eval()
+    optimizer.zero_grad()
+    inference_logs = []
+
+    description = f"Evaluating {dataset_name} with {task_model_name} using fine-tuning baseline"
+    for entry in tqdm(dataset[eval_set.replace("+adaptive", "")], desc=description):
+        with torch.no_grad():
+            eval_text = entry["text"]
+            eval_label = entry["label"]
+            tokenized_sample = task_tokenizer(eval_text, return_tensors="pt").to(device)
+            logits = task_model(**tokenized_sample).logits
+            eval_prediciton = torch.argmax(logits, dim=1).cpu().numpy()
+
+            inference_log = {}
+            inference_log["input"] = entry["text"]
+            inference_log["label"] = entry["label"]
+            inference_log["judgment"] = eval_prediciton
+            inference_log["original_input"] = entry["text"]
+            inference_log["style prompt"] = ""
+            inference_logs.append(inference_log)
+
+    if not os.path.exists(f"results/{experiment_id}"):
+        os.makedirs(f"results/{experiment_id}")
+
+    save_inference_log(inference_logs, experiment_id, task_model_name, dataset_name, icl_method, eval_set, "fine_tuning", None)
+    data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
+    original_judgments = [log["judgment"] for log in inference_logs]
+    return generate_icl_report(experiment_id, task_model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, "Fine-Tuning")
+
+
+
+class GenericDataset(Dataset):
+    def __init__(self, in_dataset):
+        self.dataset = in_dataset
+
+    def __getitem__(self, index):
+        return self.dataset["text"][index], self.dataset["label"][index]
+
+    def __len__(self):
+        return len(self.dataset["text"])

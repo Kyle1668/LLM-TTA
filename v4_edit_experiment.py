@@ -2,7 +2,7 @@ from argparse import ArgumentParser
 from datetime import datetime
 import pandas as pd
 
-from adaptive_methods import evaluate_test_time_augmentation, evaluate_memo, evaluate_styling_method
+from adaptive_methods import evaluate_test_time_augmentation, evaluate_styling_method, evaluate_fine_tuning, evaluate_memo
 from data_util import get_formatted_dataset
 from modeling_util import get_model_objects
 
@@ -46,7 +46,7 @@ def main():
             "tiiuae/falcon-7b-instruct",
         ]
     )
-    baselines = args.baseline.split(",") if args.baseline is not None else ["memo", "test_time_augmentation", "fine-tune"]
+    baselines = args.baseline.split(",") if args.baseline is not None else ["fine-tuning", "memo", "test_time_augmentation"]
     model_names = (
         args.model.split(",")
         if args.model is not None
@@ -105,8 +105,15 @@ def main():
                                 # Since MEMO updates the model's parameters, we need to reload the model so
                                 # as to not affect the next experiment
                                 tokenizer, model = get_model_objects(model_name)
-                            elif adaptive_method == "fine-tune":
-                                continue
+                            elif adaptive_method == "fine-tuning":
+                                ft_report = evaluate_fine_tuning(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method)
+                                reports.append(ft_report)
+                                all_reports = pd.DataFrame(reports).drop_duplicates()
+                                print(all_reports)
+
+                                # Since fine-tuning the model further updates the model's parameters, we
+                                # need to reload the model so as to not affect the next experiment
+                                tokenizer, model = get_model_objects(model_name)
                             else:
                                 for num_shots in [4]:
                                     reports.append(evaluate_styling_method(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, adaptive_method, num_shots))
