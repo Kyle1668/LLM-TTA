@@ -25,10 +25,10 @@
             "justMyCode": false,
             "env": {
                 // "CUDA_VISIBLE_DEVICES": "1"
-                "CUDA_VISIBLE_DEVICES": "4,5,6,7"
+                "CUDA_VISIBLE_DEVICES": "3"
             },
             "args": [
-                "--max_examples=20",
+                "--max_examples=100",
                 // "--model=trained_models/edit_experiment_2023-06-10_19-48-53/boss_sentiment/bert-base-uncased_1",
                 "--model=trained_models/edit_experiment_2023-06-10_22-39-22/boss_sentiment/bert-base-uncased_1",
                 "--dataset=boss_sentiment"

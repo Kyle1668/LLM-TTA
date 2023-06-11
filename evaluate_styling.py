@@ -52,7 +52,7 @@ def main():
             # "tiiuae/falcon-7b-instruct",
         ]
     )
-    baselines = args.baseline.split(",") if args.baseline is not None else ["fine-tuning", "memo", "test_time_augmentation"]
+    baselines = args.baseline.split(",") if args.baseline is not None else ["test_time_augmentation", "fine-tuning", "memo"]
     model_names = (
         args.model.split(",")
         if args.model is not None

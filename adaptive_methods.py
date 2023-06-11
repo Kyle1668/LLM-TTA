@@ -33,11 +33,7 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
 
             if is_nli_task:
                 nl_judgment = model.config.id2label[predicted_class].lower()
-                token_label_map = {
-                    "entailment": 0,
-                    "neutral": 1,
-                    "contradiction": 2
-                }
+                token_label_map = {"entailment": 0, "neutral": 1, "contradiction": 2}
                 return token_label_map[nl_judgment], logits
 
             return predicted_class, logits
@@ -269,7 +265,7 @@ Input Text: "{style_input}\""""
 def evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, eval_set, icl_method):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     inference_logs = []
-    aug = naw.ContextualWordEmbsAug(action="insert")
+    aug = naw.ContextualWordEmbsAug(action="substitute", device="cuda")
 
     print(f"Evaluating {dataset_name} with {model_name} using TTA baseline")
     for entry in tqdm(dataset[eval_set.replace("+adaptive", "")]):
