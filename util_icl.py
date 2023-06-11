@@ -19,13 +19,15 @@ def get_num_shots(dataset_name):
         "imdb_rotten_tomatoes": 8,
         "wilds_amazon": 16,
         "boss_sentiment": 6,
+        "boss_toxicity": 6,
+        "boss_nli": 6,
         "scotus": 4
     }
     dataset_name = "squad" if dataset_name.startswith("squad") else dataset_name
     return dataset_ice_nums[dataset_name]
 
 
-def get_retriever(icl_method, data, dataset_name, index_split="train", test_split="test"):
+def get_retriever(icl_method, data, dataset_name, index_split="train"):
     if icl_method == "topk":
         return TopkRetriever(dataset_reader=data, ice_num=get_num_shots(dataset_name), index_split=index_split, tokenizer_name="sentence-transformers/all-mpnet-base-v2")
     elif icl_method == "mdl":
@@ -33,7 +35,7 @@ def get_retriever(icl_method, data, dataset_name, index_split="train", test_spli
     elif icl_method == "random":
         return RandomRetriever(dataset_reader=data, ice_num=get_num_shots(dataset_name), index_split=index_split)
     elif icl_method == "votek":
-        return VotekRetriever(dataset_reader=data, ice_num=get_num_shots(dataset_name), index_split=index_split, test_split=test_split)
+        return VotekRetriever(dataset_reader=data, ice_num=get_num_shots(dataset_name), index_split=index_split)
     elif icl_method == "kne":
         return IndexIDMap(IndexFlatIP(768))
     elif icl_method == "static":
@@ -51,6 +53,7 @@ def get_prompt_template(dataset_name):
         "ag_news_twitter": 4,
         "boss_sentiment": 3,
         "boss_toxicity": 2,
+        "boss_nli": 1,
         "toxigen": 2,
         "disaster_tweets": 2,
         "wilds_civil_comments": 2,

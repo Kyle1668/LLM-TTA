@@ -28,9 +28,27 @@
                 "CUDA_VISIBLE_DEVICES": "4,5,6,7"
             },
             "args": [
-                "--max_examples=10",
-                "--model=trained_models/edit_experiment_2023-06-10_19-48-53/boss_sentiment/bert-base-uncased_1",
+                "--max_examples=20",
+                // "--model=trained_models/edit_experiment_2023-06-10_19-48-53/boss_sentiment/bert-base-uncased_1",
+                "--model=trained_models/edit_experiment_2023-06-10_22-39-22/boss_sentiment/bert-base-uncased_1",
                 "--dataset=boss_sentiment"
+            ]
+        },
+        {
+            "name": "BOSS NLI",
+            "type": "python",
+            "request": "launch",
+            "program": "evaluate_styling.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                // "CUDA_VISIBLE_DEVICES": "1"
+                "CUDA_VISIBLE_DEVICES": "3,4,5,6"
+            },
+            "args": [
+                "--max_examples=32",
+                "--model=microsoft/deberta-large-mnli",
+                "--dataset=boss_nli"
             ]
         },
         {

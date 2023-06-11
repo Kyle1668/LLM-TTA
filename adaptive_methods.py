@@ -17,9 +17,6 @@ from util_icl import generate_prompt, get_prompt_template, get_retriever, get_st
 def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
     if model.config.architectures[0].endswith("ForQuestionAnswering"):
         with torch.no_grad():
-            # input_sequence = tokenizer(input_entry["text"], return_tensors="pt").to(device)
-            # outputs = model(**input_sequence)
-            # return outputs.logits.argmax(axis=1)
             question = input_entry["question"]
             context = input_entry["text"]
             question_answerer = pipeline("question-answering", model=model, tokenizer=tokenizer, device="cuda:0")
@@ -27,11 +24,23 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
             return qa_response["answer"]
 
     if type(model).__name__.endswith("ForSequenceClassification"):
+        is_nli_task = dataset_name.startswith("boss_nli")
         with torch.no_grad():
             input_sequence = tokenizer(input_entry["text"], return_tensors="pt", truncation=True).to(device)
             outputs = model(**input_sequence)
             logits = outputs.logits
-            return int(logits.argmax(axis=1)), logits
+            predicted_class = int(logits.argmax(axis=1))
+
+            if is_nli_task:
+                nl_judgment = model.config.id2label[predicted_class].lower()
+                token_label_map = {
+                    "entailment": 0,
+                    "neutral": 1,
+                    "contradiction": 2
+                }
+                return token_label_map[nl_judgment], logits
+
+            return predicted_class, logits
 
     is_qa_task = dataset_name.startswith("squad")
     tokenized_prompt = tokenizer.encode(prompt, return_tensors="pt").to(device)
@@ -42,8 +51,6 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
 
         generation = tokenizer.decode(outputs["sequences"][0][len(tokenized_prompt[0]) :]).split("\n")[0].replace("</s>", "").strip()
     try:
-        # generation = generation.replace("</s>", "") if "vicuna" in model.name_or_path else generation
-        # return generation if is_qa_task else int(generation.strip()[0])
         if is_qa_task:
             return generation
 

@@ -78,5 +78,57 @@
             "text": "I'm a Roy Rogers fan , but didn't like the way it was chopped up. So much was taken out of the picture.",
             "label": "2"
         }
+    ],
+    "boss_nli": [
+        {
+            "text": "Everyone remembers that the first lady blamed Flytrap on a vast right-wing conspiracy in a Today show interview during the first days of the crisis. / The First Lady was on the Today show.",
+            "label": "0"
+        },
+        {
+            "text": "six of us / A half dozen of us are here.",
+            "label": "1"
+        },
+        {
+            "text": "4 million - the amount of funding Mayor Bloomberg proposed for the Legal Aid Society by sharply curtailing compensation for court-appointed lawyers under the 18-B program. / Bloomberg did not propose any money for funding towards the Legal Aid Society.",
+            "label": "2"
+        },
+        {
+            "text": "I knew it was to be my twin. / I knew I would have a twin.",
+            "label": "0"
+        },
+        {
+            "text": "Put your Gauntlet down. / Put you gauntlet down before it burns you.",
+            "label": "1"
+        },
+        {
+            "text": "In addition, the rule revises certain controlled business disclosure requirements. / There are no rules when it comes to business disclosures.",
+            "label": "2"
+        }
+    ],
+    "boss_toxicity": [
+        {
+            "text": "More like Miller101 and his CIA posters out of his polluted cesspool in Halifax harbor.",
+            "label": "0"
+        },
+        {
+            "text": "now that was idiocy at one of its finest; american goes to the bottom of the pile of choices for me.",
+            "label": "1"
+        },
+        {
+            "text": "Rich I think you are spam quality by ADN rules. Report taken",
+            "label": "0"
+        },
+        {
+            "text": "Flying over ocean on two engines is stupid! Only matter of time.",
+            "label": "1"
+        },
+        {
+            "text": "Trump didn't pave the way to make Iraq an Iranian satellite, Obama did.",
+            "label": "0"
+        },
+        {
+            "text": "You should remember to take your mess.",
+            "label": "1"
+        }
     ]
 }
