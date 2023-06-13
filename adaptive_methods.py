@@ -270,7 +270,15 @@ def evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer,
     print(f"Evaluating {dataset_name} with {model_name} using TTA baseline")
     for entry in tqdm(dataset[eval_set.replace("+adaptive", "")]):
         original_text_input = entry["text"]
-        augmented_inputs = aug.augment(original_text_input, n=4)
+
+        augmented_inputs = None
+        if dataset_name == "boss_nli":
+            premises = aug.augment(entry["Premise"], n=4)
+            hypothesis = aug.augment(entry["Hypothesis"], n=4)
+            augmented_inputs = [f"{p} / {h}" for (p, h) in zip(premises, hypothesis)]
+        else:
+            augmented_inputs = aug.augment(original_text_input, n=4)
+
         logits = []
         judgments = []
         tta_inputs = [original_text_input] + augmented_inputs
