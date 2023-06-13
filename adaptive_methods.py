@@ -240,8 +240,8 @@ Input Text: "{style_input}\""""
     with torch.no_grad():
         outputs = adaptive_model.generate(
             tokenized_prompt,
-            do_sample=True,
-            temperature=0.1,
+            # do_sample=True,
+            # temperature=0.1,
             max_new_tokens=300,
             length_penalty=0,
             repetition_penalty=1.0,

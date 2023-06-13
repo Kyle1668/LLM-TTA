@@ -40,7 +40,7 @@ def main():
             "wilds_civil_comments",
         ]
     )
-    icl_methods = args.icl_method.split(",") if args.icl_method is not None else ["topk", "static"]  #["static", "topk", "mdl"]
+    icl_methods = args.icl_method.split(",") if args.icl_method is not None else ["static"]  #["static", "topk", "mdl"]
     splits = args.splits.split(",") if args.splits is not None else None
     adaptive_model_names = (
         args.adaptive_model.split(",")

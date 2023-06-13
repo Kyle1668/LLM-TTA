@@ -24,8 +24,6 @@ def qa_report(model_answers, gold_answers):
 def get_split_log_name(eval_set, adaptive_method_name):
     if eval_set == "validation":
         return "In-Distribution"
-    elif eval_set == "test":
-        return "Out-of-Distribution"
     elif "Test-Time Augmentation" in adaptive_method_name :
         return adaptive_method_name.replace("Test-Time Augmentation", "OOD w/ TTA")
     elif "MEMO" in adaptive_method_name :
@@ -200,9 +198,9 @@ def load_boss_sentiment_task():
         {
             "train": Dataset.from_pandas(amazon_train),
             "validation": Dataset.from_pandas(amazon_eval),
+            "sst5": Dataset.from_pandas(sst5),
             "dynasent": Dataset.from_pandas(dynasent),
             "semval": Dataset.from_pandas(semeval),
-            "sst5": Dataset.from_pandas(sst5),
         }
     )
 
