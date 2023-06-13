@@ -26,8 +26,10 @@ def get_split_log_name(eval_set, adaptive_method_name):
         return "In-Distribution"
     elif eval_set == "test":
         return "Out-of-Distribution"
-    elif adaptive_method_name == "Test-Time Augmentation":
-        return "OOD w/ TTA"
+    elif "Test-Time Augmentation" in adaptive_method_name :
+        return adaptive_method_name.replace("Test-Time Augmentation", "OOD w/ TTA")
+    elif "MEMO" in adaptive_method_name :
+        return adaptive_method_name.replace("MEMO", "OOD w/ MEMO")
     elif adaptive_method_name == "Fine-Tuning":
         return "OOD w/ Fine-Tuning"
     elif adaptive_method_name == "MEMO":
@@ -221,9 +223,9 @@ def load_boss_toxicity_task():
         {
             "train": Dataset.from_pandas(civil_comments_train),
             "validation": Dataset.from_pandas(civil_comments_eval),
+            "toxigen": Dataset.from_pandas(toxigen),
             "adv_civil": Dataset.from_pandas(adv_civil),
             "implicit_hate": Dataset.from_pandas(implicit_hate),
-            "toxigen": Dataset.from_pandas(toxigen),
         }
     )
 
@@ -249,9 +251,9 @@ def load_boss_nli_task():
         {
             "train": Dataset.from_pandas(mnli_train),
             "validation": Dataset.from_pandas(mnli_eval),
+            "wanli": Dataset.from_pandas(wanli),
             "anli": Dataset.from_pandas(anli),
             "contractnli": Dataset.from_pandas(contract_nli),
-            "wanli": Dataset.from_pandas(wanli),
         }
     )
 

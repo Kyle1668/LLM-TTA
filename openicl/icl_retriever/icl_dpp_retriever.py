@@ -17,7 +17,7 @@ class DPPRetriever(TopkRetriever):
         Class of DPP Retriever.
         Two-stage DPP is used, where first stage is to get results of TopK to reduce candidate sets
         chechout https://arxiv.org/abs/2302.05698 for details.
-        
+
     Attributes:
         dataset_reader (:obj:`DatasetReader`): An instance of the :obj:`DatasetReader` class.
         ice_separator (:obj:`str`, optional): A string that separates each in-context example.
@@ -29,7 +29,7 @@ class DPPRetriever(TopkRetriever):
         index_ds (:obj:`Dataset`): The index dataset. Used to select data for in-context examples.
         test_ds (:obj:`Dataset`): The test dataset. Used to generate prompts for each data.
         accelerator (:obj:`Accelerator`, optional): An instance of the :obj:`Accelerator` class, used for multiprocessing.
-        batch_size (:obj:`int`, optional): Batch size for the :obj:`DataLoader`. 
+        batch_size (:obj:`int`, optional): Batch size for the :obj:`DataLoader`.
         model (:obj:`SentenceTransformer`): An instance of :obj:`SentenceTransformer` class, used to calculate embeddings.
         tokenizer (:obj:`AutoTokenizer`): Tokenizer for :obj:`model`.
         index (:obj:`IndexIDMap`): Index generated with FAISS.
@@ -47,7 +47,7 @@ class DPPRetriever(TopkRetriever):
                  ice_num: Optional[int] = 1,
                  candidate_num: Optional[int] = 1,
                  index_split: Optional[str] = 'train',
-                 test_split: Optional[str] = 'test',
+                 test_split: Optional[str] = 'validation',
                  tokenizer_name: Optional[str] = 'gpt2-xl',
                  batch_size: Optional[int] = 1,
                  accelerator: Optional[Accelerator] = None,

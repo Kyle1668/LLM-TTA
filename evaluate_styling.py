@@ -40,19 +40,23 @@ def main():
             "wilds_civil_comments",
         ]
     )
-    icl_methods = args.icl_method.split(",") if args.icl_method is not None else ["static", "topk", "mdl"]
+    icl_methods = args.icl_method.split(",") if args.icl_method is not None else ["topk", "static"]  #["static", "topk", "mdl"]
     splits = args.splits.split(",") if args.splits is not None else None
     adaptive_model_names = (
         args.adaptive_model.split(",")
         if args.adaptive_model is not None
         else [
             "TheBloke/vicuna-13B-1.1-HF",
-            "TheBloke/vicuna-7B-1.1-HF",
+            # "TheBloke/vicuna-7B-1.1-HF",
             # "tiiuae/falcon-40b-instruct",
             # "tiiuae/falcon-7b-instruct",
         ]
     )
-    baselines = args.baseline.split(",") if args.baseline is not None else ["fine-tuning", "test_time_augmentation", "memo"]
+    baselines = args.baseline.split(",") if args.baseline is not None else [
+        "fine-tuning",
+        "test_time_augmentation",
+        "memo"]
+
     model_names = (
         args.model.split(",")
         if args.model is not None
@@ -104,26 +108,28 @@ def main():
                             print(all_reports[["dataset", "split", "dataset size", "accuracy", "avg f1"]])
                             all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
                         elif adaptive_method == "test_time_augmentation":
-                            tta_report = evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, evaluation_set, "static")
-                            reports.append(tta_report)
-                            all_reports = pd.DataFrame(reports).drop_duplicates()
-                            print(all_reports[["dataset", "split", "dataset size", "accuracy", "avg f1"]])
+                            for aug_method in ["paraphrase", "replace"]:
+                                tta_report = evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, evaluation_set, "static", aug_method)
+                                reports.append(tta_report)
+                                all_reports = pd.DataFrame(reports).drop_duplicates()
+                                print(all_reports[["dataset", "split", "dataset size", "accuracy", "avg f1"]])
                             all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
                         elif adaptive_method == "memo":
-                            memo_report = evaluate_memo(experiment_id, model_name, model, tokenizer, dataset_name, dataset, evaluation_set, "static")
-                            reports.append(memo_report)
-                            all_reports = pd.DataFrame(reports).drop_duplicates()
-                            print(all_reports[["dataset", "split", "dataset size", "accuracy", "avg f1"]])
+                            for aug_method in ["paraphrase", "replace"]:
+                                memo_report = evaluate_memo(experiment_id, model_name, model, tokenizer, dataset_name, dataset, evaluation_set, "static", aug_method)
+                                reports.append(memo_report)
+                                all_reports = pd.DataFrame(reports).drop_duplicates()
+                                print(all_reports[["dataset", "split", "dataset size", "accuracy", "avg f1"]])
 
-                            # Now evaluate on the in-distribution set to assess potential catastrophic forgetting
-                            forgetting_report = evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, "static", "validation")
-                            reports.append(forgetting_report)
-                            all_reports = pd.DataFrame(reports).drop_duplicates()
-                            print(all_reports[["dataset", "split", "dataset size", "accuracy", "avg f1"]])
+                                # Now evaluate on the in-distribution set to assess potential catastrophic forgetting
+                                forgetting_report = evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, "static", "validation")
+                                reports.append(forgetting_report)
+                                all_reports = pd.DataFrame(reports).drop_duplicates()
+                                print(all_reports[["dataset", "split", "dataset size", "accuracy", "avg f1"]])
 
-                            # Since MEMO updates the model's parameters, we need to reload the model so
-                            # as to not affect the next experiment
-                            tokenizer, model = get_model_objects(model_name)
+                                # Since MEMO updates the model's parameters, we need to reload the model so
+                                # as to not affect the next experiment
+                                tokenizer, model = get_model_objects(model_name)
                         elif adaptive_method == "fine-tuning":
                             # dataset_name = f"{dataset_name}_{evaluation_set}" if dataset_name.startswith("boss_") else dataset_name
                             ft_report = evaluate_fine_tuning(experiment_id, model_name, model, tokenizer, dataset_name, dataset, evaluation_set, "static")

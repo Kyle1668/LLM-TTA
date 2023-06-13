@@ -33,7 +33,7 @@ class BaseRetriever:
                  prompt_eos_token: Optional[str] = '',
                  ice_num: Optional[int] = 1,
                  index_split: Optional[str] = 'train',
-                 test_split: Optional[str] = 'test',
+                 test_split: Optional[str] = 'validation',
                  accelerator: Optional[Accelerator] = None
                  ) -> None:
         self.dataset_reader = DatasetReader._check_dataset_reader(dataset_reader)

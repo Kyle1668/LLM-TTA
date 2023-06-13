@@ -11,7 +11,7 @@ from accelerate import Accelerator
 class ZeroRetriever(BaseRetriever):
     """Zero In-context Learning Retriever Class
         Retriever for Zero-shot.
-        
+
     Attributes:
         dataset_reader (:obj:`DatasetReader`): An instance of the :obj:`DatasetReader` class.
         ice_eos_token (:obj:`str`, optional): A string that is added to the end of in-context examples.
@@ -28,7 +28,7 @@ class ZeroRetriever(BaseRetriever):
                  ice_eos_token: Optional[str] = '',
                  prompt_eos_token: Optional[str] = '',
                  index_split: Optional[str] = 'train',
-                 test_split: Optional[str] = 'test',
+                 test_split: Optional[str] = 'validation',
                  accelerator: Optional[Accelerator] = None
                  ) -> None:
         super().__init__(dataset_reader, '', ice_eos_token, prompt_eos_token, 0, index_split, test_split, accelerator)

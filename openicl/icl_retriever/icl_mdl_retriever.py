@@ -49,7 +49,7 @@ class MDLRetriever(TopkRetriever):
                  ice_num: Optional[int] = 1,
                  candidate_num: Optional[int] = 1,
                  index_split: Optional[str] = 'train',
-                 test_split: Optional[str] = 'test',
+                 test_split: Optional[str] = 'validation',
                  tokenizer_name: Optional[str] = 'gpt2-xl',
                  ce_model_name: Optional[str] = 'gpt2-xl',
                  tokenizer=None,

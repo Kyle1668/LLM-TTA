@@ -46,7 +46,7 @@
                 "CUDA_VISIBLE_DEVICES": "3,4,5,6"
             },
             "args": [
-                "--max_examples=32",
+                "--max_examples=25",
                 "--model=microsoft/deberta-large-mnli",
                 "--dataset=boss_nli"
             ]

@@ -36,7 +36,7 @@ class RandomRetriever(BaseRetriever):
                  prompt_eos_token: Optional[str] = '',
                  ice_num: Optional[int] = 1,
                  index_split: Optional[str] = 'train',
-                 test_split: Optional[str] = 'test',
+                 test_split: Optional[str] = 'validation',
                  seed: Optional[int] = 43,
                  accelerator: Optional[Accelerator] = None
                  ) -> None:

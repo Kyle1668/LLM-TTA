@@ -152,7 +152,14 @@ def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset
 
         if is_adaptive_set:
             entry["original_text"] = entry["text"]
-            entry["style_prompt"], entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars)
+            if dataset_name == "boss_nli":
+                entry["text"] = entry["Premise"]
+                entry["style_prompt"], styled_premise = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars)
+                entry["text"] = entry["Hypothesis"]
+                entry["style_prompt"], styled_hypothesis = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars)
+                entry["text"] = f"{styled_premise} / {styled_hypothesis}"
+            else:
+                entry["style_prompt"], entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars)
 
         prompt = generate_prompt(model_name, template, exemplars, entry, dataset_name) if should_retrieve_exemplars else None
         judgment = get_judgment(model, tokenizer, prompt, device, entry, dataset_name)
@@ -228,6 +235,7 @@ Now paraphrase the current input text into the same style as the examples. Only 
 
 Input Text: "{style_input}\""""
     input_prompts = f"User: {task_prompt}\nAssistant:" if "vicuna" in adaptive_model.config.name_or_path else task_prompt
+
     tokenized_prompt = adaptive_tokenizer.encode(input_prompts, return_tensors="pt").to("cuda")
     with torch.no_grad():
         outputs = adaptive_model.generate(
@@ -262,10 +270,11 @@ Input Text: "{style_input}\""""
 
 
 # TODO: Add support for LLM inference
-def evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, eval_set, icl_method):
+def evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, eval_set, icl_method, aug_method):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    inference_logs = []
+    paraphrase_tokenizer, paraphrase_model = get_model_objects("humarin/chatgpt_paraphraser_on_T5_base")
     aug = naw.ContextualWordEmbsAug(action="substitute", device="cuda")
+    inference_logs = []
 
     print(f"Evaluating {dataset_name} with {model_name} using TTA baseline")
     for entry in tqdm(dataset[eval_set.replace("+adaptive", "")]):
@@ -273,11 +282,11 @@ def evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer,
 
         augmented_inputs = None
         if dataset_name == "boss_nli":
-            premises = aug.augment(entry["Premise"], n=4)
-            hypothesis = aug.augment(entry["Hypothesis"], n=4)
+            premises = aug.augment(entry["Premise"], n=4) if aug_method == "replace" else get_paraphrase_augmentations(entry["Premise"], paraphrase_tokenizer, paraphrase_model, device)
+            hypothesis = aug.augment(entry["Hypothesis"], n=4) if aug_method == "replace" else get_paraphrase_augmentations(entry["Hypothesis"], paraphrase_tokenizer, paraphrase_model, device)
             augmented_inputs = [f"{p} / {h}" for (p, h) in zip(premises, hypothesis)]
         else:
-            augmented_inputs = aug.augment(original_text_input, n=4)
+            augmented_inputs = aug.augment(original_text_input, n=4) if aug_method == "replace" else get_paraphrase_augmentations(original_text_input, paraphrase_tokenizer, paraphrase_model, device)
 
         logits = []
         judgments = []
@@ -301,18 +310,19 @@ def evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer,
     if not os.path.exists(f"results/{experiment_id}"):
         os.makedirs(f"results/{experiment_id}")
 
-    save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, "test_time_aug", None)
+    save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, f"test_time_aug_{aug_method}", None)
     data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
     original_judgments = [log["judgment"] for log in inference_logs]
     dataset_name = f"{dataset_name}-{eval_set}" if dataset_name.startswith("boss_") else dataset_name
-    return generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, "Test-Time Augmentation")
+    return generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments,  f"Test-Time Augmentation - {aug_method}")
 
 
 # TODO: Add support for LLM inference
-def evaluate_memo(experiment_id, task_model_name, task_model, task_tokenizer, dataset_name, dataset, eval_set, icl_method):
+def evaluate_memo(experiment_id, task_model_name, task_model, task_tokenizer, dataset_name, dataset, eval_set, icl_method, aug_method):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     paraphrase_tokenizer, paraphrase_model = get_model_objects("humarin/chatgpt_paraphraser_on_T5_base")
     optimizer = AdamW(task_model.parameters(), lr=0.0000003)
+    aug = naw.ContextualWordEmbsAug(action="substitute", device="cuda")
 
     inference_logs = []
     entropies = []
@@ -324,7 +334,14 @@ def evaluate_memo(experiment_id, task_model_name, task_model, task_tokenizer, da
         # Get the augmentations for the current input and compute the marginal
         # entropy. Then backpropagate the marginal entropy before predicting.
         original_text_input = entry["text"]
-        augmentations = get_paraphrase_augmentations(original_text_input, paraphrase_tokenizer, paraphrase_model, device)
+        augmentations = None
+        if dataset_name == "boss_nli":
+            premises = aug.augment(entry["Premise"], n=4) if aug_method == "replace" else get_paraphrase_augmentations(entry["Premise"], paraphrase_tokenizer, paraphrase_model, device)
+            hypothesis = aug.augment(entry["Hypothesis"], n=4) if aug_method == "replace" else get_paraphrase_augmentations(entry["Hypothesis"], paraphrase_tokenizer, paraphrase_model, device)
+            augmentations = [f"{p} / {h}" for (p, h) in zip(premises, hypothesis)]
+        else:
+            augmentations = aug.augment(original_text_input, n=4) if aug_method == "replace" else get_paraphrase_augmentations(original_text_input, paraphrase_tokenizer, paraphrase_model, device)
+
         aug_tokens = task_tokenizer(augmentations, return_tensors="pt", padding="longest").to(device)
         aug_logits = task_model(**aug_tokens).logits
         aug_probs = aug_logits.softmax(dim=1)
@@ -352,11 +369,11 @@ def evaluate_memo(experiment_id, task_model_name, task_model, task_tokenizer, da
     if not os.path.exists(f"results/{experiment_id}"):
         os.makedirs(f"results/{experiment_id}")
 
-    save_inference_log(inference_logs, experiment_id, task_model_name, dataset_name, icl_method, eval_set, "memo", None)
+    save_inference_log(inference_logs, experiment_id, task_model_name, dataset_name, icl_method, eval_set, f"memo_{aug_method}", None)
     data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
     original_judgments = [log["judgment"] for log in inference_logs]
     dataset_name = f"{dataset_name}-{eval_set}" if dataset_name.startswith("boss_") else dataset_name
-    return generate_icl_report(experiment_id, task_model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, "MEMO")
+    return generate_icl_report(experiment_id, task_model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, f"MEMO - {aug_method}")
 
 
 def get_paraphrase_augmentations(
@@ -366,7 +383,7 @@ def get_paraphrase_augmentations(
     device,
     num_beams=5,
     num_beam_groups=5,
-    num_return_sequences=5,
+    num_return_sequences=4,
     repetition_penalty=10.0,
     diversity_penalty=3.0,
     no_repeat_ngram_size=2,

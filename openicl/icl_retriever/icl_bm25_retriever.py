@@ -16,7 +16,7 @@ logger = get_logger(__name__)
 class BM25Retriever(BaseRetriever):
     """BM25 In-context Learning Retriever Class
         Class of BM25 Retriever.
-        
+
     Attributes:
         dataset_reader (:obj:`DatasetReader`): An instance of the :obj:`DatasetReader` class.
         ice_separator (:obj:`str`, optional): A string that separates each in-context example.
@@ -43,7 +43,7 @@ class BM25Retriever(BaseRetriever):
                  prompt_eos_token: Optional[str] = '',
                  ice_num: Optional[int] = 1,
                  index_split: Optional[str] = 'train',
-                 test_split: Optional[str] = 'test',
+                 test_split: Optional[str] = 'validation',
                  accelerator: Optional[Accelerator] = None
                  ) -> None:
         super().__init__(dataset_reader, ice_separator, ice_eos_token, prompt_eos_token, ice_num, index_split,

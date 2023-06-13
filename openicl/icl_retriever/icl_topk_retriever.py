@@ -49,7 +49,7 @@ class TopkRetriever(BaseRetriever):
                  sentence_transformers_model_name: Optional[str] = 'all-mpnet-base-v2',
                  ice_num: Optional[int] = 1,
                  index_split: Optional[str] = 'train',
-                 test_split: Optional[str] = 'test',
+                 test_split: Optional[str] = 'validation',
                  tokenizer_name: Optional[str] = 'gpt2-xl',
                  batch_size: Optional[int] = 1,
                  accelerator: Optional[Accelerator] = None
