@@ -75,7 +75,7 @@ def generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eva
 
 
 def get_formatted_dataset(set_name, max_examples=None):
-    hf_paths = {"sst2": "gpt3mix/sst2", "toxigen": "skg/toxigen-data", "disaster_tweets": "venetis/disaster_tweets"}
+    hf_paths = {"sst2": "sst2", "toxigen": "skg/toxigen-data", "disaster_tweets": "venetis/disaster_tweets"}
     hf_sets_columns_mappings = {
         "toxigen": ("prompt", "prompt_label"),
         "disaster_tweets": ("text", "target"),
@@ -103,8 +103,6 @@ def get_formatted_dataset(set_name, max_examples=None):
         hf_dataset = load_boss_nli_task()
     elif set_name == "scotus":
         hf_dataset = load_scotus_dataset()
-    elif set_name == "ag_news":
-        hf_dataset = load_shifted_agnews_dataset()
     elif set_name == "civil_toxigen":
         hf_dataset = load_civil_comments_and_toxigen_dataset()
     elif set_name == "adv_sst2":
@@ -294,13 +292,6 @@ def load_scotus_dataset():
     full_dataset = DatasetDict()
     full_dataset["train"] = Dataset.from_pandas(train_set)
     full_dataset["test"] = Dataset.from_pandas(test_set)
-    return full_dataset
-
-
-def load_shifted_agnews_dataset():
-    full_dataset = DatasetDict()
-    full_dataset["train"] = Dataset.from_pandas(pd.read_csv("datasets/ag_news_train.csv"))
-    full_dataset["test"] = load_dataset("ag_news", split="test")
     return full_dataset
 
 

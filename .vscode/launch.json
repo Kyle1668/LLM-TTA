@@ -11,6 +11,10 @@
             "program": "train_models.py",
             "console": "integratedTerminal",
             "justMyCode": true,
+            "args": [
+                "--dataset=sst2",
+                "--num_classes=2",
+            ],
             "env": {
                 // "CUDA_VISIBLE_DEVICES": "1"
                 "CUDA_VISIBLE_DEVICES": "1"

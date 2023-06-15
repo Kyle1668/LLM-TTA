@@ -2,10 +2,12 @@ from transformers import AutoConfig, AutoTokenizer, LlamaTokenizer, AutoModelFor
 from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
 from datasets import load_dataset, Dataset, DatasetDict
 from util_metrics import SquadMetrics
+from argparse import ArgumentParser
 from datasets import load_dataset
 from wilds import get_dataset
 from datetime import datetime
 from torch.utils.data import DataLoader
+from time import time
 from tqdm import tqdm
 import pandas as pd
 import numpy as np
@@ -14,11 +16,12 @@ import os
 import torch
 
 from util_modeling import get_model_objects
+from util_data import get_formatted_dataset
 from adaptive_methods import GenericDataset
 
 
 def get_dataset(dataset_name):
-    dataset_paths = {
+    local_dataset_paths = {
         "boss_sentiment": {
             "train": "datasets/boss_benchmark/SentimentAnalysis/amazon/train.tsv",
             "test": "datasets/boss_benchmark/SentimentAnalysis/amazon/test.tsv",
@@ -29,24 +32,30 @@ def get_dataset(dataset_name):
         },
     }
 
-    train_set = pd.read_csv(dataset_paths[dataset_name]["train"], sep="\t").dropna()
-    train_set.rename(columns={"Text": "text", "Label": "label"}, inplace=True)
-    test_set = pd.read_csv(dataset_paths[dataset_name]["test"], sep="\t").dropna()
-    test_set.rename(columns={"Text": "text", "Label": "label"}, inplace=True)
-    # train_set = train_set.sample(100)
-    # test_set = test_set.sample(100)
-    return DatasetDict(
-        {
-            "train": Dataset.from_pandas(train_set),
-            "test": Dataset.from_pandas(test_set),
-        }
-    )
+    if dataset_name in local_dataset_paths:
+        train_set = pd.read_csv(local_dataset_paths[dataset_name]["train"], sep="\t").dropna()
+        train_set.rename(columns={"Text": "text", "Label": "label"}, inplace=True)
+        test_set = pd.read_csv(local_dataset_paths[dataset_name]["test"], sep="\t").dropna()
+        test_set.rename(columns={"Text": "text", "Label": "label"}, inplace=True)
+        return DatasetDict(
+            {
+                "train": Dataset.from_pandas(train_set),
+                "test": Dataset.from_pandas(test_set),
+            }
+        )
+
+    # return load_dataset(dataset_name)
+    dataset = get_formatted_dataset(dataset_name, max_examples=None)
+    if dataset_name == "sst2":
+        dataset["test"] = dataset["validation"]
+
+    return dataset
 
 
 def train_model(model, tokenizer, training_set):
     prepped_train_set = GenericDataset(training_set)
     training_loader = DataLoader(prepped_train_set, batch_size=32, shuffle=True)
-    optimizer = torch.optim.Adam(model.parameters(), lr=5e-5)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=2e-5)
     criterion = torch.nn.CrossEntropyLoss()
 
     # Train model
@@ -91,6 +100,7 @@ def evaluate_model(experiment_id, dataset_name, model, tokenizer, test_set, epoc
     if not os.path.exists(f"trained_models/{experiment_id}/{dataset_name}"):
         os.mkdir(f"trained_models/{experiment_id}/{dataset_name}")
 
+    model_name = model.config.name_or_path
     os.mkdir(f"trained_models/{experiment_id}/{dataset_name}/{model_name}_{epoch}")
     model.save_pretrained(f"trained_models/{experiment_id}/{dataset_name}/{model_name}_{epoch}")
     with open(f"trained_models/{experiment_id}/{dataset_name}/{model_name}_{epoch}/report.json", "w") as f:
@@ -98,41 +108,41 @@ def evaluate_model(experiment_id, dataset_name, model, tokenizer, test_set, epoc
     return report["accuracy"]
 
 
+def main():
+    parser = ArgumentParser()
+    parser.add_argument("--dataset", type=str, required=True)
+    parser.add_argument("--num_classes", type=int, required=True)
+    parser.add_argument("--base_model", type=str, required=False, default="bert-base-uncased")
+    parser.add_argument("--max_examples", type=int, required=False, default=None)
+    args = parser.parse_args()
+
+    experiment_id = f"{int(time())}_{args.dataset}_{args.base_model}"
+    num_epochs = 20
+    dataset_name = args.dataset
+    model_name = args.base_model
+    num_classes = args.num_classes
+    os.mkdir(f"trained_models/{experiment_id}")
+    json.dump(vars(args), open(f"trained_models/{experiment_id}/config.json", "w"), indent=4)
+
+    dataset = get_dataset(dataset_name)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=num_classes).to(device)
+    training_set = dataset["train"]
+    test_set = dataset["test"]
+    epoch_accuracies = []
+
+    print(f"Training {model_name} on {dataset_name} for {num_epochs} epochs")
+    for epoch in range(num_epochs):
+        print(f"Epoch {epoch}")
+        train_loss = train_model(model, tokenizer, training_set)
+        test_set_perf = evaluate_model(experiment_id, dataset_name, model, tokenizer, test_set, epoch)
+        epoch_accuracies.append(test_set_perf)
+
+    print(epoch_accuracies)
+    highest_acc_epoch = np.argmax(epoch_accuracies)
+    print(f"Highest accuracy (epoch {highest_acc_epoch}): {epoch_accuracies[highest_acc_epoch]}")
+
+
 if __name__ == "__main__":
-    experiment_id = f"edit_experiment_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
-    datasets = [
-        # {
-        #     "name": "boss_sentiment",
-        #     "num_classes": 3,
-        # },
-        {
-            "name": "boss_toxicity",
-            "num_classes": 2,
-        },
-    ]
-    base_models = ["bert-base-uncased"]
-    num_epochs = 5
-
-    for dataset_dict in datasets:
-        dataset_name = dataset_dict["name"]
-        dataset = get_dataset(dataset_name)
-        for model_name in base_models:
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            tokenizer = AutoTokenizer.from_pretrained(model_name)
-            model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=dataset_dict["num_classes"]).to(device)
-            training_set = dataset["train"]
-            test_set = dataset["test"]
-            epoch_accuracies = []
-
-            print(f"Training {model_name} on {dataset_name} for {num_epochs} epochs")
-            for epoch in range(num_epochs):
-                print(f"Epoch {epoch}")
-                train_loss = train_model(model, tokenizer, training_set)
-                test_set_perf = evaluate_model(experiment_id, dataset_name, model, tokenizer, test_set, epoch)
-                epoch_accuracies.append(test_set_perf)
-
-            # Accuracy for each epoch
-            print(epoch_accuracies)
-            highest_acc_epoch = np.argmax(epoch_accuracies)
-            print(f"Highest accuracy (epoch {highest_acc_epoch}): {epoch_accuracies[highest_acc_epoch]}")
-            # get index with largest accuracy
+    main()
