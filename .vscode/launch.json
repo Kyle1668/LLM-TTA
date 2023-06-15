@@ -39,6 +39,24 @@
             ]
         },
         {
+            "name": "BOSS Toxicity",
+            "type": "python",
+            "request": "launch",
+            "program": "evaluate_styling.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                // "CUDA_VISIBLE_DEVICES": "1"
+                "CUDA_VISIBLE_DEVICES": "3"
+            },
+            "args": [
+                "--max_examples=50",
+                "--model=trained_models/final_boss_toxicity/boss_toxicity/final",
+                "--dataset=boss_toxicity",
+                "--baseline=style_model_eval"
+            ]
+        },
+        {
             "name": "BOSS NLI",
             "type": "python",
             "request": "launch",

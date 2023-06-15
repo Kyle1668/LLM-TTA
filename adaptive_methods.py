@@ -7,6 +7,7 @@ import nlpaug.augmenter.word as naw
 import pandas as pd
 import torch
 import os
+import re
 
 from util_data import generate_icl_report
 from util_modeling import get_model_objects
@@ -42,7 +43,7 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
     tokenized_prompt = tokenizer.encode(prompt, return_tensors="pt").to(device)
     with torch.no_grad():
         outputs = model.generate(
-            tokenized_prompt, max_new_tokens=50 if is_qa_task else 50, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id
+            tokenized_prompt, max_new_tokens=100 if is_qa_task else 50, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id
         )
 
         generation = tokenizer.decode(outputs["sequences"][0][len(tokenized_prompt[0]) :]).split("\n")[0].replace("</s>", "").strip()
@@ -65,6 +66,10 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
             return 0 if split_tokens[0].lower() == "negative" else 1
         if split_tokens[-1].lower() in ["positive", "negative"]:
             return 0 if split_tokens[-1].lower() == "negative" else 1
+
+        extracted_integer = re.findall(r'\d+', generation)
+        if len(extracted_integer) == 1:
+            return int(extracted_integer[0])
 
         return -1
     except:

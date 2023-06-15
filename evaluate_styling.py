@@ -74,7 +74,7 @@ def main():
     )
     # Also evaluate models used for sytle transfer
     model_names = model_names + adaptive_model_names
-    adaptive_methods = ["No Adaptation"] + baselines + adaptive_model_names
+    adaptive_methods = ["No Adaptation"] + baselines
     # adaptive_methods = ["No Adaptation"] + adaptive_model_names
 
     print("--------------------------------------------------")
@@ -157,7 +157,7 @@ def main():
                     is_llm = model.config.architectures[0].endswith("ForCausalLM")
                     if is_llm:
                         for num_shots in [4]:
-                            reports.append(evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, num_shots=num_shots))
+                            reports.append(evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, "static", evaluation_set, num_shots=num_shots))
                             all_reports = pd.DataFrame(reports).drop_duplicates()
                             print(all_reports[["dataset", "split", "dataset size", "accuracy", "avg f1"]])
                             all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)

@@ -99,7 +99,7 @@ def generate_classification_prompt(input_text, exemplars, template, dataset_name
         prompt_lines.append(exemplar_line)
 
     # prompt_lines = [formatted_instructions] + ["\n" + template.generate_ice_item(entry, entry["label"]).replace("\n", " ").lstrip() for entry in reversed(formatted_exemplars)]
-    prompt_lines.append("\nOnly return the 0 or 1 label for the following text:")
+    prompt_lines.append("\nWhat is the label for the following text? You must decide which label the text is. Just give the number label, do not repeat the input text.")
     formatted_input_text = " ".join(input_text.split()[:500]) if len(input_text.split()) >= 500 else input_text
 
     prompt_lines.append('\n"' + formatted_input_text.replace("\n", " ").strip() + '" - Label=')
