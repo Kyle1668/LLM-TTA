@@ -1,13 +1,12 @@
-from transformers import (
-    AutoConfig,
-    AutoTokenizer,
-    LlamaTokenizer,
-    AutoModelForCausalLM,
-    AutoModelForSeq2SeqLM,
-    AutoModelForSequenceClassification,
-    AutoModelForQuestionAnswering
-)
+from transformers import AutoConfig, AutoTokenizer, LlamaTokenizer, AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoModelForSequenceClassification, AutoModelForQuestionAnswering
 import torch
+
+
+def is_language_model(model_name):
+    model_config = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
+    is_seq2seq_lm = model_config.architectures[0].endswith("ForConditionalGeneration")
+    is_llm = model_config.architectures[0].endswith("ForCausalLM")
+    return is_seq2seq_lm or is_llm
 
 
 def get_model_objects(model_name):

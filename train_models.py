@@ -15,7 +15,7 @@ import json
 import os
 import torch
 
-from util_modeling import get_model_objects
+from util_modeling import get_model_objects, is_language_model
 from util_data import get_formatted_dataset
 from adaptive_methods import GenericDataset
 
@@ -57,6 +57,7 @@ def train_model(model, tokenizer, training_set):
     training_loader = DataLoader(prepped_train_set, batch_size=32, shuffle=True)
     optimizer = torch.optim.AdamW(model.parameters(), lr=2e-5)
     criterion = torch.nn.CrossEntropyLoss()
+    is_lm = is_language_model(model.name_or_path)
 
     # Train model
     batch_losses = []
@@ -64,9 +65,12 @@ def train_model(model, tokenizer, training_set):
         model.train()
         optimizer.zero_grad()
 
-        tokenized_inputs = tokenizer(input_batch, padding=True, truncation=True, return_tensors="pt").to(model.device)
-        logits = model(**tokenized_inputs).logits
-        loss = criterion(logits, label_batch.to(model.device))
+        tokenized_inputs = tokenizer(input_batch, padding=True, truncation=True, return_tensors="pt", max_length=512).to(model.device)
+        labels = tokenizer([str(label) for label in label_batch.tolist()], return_tensors="pt", padding=True, truncation=True, max_length=512) if is_lm else label_batch
+        labels = labels.input_ids if is_lm else labels
+        labels = labels.to(model.device)
+
+        loss = model(**tokenized_inputs, labels=labels).loss
         loss.backward()
         optimizer.step()
         batch_losses.append(loss.detach().item())
@@ -78,16 +82,25 @@ def evaluate_model(experiment_id, dataset_name, model, tokenizer, test_set, epoc
     model.eval()
     prepped_test_set = GenericDataset(test_set)
     test_loader = DataLoader(prepped_test_set, batch_size=32, shuffle=True)
+    is_lm = is_language_model(model.name_or_path)
 
     predicitons = []
     labels = []
     for eval_text, eval_labels in tqdm(test_loader, desc="Evaluating Model"):
         with torch.no_grad():
-            tokenized_input = tokenizer(eval_text, padding=True, truncation=True, return_tensors="pt").to(model.device)
-            eval_logits = model(**tokenized_input).logits
-            eval_predicitons = torch.argmax(eval_logits, dim=1)
-            predicitons += eval_predicitons.tolist()
-            labels += eval_labels.tolist()
+            tokenized_input = tokenizer(eval_text, padding=True, truncation=True, return_tensors="pt", max_length=512).to(model.device)
+
+            if is_lm:
+                eval_predicitons = [
+                    chars[0] if len(chars) > 0 else chars for chars in tokenizer.batch_decode(model.generate(**tokenized_input, do_sample=False), skip_special_tokens=True, max_new_tokens=0)
+                ]
+                predicitons += eval_predicitons
+                labels += [str(label) for label in eval_labels.tolist()]
+            else:
+                eval_logits = model(**tokenized_input).logits
+                eval_predicitons = torch.argmax(eval_logits, dim=1)
+                predicitons += eval_predicitons.tolist()
+                labels += eval_labels.tolist()
 
     print(classification_report(labels, predicitons))
     report = classification_report(labels, predicitons, output_dict=True)
@@ -103,8 +116,10 @@ def evaluate_model(experiment_id, dataset_name, model, tokenizer, test_set, epoc
     model_name = model.config.name_or_path
     os.mkdir(f"trained_models/{experiment_id}/{dataset_name}/{model_name}_{epoch}")
     model.save_pretrained(f"trained_models/{experiment_id}/{dataset_name}/{model_name}_{epoch}")
+    tokenizer.save_pretrained(f"trained_models/{experiment_id}/{dataset_name}/{model_name}_{epoch}")
     with open(f"trained_models/{experiment_id}/{dataset_name}/{model_name}_{epoch}/report.json", "w") as f:
         json.dump(report, f, indent=4)
+
     return report["accuracy"]
 
 
@@ -126,8 +141,11 @@ def main():
 
     dataset = get_dataset(dataset_name)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=num_classes).to(device)
+    # tokenizer = AutoTokenizer.from_pretrained(model_name)
+    # model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=num_classes).to(device)
+
+    tokenizer, model = get_model_objects(model_name)
+
     training_set = dataset["train"]
     test_set = dataset["test"]
     epoch_accuracies = []
@@ -135,7 +153,7 @@ def main():
     print(f"Training {model_name} on {dataset_name} for {num_epochs} epochs")
     for epoch in range(num_epochs):
         print(f"Epoch {epoch}")
-        train_loss = train_model(model, tokenizer, training_set)
+        train_loss = train_model(model, tokenizer, training_set[:500])
         test_set_perf = evaluate_model(experiment_id, dataset_name, model, tokenizer, test_set, epoch)
         epoch_accuracies.append(test_set_perf)
 

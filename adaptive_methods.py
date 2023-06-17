@@ -43,7 +43,7 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
     tokenized_prompt = tokenizer.encode(prompt, return_tensors="pt").to(device)
     with torch.no_grad():
         outputs = model.generate(
-            tokenized_prompt, max_new_tokens=100 if is_qa_task else 50, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id
+            tokenized_prompt, max_new_tokens=100, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id
         )
 
         generation = tokenizer.decode(outputs["sequences"][0][len(tokenized_prompt[0]) :]).split("\n")[0].replace("</s>", "").strip()
@@ -425,7 +425,7 @@ def evaluate_fine_tuning(experiment_id, task_model_name, task_model, task_tokeni
     optimizer = AdamW(task_model.parameters(), lr=2e-5)
     criterion = torch.nn.CrossEntropyLoss()
     task_dataset = GenericDataset(dataset[eval_set])
-    data_loader = DataLoader(task_dataset, batch_size=16)
+    data_loader = DataLoader(task_dataset, batch_size=8)
 
     print(f"Fine-Tuning {task_model_name} on {dataset_name}")
     for batch_inputs, batch_labels in tqdm(data_loader):

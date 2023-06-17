@@ -14,10 +14,11 @@
             "args": [
                 "--dataset=sst2",
                 "--num_classes=2",
+                // "--base_model=t5-large"
             ],
             "env": {
                 // "CUDA_VISIBLE_DEVICES": "1"
-                "CUDA_VISIBLE_DEVICES": "1"
+                "CUDA_VISIBLE_DEVICES": "4"
             },
         },
         {
@@ -32,10 +33,12 @@
                 "CUDA_VISIBLE_DEVICES": "3"
             },
             "args": [
-                "--max_examples=100",
+                "--max_examples=10",
                 // "--model=trained_models/edit_experiment_2023-06-10_19-48-53/boss_sentiment/bert-base-uncased_1",
                 "--model=trained_models/edit_experiment_2023-06-10_22-39-22/boss_sentiment/bert-base-uncased_1",
-                "--dataset=boss_sentiment"
+                "--dataset=boss_sentiment",
+                "--baseline=skip",
+                "--eval_styling=False"
             ]
         },
         {
@@ -47,14 +50,12 @@
             "justMyCode": false,
             "env": {
                 // "CUDA_VISIBLE_DEVICES": "1"
-                "CUDA_VISIBLE_DEVICES": "3"
+                "CUDA_VISIBLE_DEVICES": "3,4"
             },
             "args": [
-                "--max_examples=50",
+                // "--max_examples=20",
                 "--model=trained_models/final_boss_toxicity/boss_toxicity/final",
-                "--dataset=boss_toxicity",
-                "--baseline=style_model_eval"
-            ]
+                "--dataset=boss_toxicity"            ]
         },
         {
             "name": "BOSS NLI",

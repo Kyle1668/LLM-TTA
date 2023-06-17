@@ -196,8 +196,8 @@ def load_boss_sentiment_task():
         {
             "train": Dataset.from_pandas(amazon_train),
             "validation": Dataset.from_pandas(amazon_eval),
-            "sst5": Dataset.from_pandas(sst5),
             "dynasent": Dataset.from_pandas(dynasent),
+            "sst5": Dataset.from_pandas(sst5),
             "semval": Dataset.from_pandas(semeval),
         }
     )
