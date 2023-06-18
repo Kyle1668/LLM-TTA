@@ -12,9 +12,11 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--dataset=sst2",
-                "--num_classes=2",
-                // "--base_model=t5-large"
+                "--max_examples=100",
+                "--dataset=ag_news",
+                "--num_classes=4",
+                "--base_model=t5-large",
+                "--use_wandb"
             ],
             "env": {
                 // "CUDA_VISIBLE_DEVICES": "1"

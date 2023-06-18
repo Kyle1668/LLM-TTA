@@ -9,7 +9,7 @@ def is_language_model(model_name):
     return is_seq2seq_lm or is_llm
 
 
-def get_model_objects(model_name):
+def get_model_objects(model_name, num_classes=None):
     model_config = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
     is_seq2seq_lm = model_config.architectures[0].endswith("ForConditionalGeneration")
     is_qa_model = model_config.architectures[0].endswith("ForQuestionAnswering")
@@ -26,5 +26,6 @@ def get_model_objects(model_name):
     elif is_seq2seq_lm:
         model = AutoModelForSeq2SeqLM.from_pretrained(model_name, trust_remote_code=True).eval().to(device)
     else:
-        model = AutoModelForSequenceClassification.from_pretrained(model_name, trust_remote_code=True).eval().to(device)
+        num_labels = num_classes if num_classes is not None else 2
+        model = AutoModelForSequenceClassification.from_pretrained(model_name, trust_remote_code=True, num_labels=num_labels).eval().to(device)
     return tokenizer, model

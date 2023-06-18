@@ -14,6 +14,7 @@ import numpy as np
 import json
 import os
 import torch
+import wandb
 
 from util_modeling import get_model_objects, is_language_model
 from util_data import get_formatted_dataset
@@ -120,7 +121,7 @@ def evaluate_model(experiment_id, dataset_name, model, tokenizer, test_set, epoc
     with open(f"trained_models/{experiment_id}/{dataset_name}/{model_name}_{epoch}/report.json", "w") as f:
         json.dump(report, f, indent=4)
 
-    return report["accuracy"]
+    return report
 
 
 def main():
@@ -129,33 +130,53 @@ def main():
     parser.add_argument("--num_classes", type=int, required=True)
     parser.add_argument("--base_model", type=str, required=False, default="bert-base-uncased")
     parser.add_argument("--max_examples", type=int, required=False, default=None)
+    parser.add_argument("--use_wandb", action="store_true")
     args = parser.parse_args()
 
-    experiment_id = f"{int(time())}_{args.dataset}_{args.base_model}"
+    experiment_id = f"training_{int(time())}_{args.dataset}_{args.base_model}"
     num_epochs = 20
     dataset_name = args.dataset
     model_name = args.base_model
-    num_classes = args.num_classes
     os.mkdir(f"trained_models/{experiment_id}")
     json.dump(vars(args), open(f"trained_models/{experiment_id}/config.json", "w"), indent=4)
+
+    wandb_run = None
+    if args.use_wandb:
+        project_name = "In-Context Domain Transfer Improves Out-of-Domain Robustness"
+        wandb_run = wandb.init(project=project_name, group="training", name=experiment_id, config=args)
 
     dataset = get_dataset(dataset_name)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # tokenizer = AutoTokenizer.from_pretrained(model_name)
     # model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=num_classes).to(device)
 
-    tokenizer, model = get_model_objects(model_name)
+    tokenizer, model = get_model_objects(model_name, num_classes=args.num_classes)
 
-    training_set = dataset["train"]
-    test_set = dataset["test"]
+    training_set = dataset["train"][:args.max_examples] if args.max_examples is not None else dataset["train"]
+    test_set = dataset["test"][:args.max_examples] if args.max_examples is not None else dataset["test"]
+    train_losses = []
+    epoch_reports = []
     epoch_accuracies = []
 
     print(f"Training {model_name} on {dataset_name} for {num_epochs} epochs")
     for epoch in range(num_epochs):
         print(f"Epoch {epoch}")
         train_loss = train_model(model, tokenizer, training_set)
-        test_set_perf = evaluate_model(experiment_id, dataset_name, model, tokenizer, test_set, epoch)
-        epoch_accuracies.append(test_set_perf)
+        train_losses.append(train_loss)
+        if args.use_wandb:
+            wandb.log({"train_loss": train_loss})
+
+        test_set_perf_report = evaluate_model(experiment_id, dataset_name, model, tokenizer, test_set, epoch)
+        formatted_report = test_set_perf_report if not is_language_model(model_name) else {
+            str(label): test_set_perf_report[str(label)] for label in range(args.num_classes)
+            } | {"accuracy": test_set_perf_report["accuracy"], "macro avg": test_set_perf_report["macro avg"]}
+
+        epoch_reports.append(formatted_report)
+        epoch_accuracies.append(formatted_report["accuracy"])
+        if args.use_wandb:
+            wandb.log(formatted_report)
+            table = wandb.Table(dataframe=pd.DataFrame(epoch_reports))
+            wandb_run.log({"test_set_reports": table})
 
     print(epoch_accuracies)
     highest_acc_epoch = np.argmax(epoch_accuracies)
