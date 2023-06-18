@@ -6,7 +6,7 @@ data
 datasets
 wandb
 trained_models
-trained_models
+selected_models
 results
 notebooks/data/
 icl_inference_output/

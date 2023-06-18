@@ -55,7 +55,8 @@ def get_dataset(dataset_name):
 
 def train_model(model, tokenizer, training_set):
     prepped_train_set = GenericDataset(training_set)
-    training_loader = DataLoader(prepped_train_set, batch_size=32, shuffle=True)
+    batch_size = 16 if is_language_model(model.name_or_path) else 32
+    training_loader = DataLoader(prepped_train_set, batch_size=batch_size, shuffle=True)
     optimizer = torch.optim.AdamW(model.parameters(), lr=2e-5)
     criterion = torch.nn.CrossEntropyLoss()
     is_lm = is_language_model(model.name_or_path)
