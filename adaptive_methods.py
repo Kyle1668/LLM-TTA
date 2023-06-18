@@ -42,9 +42,7 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
     is_qa_task = dataset_name.startswith("squad")
     tokenized_prompt = tokenizer.encode(prompt, return_tensors="pt").to(device)
     with torch.no_grad():
-        outputs = model.generate(
-            tokenized_prompt, max_new_tokens=100, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id
-        )
+        outputs = model.generate(tokenized_prompt, max_new_tokens=100, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id)
 
         generation = tokenizer.decode(outputs["sequences"][0][len(tokenized_prompt[0]) :]).split("\n")[0].replace("</s>", "").strip()
     try:
@@ -67,7 +65,7 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
         if split_tokens[-1].lower() in ["positive", "negative"]:
             return 0 if split_tokens[-1].lower() == "negative" else 1
 
-        extracted_integer = re.findall(r'\d+', generation)
+        extracted_integer = re.findall(r"\d+", generation)
         if len(extracted_integer) == 1:
             return int(extracted_integer[0])
 
@@ -126,6 +124,18 @@ def evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dat
     save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, "No Adaptation", num_shots)
     dataset_name = f"{dataset_name}-{eval_set}" if dataset_name.startswith("boss_") else dataset_name
     return generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, "No Adaptation", num_shots, num_failed_generations)
+
+
+def get_outcome_type(original_judgment, styled_jdugment, label):
+    if original_judgment == styled_jdugment and original_judgment != label:
+        return "Unfixed Mistake"
+    if original_judgment == styled_jdugment and original_judgment == label:
+        return "Unchanged Correct"
+    if original_judgment != styled_jdugment and original_judgment == label:
+        return "New Mistake"
+    if original_judgment != styled_jdugment and styled_jdugment == label:
+        return "New Correct"
+    return "NA"
 
 
 def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, adaptive_method_name=None, num_shots=None):
@@ -194,7 +204,16 @@ def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset
 
     dataset_name = f"{dataset_name}-{eval_set}" if dataset_name.startswith("boss_") else dataset_name
     save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots)
-    return generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, adaptive_method_name, num_shots, num_failed_generations)
+
+    # Save new mistakes_lods
+    no_adapt_logs_filename = [file_name for file_name in os.listdir(f"results/{experiment_id}") if f'{model_name.replace("/", "-")}-{dataset_name}-{icl_method}-No Adaptation' in file_name][0]
+    no_adapt_logs = pd.read_csv(f"results/{experiment_id}/{no_adapt_logs_filename}")
+    inference_log_frame = pd.DataFrame(inference_logs)
+    inference_log_frame["original judgment"] = no_adapt_logs["judgment"]
+    inference_log_frame["outcome"] = inference_log_frame.apply(lambda row: get_outcome_type(row["original judgment"], row["judgment"], row["label"]), axis=1)
+
+
+    return inference_log_frame, generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, adaptive_method_name, num_shots, num_failed_generations)
 
 
 def save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots):
@@ -319,7 +338,7 @@ def evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer,
     data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
     original_judgments = [log["judgment"] for log in inference_logs]
     dataset_name = f"{dataset_name}-{eval_set}" if dataset_name.startswith("boss_") else dataset_name
-    return generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments,  f"Test-Time Augmentation - {aug_method}")
+    return generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, f"Test-Time Augmentation - {aug_method}")
 
 
 # TODO: Add support for LLM inference

@@ -193,7 +193,7 @@ def main():
                         else:
                             for icl_method in icl_methods:
                                 for num_shots in [6]:
-                                    current_report = evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, adaptive_method, num_shots)
+                                    style_inference_log_frame, current_report = evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, adaptive_method, num_shots)
                                     reports.append(current_report)
                                     all_reports = pd.DataFrame(reports).drop_duplicates()
                                     print(all_reports[["dataset", "split", "task model", "dataset size", "accuracy", "avg f1"]])
@@ -201,6 +201,7 @@ def main():
                                     if wandb_enabled:
                                         wandb.log(current_report)
                                         wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
+                                        wandb_run.log({f"{evaluation_set}_style_logs": wandb.Table(dataframe=style_inference_log_frame)})
                 else:
                     is_llm = model.config.architectures[0].endswith("ForCausalLM")
                     if is_llm:

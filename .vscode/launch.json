@@ -56,7 +56,8 @@
                 "--max_examples=50",
                 "--model=trained_models/final_boss_toxicity/boss_toxicity/final",
                 "--dataset=boss_toxicity",
-                "--report_wandb=true"
+                "--report_wandb=true",
+                "--baseline=skip",
             ]
         },
         {
