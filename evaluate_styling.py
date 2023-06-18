@@ -1,20 +1,15 @@
-from argparse import ArgumentParser
 from datetime import datetime
 import pandas as pd
+import argparse
+import wandb
 
-from adaptive_methods import (
-    evaluate_test_time_augmentation,
-    evaluate_style_transfer,
-    evaluate_fine_tuning,
-    evaluate_memo,
-    evaluate_without_adaptation
-)
+from adaptive_methods import evaluate_test_time_augmentation, evaluate_style_transfer, evaluate_fine_tuning, evaluate_memo, evaluate_without_adaptation
 from util_data import get_formatted_dataset
 from util_modeling import get_model_objects
 
 
 def main():
-    parser = ArgumentParser()
+    parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, default=None)
     parser.add_argument("--dataset", type=str, default=None)
     parser.add_argument("--splits", type=str, default=None)
@@ -23,9 +18,10 @@ def main():
     parser.add_argument("--adaptive_model", type=str, default=None)
     parser.add_argument("--max_examples", type=int, default=None)
     parser.add_argument("--eval_styling", type=str, default="true")
+    parser.add_argument("--report_wandb", type=str, default="false")
     args = parser.parse_args()
 
-    experiment_id = f"edit_experiment_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+    experiment_id = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{args.dataset}_{args.model.replace('/', '-')}"
     dataset_names = (
         args.dataset.split(",")
         if args.dataset is not None
@@ -41,22 +37,16 @@ def main():
             "wilds_civil_comments",
         ]
     )
-    icl_methods = args.icl_method.split(",") if args.icl_method is not None else ["static"]  #["static", "topk", "mdl"]
+    icl_methods = args.icl_method.split(",") if args.icl_method is not None else ["static"]  # ["static", "topk", "mdl"]
     splits = args.splits.split(",") if args.splits is not None else None
     adaptive_model_names = (
         args.adaptive_model.split(",")
         if args.adaptive_model is not None
         else [
             "TheBloke/vicuna-13B-1.1-HF",
-            # "TheBloke/vicuna-7B-1.1-HF",
-            # "tiiuae/falcon-40b-instruct",
-            # "tiiuae/falcon-7b-instruct",
         ]
     )
-    baselines = args.baseline.split(",") if args.baseline is not None else [] if args.baseline == "skip" else [
-        "fine-tuning",
-        "test_time_augmentation",
-        "memo"]
+    baselines = args.baseline.split(",") if args.baseline is not None else [] if args.baseline == "skip" else ["fine-tuning", "test_time_augmentation", "memo"]
 
     model_names = (
         args.model.split(",")
@@ -81,12 +71,26 @@ def main():
     print("Running experiment with the following parameters:")
     print(f"Experiment ID: {experiment_id}")
     print(f"Dataset Names: {dataset_names}")
-    # print(f"Evalaution Splits: {splits}")
     print(f"ICL Methods: {icl_methods}")
     print(f"Task Model Names: {model_names}")
     print(f"Style Model Names: {adaptive_model_names}")
     print(f"Max Examples: {args.max_examples}")
     print("--------------------------------------------------\n")
+
+    wandb_enabled = args.report_wandb.lower() == "true"
+    wandb_run = None
+    if wandb_enabled:
+        wandb_config = {
+            "dataset_names": dataset_names,
+            "icl_methods": icl_methods,
+            "task_model_names": model_names,
+            "style_model_names": adaptive_model_names,
+            "max_examples": args.max_examples,
+            "baslines": baselines,
+            "adaptive_methods": adaptive_methods,
+        }
+        project_name = "In-Context Domain Transfer Improves Out-of-Domain Robustness"
+        wandb_run = wandb.init(project=project_name, name=experiment_id, config=wandb_config)
 
     reports = []
     for model_name in model_names:
@@ -99,60 +103,89 @@ def main():
             dataset = get_formatted_dataset(dataset_name, max_examples=args.max_examples)
             splits = splits if splits is not None else [split for split in dataset.keys() if split != "train"]
 
-
             for evaluation_set in splits:
                 # Evaluate style model on the task
                 for adaptive_model_name in adaptive_model_names:
                     if adaptive_model is None:
                         adaptive_tokenizer, adaptive_model = get_model_objects(adaptive_model_name)
-                    reports.append(evaluate_without_adaptation(experiment_id, adaptive_model_name, adaptive_model, adaptive_tokenizer, dataset_name, dataset, "static", evaluation_set))
+
+                    current_report = evaluate_without_adaptation(experiment_id, adaptive_model_name, adaptive_model, adaptive_tokenizer, dataset_name, dataset, "static", evaluation_set)
+                    reports.append(current_report)
                     all_reports = pd.DataFrame(reports).drop_duplicates()
                     print(all_reports[["dataset", "split", "task model", "dataset size", "accuracy", "avg f1"]])
                     all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                    if wandb_enabled:
+                        wandb.log(current_report)
+                        wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
 
                 if evaluation_set not in ["validation"]:
                     for adaptive_method in adaptive_methods:
                         if adaptive_method == "No Adaptation":
                             # Evaluate the task model
-                            reports.append(evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, "static", evaluation_set, None))
+                            current_report = evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, "static", evaluation_set, None)
+                            reports.append(current_report)
                             all_reports = pd.DataFrame(reports).drop_duplicates()
                             print(all_reports[["dataset", "split", "task model", "dataset size", "accuracy", "avg f1"]])
                             all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                            if wandb_enabled:
+                                wandb.log(current_report)
+                                wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
+
                         elif adaptive_method == "test_time_augmentation":
                             for aug_method in ["paraphrase", "replace"]:
                                 tta_report = evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, evaluation_set, "static", aug_method)
                                 reports.append(tta_report)
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
                                 print(all_reports[["dataset", "split", "task model", "dataset size", "accuracy", "avg f1"]])
-                            all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                                all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                                if wandb_enabled:
+                                    wandb.log(tta_report)
+                                    wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
+
                         elif adaptive_method == "memo":
                             for aug_method in ["paraphrase", "replace"]:
                                 memo_report = evaluate_memo(experiment_id, model_name, model, tokenizer, dataset_name, dataset, evaluation_set, "static", aug_method)
+
                                 reports.append(memo_report)
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
                                 print(all_reports[["dataset", "split", "task model", "dataset size", "accuracy", "avg f1"]])
+                                all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                                if wandb_enabled:
+                                    wandb.log(memo_report)
+                                    wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
 
                                 # Now evaluate on the in-distribution set to assess potential catastrophic forgetting
                                 forgetting_report = evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, "static", "validation")
                                 reports.append(forgetting_report)
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
                                 print(all_reports[["dataset", "split", "task model", "dataset size", "accuracy", "avg f1"]])
+                                all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                                if wandb_enabled:
+                                    wandb.log(forgetting_report)
+                                    wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
 
                                 # Since MEMO updates the model's parameters, we need to reload the model so
                                 # as to not affect the next experiment
                                 tokenizer, model = get_model_objects(model_name)
                         elif adaptive_method == "fine-tuning":
-                            # dataset_name = f"{dataset_name}_{evaluation_set}" if dataset_name.startswith("boss_") else dataset_name
                             ft_report = evaluate_fine_tuning(experiment_id, model_name, model, tokenizer, dataset_name, dataset, evaluation_set, "static")
                             reports.append(ft_report)
                             all_reports = pd.DataFrame(reports).drop_duplicates()
                             print(all_reports[["dataset", "split", "task model", "dataset size", "accuracy", "avg f1"]])
+                            all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                            if wandb_enabled:
+                                wandb.log(ft_report)
+                                wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
 
                             # Now evaluate on the in-distribution set to assess potential catastrophic forgetting
                             forgetting_report = evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, "static", "validation")
                             reports.append(forgetting_report)
                             all_reports = pd.DataFrame(reports).drop_duplicates()
                             print(all_reports[["dataset", "split", "task model", "dataset size", "accuracy", "avg f1"]])
+                            all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                            if wandb_enabled:
+                                wandb.log(forgetting_report)
+                                wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
 
                             # Since fine-tuning the model further updates the model's parameters, we
                             # need to reload the model so as to not affect the next experiment
@@ -160,23 +193,35 @@ def main():
                         else:
                             for icl_method in icl_methods:
                                 for num_shots in [6]:
-                                    reports.append(evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, adaptive_method, num_shots))
+                                    current_report = evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, adaptive_method, num_shots)
+                                    reports.append(current_report)
                                     all_reports = pd.DataFrame(reports).drop_duplicates()
                                     print(all_reports[["dataset", "split", "task model", "dataset size", "accuracy", "avg f1"]])
                                     all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                                    if wandb_enabled:
+                                        wandb.log(current_report)
+                                        wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
                 else:
                     is_llm = model.config.architectures[0].endswith("ForCausalLM")
                     if is_llm:
                         for num_shots in [4]:
-                            reports.append(evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, "static", evaluation_set, num_shots=num_shots))
+                            current_report = evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, "static", evaluation_set, num_shots=num_shots)
+                            reports.append(current_report)
                             all_reports = pd.DataFrame(reports).drop_duplicates()
                             print(all_reports[["dataset", "split", "task model", "dataset size", "accuracy", "avg f1"]])
                             all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                            if wandb_enabled:
+                                wandb.log(current_report)
+                                wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
                     else:
-                        reports.append(evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, "static", evaluation_set))
+                        current_report = evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, "static", evaluation_set)
+                        reports.append(current_report)
                         all_reports = pd.DataFrame(reports).drop_duplicates()
                         print(all_reports[["dataset", "split", "task model", "dataset size", "accuracy", "avg f1"]])
                         all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                        if wandb_enabled:
+                            wandb.log(current_report)
+                            wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
 
 
 if __name__ == "__main__":

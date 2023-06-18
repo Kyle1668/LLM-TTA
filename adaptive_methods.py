@@ -9,7 +9,7 @@ import torch
 import os
 import re
 
-from util_data import generate_icl_report
+from util_data import generate_evaluation_Report
 from util_modeling import get_model_objects
 from util_icl import generate_prompt, get_prompt_template, get_retriever, get_static_exemplars, get_dynamic_exemplars
 
@@ -125,7 +125,7 @@ def evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dat
 
     save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, "No Adaptation", num_shots)
     dataset_name = f"{dataset_name}-{eval_set}" if dataset_name.startswith("boss_") else dataset_name
-    return generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, "No Adaptation", num_shots, num_failed_generations)
+    return generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, "No Adaptation", num_shots, num_failed_generations)
 
 
 def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, adaptive_method_name=None, num_shots=None):
@@ -194,7 +194,7 @@ def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset
 
     dataset_name = f"{dataset_name}-{eval_set}" if dataset_name.startswith("boss_") else dataset_name
     save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots)
-    return generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, adaptive_method_name, num_shots, num_failed_generations)
+    return generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, adaptive_method_name, num_shots, num_failed_generations)
 
 
 def save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots):
@@ -319,7 +319,7 @@ def evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer,
     data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
     original_judgments = [log["judgment"] for log in inference_logs]
     dataset_name = f"{dataset_name}-{eval_set}" if dataset_name.startswith("boss_") else dataset_name
-    return generate_icl_report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments,  f"Test-Time Augmentation - {aug_method}")
+    return generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments,  f"Test-Time Augmentation - {aug_method}")
 
 
 # TODO: Add support for LLM inference
@@ -378,7 +378,7 @@ def evaluate_memo(experiment_id, task_model_name, task_model, task_tokenizer, da
     data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
     original_judgments = [log["judgment"] for log in inference_logs]
     dataset_name = f"{dataset_name}-{eval_set}" if dataset_name.startswith("boss_") else dataset_name
-    return generate_icl_report(experiment_id, task_model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, f"MEMO - {aug_method}")
+    return generate_evaluation_Report(experiment_id, task_model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, f"MEMO - {aug_method}")
 
 
 def get_paraphrase_augmentations(
@@ -447,7 +447,6 @@ def evaluate_fine_tuning(experiment_id, task_model_name, task_model, task_tokeni
     for entry in tqdm(dataset[eval_set]):
         with torch.no_grad():
             eval_text = entry["text"]
-            eval_label = entry["label"]
             tokenized_sample = task_tokenizer(eval_text, return_tensors="pt").to(device)
             logits = task_model(**tokenized_sample).logits
             eval_prediciton = torch.argmax(logits, dim=1).cpu().numpy()
@@ -467,7 +466,7 @@ def evaluate_fine_tuning(experiment_id, task_model_name, task_model, task_tokeni
     data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
     original_judgments = [log["judgment"] for log in inference_logs]
     dataset_name = f"{dataset_name}-{eval_set}" if dataset_name.startswith("boss_") else dataset_name
-    return generate_icl_report(experiment_id, task_model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, "Fine-Tuning")
+    return generate_evaluation_Report(experiment_id, task_model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, "Fine-Tuning")
 
 
 class GenericDataset(Dataset):

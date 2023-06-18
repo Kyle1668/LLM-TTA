@@ -153,7 +153,7 @@ def main():
     print(f"Training {model_name} on {dataset_name} for {num_epochs} epochs")
     for epoch in range(num_epochs):
         print(f"Epoch {epoch}")
-        train_loss = train_model(model, tokenizer, training_set[:500])
+        train_loss = train_model(model, tokenizer, training_set)
         test_set_perf = evaluate_model(experiment_id, dataset_name, model, tokenizer, test_set, epoch)
         epoch_accuracies.append(test_set_perf)
 

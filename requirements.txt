@@ -16,3 +16,4 @@ wilds
 einops
 nlpaug
 scipy
+wandb

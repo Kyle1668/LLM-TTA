@@ -53,9 +53,11 @@
                 "CUDA_VISIBLE_DEVICES": "3,4"
             },
             "args": [
-                // "--max_examples=20",
+                "--max_examples=50",
                 "--model=trained_models/final_boss_toxicity/boss_toxicity/final",
-                "--dataset=boss_toxicity"            ]
+                "--dataset=boss_toxicity",
+                "--report_wandb=true"
+            ]
         },
         {
             "name": "BOSS NLI",
@@ -106,7 +108,7 @@
                 "--max_examples=100",
                 "--model=nateraw/bert-base-uncased-ag-news,mosesju/distilbert-base-uncased-finetuned-news",
                 "--dataset=ag_news_twitter",
-                "--icl_method=static,topk,mdl",
+                "--icl_method=static,topk",
             ]
         },
         {
