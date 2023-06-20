@@ -1,5 +1,6 @@
 from faiss import IndexIDMap, IndexFlatIP
 from openicl import PromptTemplate, TopkRetriever, MDLRetriever, RandomRetriever, VotekRetriever
+from util_data import get_num_labels
 import numpy as np
 import json
 
@@ -28,6 +29,7 @@ def get_num_shots(dataset_name):
 
 
 def get_retriever(icl_method, data, dataset_name, index_split="train"):
+    icl_method = icl_method.replace("_furthest", "").replace("_centroid", "")
     if icl_method == "topk":
         return TopkRetriever(dataset_reader=data, ice_num=get_num_shots(dataset_name), index_split=index_split, tokenizer_name="sentence-transformers/all-mpnet-base-v2")
     elif icl_method == "mdl":
@@ -45,27 +47,11 @@ def get_retriever(icl_method, data, dataset_name, index_split="train"):
 
 
 def get_prompt_template(dataset_name):
-    dataset_num_labels = {
-        "sst2": 2,
-        "adv_sst2": 4,
-        "squad": 1,
-        "ag_news": 4,
-        "ag_news_twitter": 4,
-        "boss_sentiment": 3,
-        "boss_toxicity": 2,
-        "boss_nli": 1,
-        "toxigen": 2,
-        "disaster_tweets": 2,
-        "wilds_civil_comments": 2,
-        "civil_toxigen": 2,
-        "rotten_tomatoes_imdb": 2,
-        "imdb_rotten_tomatoes": 2,
-        "wilds_amazon": 5,
-        "scotus": 11}
+    num_labels = get_num_labels(dataset_name)
 
     tp_dict = {}
     dataset_name = "squad" if dataset_name.startswith("squad") else dataset_name
-    for i in range(dataset_num_labels[dataset_name]):
+    for i in range(num_labels):
         tp_dict[i] = f"\n</text> - Label={i}</E>"
 
     template = PromptTemplate(tp_dict, {"text": "</text>"}, ice_token="</E>")
@@ -140,11 +126,11 @@ def get_static_exemplars(dataset_name):
     return exemplars_file[dataset_name]
 
 
-def get_dynamic_exemplars(input_text, dataset_name, exemplar_retriever, exemplar_count=None):
+def get_dynamic_exemplars(input_text, dataset_name, exemplar_retriever, exemplar_count=None, distance_goal="NA"):
     exemplar_count = get_num_shots(dataset_name) if exemplar_count is None else exemplar_count
     exemplar_distances = exemplar_indices = None
     exemplar_indices = None
-    retriever_response = exemplar_retriever.get_exemplars(input_text, exemplar_count)
+    retriever_response = exemplar_retriever.get_exemplars(input_text, exemplar_count, distance_goal)
     if isinstance(retriever_response, tuple):
         exemplar_distances, exemplar_indices = retriever_response
     else:

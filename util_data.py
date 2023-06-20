@@ -24,9 +24,9 @@ def qa_report(model_answers, gold_answers):
 def get_split_log_name(eval_set, adaptive_method_name):
     if eval_set == "validation":
         return "In-Distribution"
-    elif "Test-Time Augmentation" in adaptive_method_name :
+    elif "Test-Time Augmentation" in adaptive_method_name:
         return adaptive_method_name.replace("Test-Time Augmentation", "OOD w/ TTA")
-    elif "MEMO" in adaptive_method_name :
+    elif "MEMO" in adaptive_method_name:
         return adaptive_method_name.replace("MEMO", "OOD w/ MEMO")
     elif adaptive_method_name == "Fine-Tuning":
         return "OOD w/ Fine-Tuning"
@@ -38,7 +38,9 @@ def get_split_log_name(eval_set, adaptive_method_name):
         return "OOD w/ Style Transfer"
 
 
-def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, adaptive_method_name, num_shots=None, num_failed_generations=None):
+def generate_evaluation_Report(
+    experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, adaptive_method_name, num_shots=None, num_failed_generations=None
+):
     if not os.path.exists(f"results/{experiment_id}"):
         os.makedirs(f"results/{experiment_id}")
 
@@ -46,14 +48,15 @@ def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_meth
     formatted_model_name = model_name.replace("/", "-")
     gold_labels = [entry["label"] for entry in dataset[eval_set.replace("+adaptive", "")]]
     report_dict = qa_report(original_judgments, gold_labels) if is_qa_task else classification_report(gold_labels, original_judgments, output_dict=True)
+    formatted_split_name = get_split_log_name(eval_set, adaptive_method_name)
 
     icl_report = {
         "dataset": dataset_name,
-        "split": get_split_log_name(eval_set, adaptive_method_name),
+        "split": formatted_split_name,
         "dataset size": len(dataset[eval_set.replace("+adaptive", "")]),
         "icl_method": icl_method,
         "task model": formatted_model_name,
-        "style transfer model": adaptive_method_name if eval_set == "test+adaptive" else None,
+        "style transfer model": adaptive_method_name if formatted_split_name == "OOD w/ Style Transfer" else None,
         "exemplar count": num_shots,
         "accuracy": report_dict["accuracy"] if not is_qa_task else None,
         "avg precision": report_dict["macro avg"]["precision"] if not is_qa_task else None,
@@ -72,6 +75,28 @@ def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_meth
         confusion_matrix_fig.figure_.savefig(f"results/{experiment_id}/{output_file_name}_confusion_matrix.png")
 
     return icl_report
+
+
+def get_num_labels(dataset_name):
+    dataset_num_labels = {
+        "sst2": 2,
+        "adv_sst2": 4,
+        "squad": 1,
+        "ag_news": 4,
+        "ag_news_twitter": 4,
+        "boss_sentiment": 3,
+        "boss_toxicity": 2,
+        "boss_nli": 1,
+        "toxigen": 2,
+        "disaster_tweets": 2,
+        "wilds_civil_comments": 2,
+        "civil_toxigen": 2,
+        "rotten_tomatoes_imdb": 2,
+        "imdb_rotten_tomatoes": 2,
+        "wilds_amazon": 5,
+        "scotus": 11,
+    }
+    return dataset_num_labels[dataset_name]
 
 
 def get_formatted_dataset(set_name, max_examples=None):

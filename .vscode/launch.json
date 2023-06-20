@@ -63,6 +63,28 @@
             ]
         },
         {
+            "name": "ToxiGen Ablate",
+            "type": "python",
+            "request": "launch",
+            "program": "evaluate_styling.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                // "CUDA_VISIBLE_DEVICES": "1"
+                "CUDA_VISIBLE_DEVICES": "0"
+            },
+            "args": [
+                "--max_examples=10",
+                "--model=selected_models/boss_toxicity/bert",
+                "--dataset=boss_toxicity",
+                // "--report_wandb",
+                "--baseline=skip",
+                "--skip_style_model_eval",
+                "--splits=toxigen",
+                "--icl_method=topk_furthest,topk,random,static",
+            ]
+        },
+        {
             "name": "BOSS NLI",
             "type": "python",
             "request": "launch",
@@ -115,6 +137,28 @@
             ]
         },
         {
+            "name": "AG Tweets Ablate",
+            "type": "python",
+            "request": "launch",
+            "program": "evaluate_styling.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                // "CUDA_VISIBLE_DEVICES": "1"
+                "CUDA_VISIBLE_DEVICES": "0"
+            },
+            "args": [
+                "--max_examples=10",
+                "--model=selected_models/ag_news/bert",
+                "--dataset=ag_news_twitter",
+                // "--report_wandb",
+                "--baseline=skip",
+                "--skip_style_model_eval",
+                "--splits=test",
+                "--icl_method=topk_furthest,topk,random,static"
+            ]
+        },
+        {
             "name": "IMDB_RT",
             "type": "python",
             "request": "launch",
@@ -126,12 +170,13 @@
                 "CUDA_VISIBLE_DEVICES": "1,2,3,4"
             },
             "args": [
-                "--max_examples=50",
-                // "--model=lvwerra/distilbert-imdb,decapoda-research/llama-65b-hf",
-                "--model=lvwerra/bert-imdb",
+                "--max_examples=100",
                 "--dataset=imdb_rotten_tomatoes",
-                "--icl_method=static,topk,random",
-                // "--split=test+adaptive"
+                "--splits=test",
+                "--model=selected_models/imdb/bert",
+                "--baseline=skip",
+                "--skip_style_model_eval",
+                "--icl_method=topk_centroid,topk_furthest,topk,random,static"
             ]
         },
         {

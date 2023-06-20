@@ -10,7 +10,7 @@ import os
 import re
 
 from util_data import generate_evaluation_Report
-from util_modeling import get_model_objects
+from util_modeling import get_model_objects, is_large_language_model
 from util_icl import generate_prompt, get_prompt_template, get_retriever, get_static_exemplars, get_dynamic_exemplars
 
 
@@ -97,7 +97,8 @@ def evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dat
             if icl_method == "static":
                 exemplars = get_static_exemplars(dataset_name)
             else:
-                exemplars, mean_exemplar_distance = get_dynamic_exemplars(entry["text"], dataset_name, exemplar_retriever, num_shots) if should_retrieve_exemplars else None
+                distance_goal = "NA" if not icl_method.startswith("topk") else icl_method if icl_method == "topk" else icl_method.split("_")[1]
+                exemplars, mean_exemplar_distance = get_dynamic_exemplars(entry["text"], dataset_name, exemplar_retriever, num_shots, distance_goal) if should_retrieve_exemplars else None
 
         prompt = generate_prompt(model_name, template, exemplars, entry, dataset_name) if should_retrieve_exemplars else None
         judgment = get_judgment(model, tokenizer, prompt, device, entry, dataset_name)
@@ -153,7 +154,7 @@ def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset
     adaptive_tokenizer = None
     adaptive_model = None
     if is_adaptive_set:
-        adaptive_tokenizer, adaptive_model = get_model_objects(adaptive_method_name)
+        adaptive_tokenizer, adaptive_model = get_model_objects(adaptive_method_name, -1)
 
     description = f"Evaluating {dataset_name}-{eval_set} with {model_name} using {icl_method}"
     print(f"{description} and {adaptive_method_name} for style transfer" if is_adaptive_set else description)
@@ -163,7 +164,8 @@ def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset
             if icl_method == "static":
                 exemplars = get_static_exemplars(dataset_name)
             else:
-                exemplars, mean_exemplar_distance = get_dynamic_exemplars(entry["text"], dataset_name, exemplar_retriever, num_shots) if should_retrieve_exemplars else None
+                distance_goal = "NA" if not icl_method.startswith("topk") else icl_method if icl_method == "topk" else icl_method.split("_")[1]
+                exemplars, mean_exemplar_distance = get_dynamic_exemplars(entry["text"], dataset_name, exemplar_retriever, num_shots, distance_goal) if should_retrieve_exemplars else None
 
         if is_adaptive_set:
             entry["original_text"] = entry["text"]
@@ -206,14 +208,26 @@ def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset
     save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots)
 
     # Save new mistakes_lods
-    no_adapt_logs_filename = [file_name for file_name in os.listdir(f"results/{experiment_id}") if f'{model_name.replace("/", "-")}-{dataset_name}-{icl_method}-No Adaptation' in file_name][0]
-    no_adapt_logs = pd.read_csv(f"results/{experiment_id}/{no_adapt_logs_filename}")
+
+    no_adapt_logs = get_baseline_inference_log_frame(experiment_id, model_name, dataset_name, icl_method, eval_set)
     inference_log_frame = pd.DataFrame(inference_logs)
     inference_log_frame["original judgment"] = no_adapt_logs["judgment"]
     inference_log_frame["outcome"] = inference_log_frame.apply(lambda row: get_outcome_type(row["original judgment"], row["judgment"], row["label"]), axis=1)
 
+    return inference_log_frame, generate_evaluation_Report(
+        experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, adaptive_method_name, num_shots, num_failed_generations
+    )
 
-    return inference_log_frame, generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, adaptive_method_name, num_shots, num_failed_generations)
+
+def get_baseline_inference_log_frame(experiment_id, model_name, dataset_name, icl_method, eval_set):
+    compare_file_name_prefix = None
+    if is_large_language_model(model_name):
+        compare_file_name_prefix = f'{model_name.replace("/", "-")}-{dataset_name}-{eval_set}-{icl_method}-No Adaptation'
+    else:
+        compare_file_name_prefix = f'{model_name.replace("/", "-")}-{dataset_name}-{eval_set}-static-No Adaptation'
+
+    no_adapt_logs_filename = [file_name for file_name in os.listdir(f"results/{experiment_id}") if compare_file_name_prefix in file_name][0]
+    return pd.read_csv(f"results/{experiment_id}/{no_adapt_logs_filename}")
 
 
 def save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots):

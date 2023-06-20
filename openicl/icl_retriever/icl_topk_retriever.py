@@ -100,7 +100,7 @@ class TopkRetriever(BaseRetriever):
             rtr_idx_list[idx] = near_ids
         return rtr_idx_list
 
-    def get_exemplars(self, text, ice_num):
+    def get_exemplars(self, text, ice_num, distance_goal="nearest"):
         # res_list = self.forward(self.dataloader, process_bar=True, information="Embedding test set...")
         # rtr_idx_list = [[] for _ in range(len(res_list))]
         # logger.info("Retrieving data for test set...")
@@ -110,7 +110,13 @@ class TopkRetriever(BaseRetriever):
         #     near_ids = self.index.search(embed, ice_num)[1][0].tolist()
         #     rtr_idx_list[idx] = near_ids
         # return rtr_idx_list
-        embed = self.model.encode([text], show_progress_bar=False)
+        embed = None
+        if distance_goal == "nearest":
+            embed = self.model.encode([text], show_progress_bar=False)
+        elif distance_goal == "furthest":
+            embed = -self.model.encode([text], show_progress_bar=False)
+        elif distance_goal == "centroid":
+            embed = np.array([self.embed_list.mean(axis=0)])
         return self.index.search(embed, ice_num)
 
 

@@ -44,7 +44,7 @@ class RandomRetriever(BaseRetriever):
                          test_split, accelerator)
         self.seed = seed
 
-    def get_exemplars(self, text, ice_num):
+    def get_exemplars(self, text, ice_num, distance_goal="random"):
         np.random.seed(self.seed)
         num_idx = len(self.index_ds)
         rtr_idx_list = []

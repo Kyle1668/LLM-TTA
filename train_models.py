@@ -153,8 +153,8 @@ def main():
 
     tokenizer, model = get_model_objects(model_name, num_classes=args.num_classes)
 
-    training_set = dataset["train"][:args.max_examples] if args.max_examples is not None else dataset["train"]
-    test_set = dataset["test"][:args.max_examples] if args.max_examples is not None else dataset["test"]
+    training_set = dataset["train"][: args.max_examples] if args.max_examples is not None else dataset["train"]
+    test_set = dataset["test"][: args.max_examples] if args.max_examples is not None else dataset["test"]
     train_losses = []
     epoch_reports = []
     epoch_accuracies = []
@@ -168,9 +168,11 @@ def main():
             wandb.log({"train_loss": train_loss})
 
         test_set_perf_report = evaluate_model(experiment_id, dataset_name, model, tokenizer, test_set, epoch)
-        formatted_report = test_set_perf_report if not is_language_model(model_name) else {
-            str(label): test_set_perf_report[str(label)] for label in range(args.num_classes)
-            } | {"accuracy": test_set_perf_report["accuracy"], "macro avg": test_set_perf_report["macro avg"]}
+        formatted_report = (
+            test_set_perf_report
+            if not is_language_model(model_name)
+            else {str(label): test_set_perf_report[str(label)] for label in range(args.num_classes)} | {"accuracy": test_set_perf_report["accuracy"], "macro avg": test_set_perf_report["macro avg"]}
+        )
 
         epoch_reports.append(formatted_report)
         epoch_accuracies.append(formatted_report["accuracy"])
