@@ -10,7 +10,7 @@ import time
 import os
 import re
 
-from util_data import generate_evaluation_Report
+from util_data import generate_evaluation_Report, get_num_labels
 from util_modeling import get_model_objects, is_large_language_model, is_language_model
 from util_icl import generate_prompt, get_prompt_template, get_retriever, get_static_exemplars, get_dynamic_exemplars
 
@@ -41,7 +41,7 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
             return predicted_class, logits
 
     is_qa_task = dataset_name.startswith("squad")
-    tokenized_prompt = tokenizer.encode(prompt, return_tensors="pt", max_length=tokenizer.model_max_length).to(device)
+    tokenized_prompt = tokenizer.encode(input_entry["text"], return_tensors="pt", max_length=512).to(device) if model.config.architectures[0].startswith("T5") else tokenizer.encode(prompt, return_tensors="pt", max_length=tokenizer.model_max_length).to(device)
     with torch.no_grad():
         outputs = model.generate(tokenized_prompt, max_new_tokens=100, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id)
         start_decoding_index = len(tokenized_prompt[0]) if is_large_language_model(model.name_or_path) else 0
@@ -51,11 +51,12 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
             return generation
 
         leading_token = generation.strip()[0]
-        if leading_token == "0" or leading_token == "1":
+        possible_int_labels = [str(label) for label in range(get_num_labels(dataset_name))]
+        if leading_token in possible_int_labels:
             return int(leading_token)
 
         final_tokens = generation.replace("</s>", "").replace("<s>", "")[-2:]
-        if final_tokens[1] == "0" or final_tokens[1] == "1":
+        if final_tokens[1] in possible_int_labels or final_tokens[1] in possible_int_labels:
             return int(final_tokens[1])
         elif final_tokens[0] == "0" or final_tokens[0] == "1":
             return int(final_tokens[0])
@@ -97,7 +98,7 @@ def evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dat
         exemplars = mean_exemplar_distance = None
         if should_retrieve_exemplars:
             if icl_method == "static":
-                exemplars = get_static_exemplars(dataset_name)
+                exemplars = get_static_exemplars(dataset_name, num_shots)
             else:
                 distance_goal = "NA" if not icl_method.startswith("topk") else icl_method if icl_method == "topk" else icl_method.split("_")[1]
                 exemplars, mean_exemplar_distance = get_dynamic_exemplars(entry["text"], dataset_name, exemplar_retriever, num_shots, distance_goal) if should_retrieve_exemplars else None
@@ -167,7 +168,7 @@ def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset
         exemplars = mean_exemplar_distance = None
         if should_retrieve_exemplars:
             if icl_method == "static":
-                exemplars = get_static_exemplars(dataset_name)
+                exemplars = get_static_exemplars(dataset_name, num_shots)
             else:
                 distance_goal = "NA" if not icl_method.startswith("topk") else icl_method if icl_method == "topk" else icl_method.split("_")[1]
                 exemplars, mean_exemplar_distance = get_dynamic_exemplars(entry["text"], dataset_name, exemplar_retriever, num_shots, distance_goal) if should_retrieve_exemplars else None
@@ -270,25 +271,24 @@ def save_inference_log(inference_logs, experiment_id, model_name, dataset_name, 
 
 def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemplars):
     style_input = input_entry["text"].replace("\n", " ")
-    # style_transfer_exemplars = "".join([f'"{exemplar["text"].strip()[:len(style_input)]}"\n' for exemplar in exemplars])
-    style_transfer_exemplars = "".join([f'"{exemplar["text"].strip()}"\n' for exemplar in exemplars])
+    num_example_tokens = adaptive_tokenizer(style_input, return_tensors="pt")["input_ids"].shape[1]
+    style_transfer_exemplars = "".join([f'"{adaptive_tokenizer.decode(adaptive_tokenizer.encode(exemplar["text"].strip())[:num_example_tokens * 2])}"\n' for exemplar in exemplars])
+    # style_transfer_exemplars = "".join([f'"{exemplar["text"].strip()}"\n' for exemplar in exemplars])
     task_prompt = f"""Paraphrase the input text into the exact writing style of the following examples while keeping the same semantic meaning. Keep all facts and information.
 Examples:
 {style_transfer_exemplars}
-Now paraphrase the current input text into the same style as the examples. Only return the paraphrased text for the below input text. MAke sure to keep all facts, information, and meaning.
+Now paraphrase the new domain input text into the same style as the old domain examples. Only return the paraphrased text for the below input text. Make sure to keep all facts, information, and meaning.
 
-Input Text: "{style_input}\""""
+Input Text: "{style_input}\"\nNew Domain Input in Old Domain Style:"""
     input_prompts = f"User: {task_prompt}\nAssistant:" if "vicuna" in adaptive_model.config.name_or_path else task_prompt
 
     tokenized_prompt = adaptive_tokenizer.encode(input_prompts, return_tensors="pt").to("cuda")
     with torch.no_grad():
         outputs = adaptive_model.generate(
             tokenized_prompt,
-            # do_sample=True,
+            do_sample=False,
             # temperature=0.1,
-            max_new_tokens=300,
-            length_penalty=0,
-            repetition_penalty=1.0,
+            max_new_tokens=num_example_tokens * 3,
             early_stopping=True,
             return_dict_in_generate=True,
         )
@@ -309,7 +309,6 @@ Input Text: "{style_input}\""""
     if generation.startswith('"') and generation.endswith('"'):
         generation = generation[1:-1]
 
-    # print(f"Generation: {generation}")
     return input_prompts, generation
 
 
@@ -339,7 +338,7 @@ def evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer,
         for aug_input in tta_inputs:
             input_entry = entry.copy()
             input_entry["text"] = aug_input
-            aug_judgment, aug_logits = get_judgment(model, tokenizer, None, device, entry, dataset_name)
+            aug_judgment, aug_logits = get_judgment(model, tokenizer, input_entry["text"], device, entry, dataset_name)
             logits.append(aug_logits)
             judgments.append(aug_judgment)
 

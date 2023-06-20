@@ -148,14 +148,14 @@
                 "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
-                "--max_examples=10",
-                "--model=selected_models/ag_news/bert",
+                "--max_examples=20",
+                "--model=selected_models/ag_news/t5",
                 "--dataset=ag_news_twitter",
                 // "--report_wandb",
                 "--baseline=skip",
                 "--skip_style_model_eval",
                 "--splits=test",
-                "--icl_method=topk_furthest,topk,random,static"
+                "--icl_method=static,topk_nearest,topk_centroid,topk_furthest",
             ]
         },
         {
@@ -167,17 +167,17 @@
             "justMyCode": true,
             "env": {
                 // "CUDA_VISIBLE_DEVICES": "1"
-                "CUDA_VISIBLE_DEVICES": "1,2,3,4"
+                "CUDA_VISIBLE_DEVICES": "1"
             },
             "args": [
-                "--max_examples=50",
+                "--max_examples=15",
                 "--dataset=imdb_rotten_tomatoes",
                 "--splits=test",
                 // "--model=selected_models/imdb/bert",
-                "--model=selected_models/imdb/t5",
-                // "--baseline=skip",
+                "--model=selected_models/imdb/bert,selected_models/imdb/t5",
+                "--baseline=skip",
                 "--skip_style_model_eval",
-                "--icl_method=topk_nearest,topk_centroid,topk_furthest,static"
+                "--icl_method=static,topk_nearest,topk_centroid,topk_furthest"
             ]
         },
         {

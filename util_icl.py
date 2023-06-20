@@ -120,10 +120,10 @@ def get_edit_exemplars(dataset, edit_retriever, input_sequence_embedding, exempl
     return edit_exemplars
 
 
-def get_static_exemplars(dataset_name):
+def get_static_exemplars(dataset_name, num_shots):
     exemplars_file_path = "prompts/exemplars.json"
     exemplars_file = json.load(open(exemplars_file_path, encoding="utf-8"))
-    return exemplars_file[dataset_name]
+    return exemplars_file[dataset_name][:num_shots]
 
 
 def get_dynamic_exemplars(input_text, dataset_name, exemplar_retriever, exemplar_count=None, distance_goal="NA"):
