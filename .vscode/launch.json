@@ -35,12 +35,15 @@
                 "CUDA_VISIBLE_DEVICES": "3"
             },
             "args": [
-                "--max_examples=10",
+                "--max_examples=50",
                 // "--model=trained_models/edit_experiment_2023-06-10_19-48-53/boss_sentiment/bert-base-uncased_1",
-                "--model=trained_models/edit_experiment_2023-06-10_22-39-22/boss_sentiment/bert-base-uncased_1",
+                "--model=selected_models/boss_sentiment/bert",
                 "--dataset=boss_sentiment",
+                // "--report_wandb",
                 "--baseline=skip",
-                "--eval_styling=False"
+                "--skip_style_model_eval",
+                // "--splits=toxigen",
+                "--icl_method=static,topk_nearest,topk_centroid,topk_furthest",
             ]
         },
         {
@@ -52,10 +55,10 @@
             "justMyCode": false,
             "env": {
                 // "CUDA_VISIBLE_DEVICES": "1"
-                "CUDA_VISIBLE_DEVICES": "3,4"
+                "CUDA_VISIBLE_DEVICES": "1"
             },
             "args": [
-                "--max_examples=50",
+                "--max_examples=100",
                 "--model=trained_models/final_boss_toxicity/boss_toxicity/final",
                 "--dataset=boss_toxicity",
                 "--report_wandb=true",
@@ -71,10 +74,10 @@
             "justMyCode": false,
             "env": {
                 // "CUDA_VISIBLE_DEVICES": "1"
-                "CUDA_VISIBLE_DEVICES": "0"
+                "CUDA_VISIBLE_DEVICES": "1"
             },
             "args": [
-                "--max_examples=10",
+                "--max_examples=100",
                 "--model=selected_models/boss_toxicity/bert",
                 "--dataset=boss_toxicity",
                 // "--report_wandb",

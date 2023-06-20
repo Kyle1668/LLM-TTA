@@ -38,7 +38,7 @@ def get_split_log_name(eval_set, adaptive_method_name):
         return "OOD w/ Style Transfer"
 
 
-def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, adaptive_method_name, num_shots=None, num_failed_generations=None):
+def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, adaptive_method_name, num_shots=None, num_failed_generations=None, trim_exemplars=None):
     if not os.path.exists(f"results/{experiment_id}"):
         os.makedirs(f"results/{experiment_id}")
 
@@ -58,6 +58,7 @@ def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_meth
         "task model": formatted_model_name,
         "style transfer model": adaptive_method_name if formatted_split_name == "OOD w/ Style Transfer" else None,
         "exemplar count": num_shots,
+        "trim exemplars": trim_exemplars,
         "accuracy": report_dict["accuracy"] if not is_qa_task else None,
         "avg precision": report_dict["macro avg"]["precision"] if not is_qa_task else None,
         "avg recall": report_dict["macro avg"]["recall"] if not is_qa_task else None,

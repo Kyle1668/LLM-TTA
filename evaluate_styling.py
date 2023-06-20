@@ -44,10 +44,10 @@ def main():
         args.adaptive_model.split(",")
         if args.adaptive_model is not None
         else [
-            # # "tiiuae/falcon-7b",
+            "TheBloke/vicuna-13B-1.1-HF",
             "TheBloke/vicuna-7B-1.1-HF",
             "tiiuae/falcon-7b-instruct",
-            "TheBloke/vicuna-13B-1.1-HF",
+            "tiiuae/falcon-7b",
         ]
     )
     baselines = args.baseline.split(",") if args.baseline is not None else [] if args.baseline == "skip" else ["fine-tuning", "test_time_augmentation", "memo"]
@@ -206,15 +206,16 @@ def main():
                             else:
                                 for style_icl_method in icl_methods:
                                     for num_shots in [8, 2]:
-                                        style_inference_log_frame, current_report = evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset_name, dataset, style_icl_method, evaluation_set, adaptive_method, num_shots)
-                                        reports.append(current_report)
-                                        all_reports = pd.DataFrame(reports).drop_duplicates()
-                                        print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1"]])
-                                        all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
-                                        if wandb_enabled:
-                                            wandb.log(current_report)
-                                            wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
-                                            wandb_run.log({f"{evaluation_set}_{adaptive_method}_{style_icl_method}_style_logs": wandb.Table(dataframe=style_inference_log_frame)})
+                                        for trim_exemplars in [False, True]:
+                                            style_inference_log_frame, current_report = evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset_name, dataset, style_icl_method, evaluation_set, adaptive_method, num_shots, trim_exemplars)
+                                            reports.append(current_report)
+                                            all_reports = pd.DataFrame(reports).drop_duplicates()
+                                            print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "trim exemplars", "style transfer model", "dataset size", "accuracy", "avg f1"]])
+                                            all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                                            if wandb_enabled:
+                                                wandb.log(current_report)
+                                                wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
+                                                wandb_run.log({f"{evaluation_set}_{adaptive_method}_{style_icl_method}_style_logs": wandb.Table(dataframe=style_inference_log_frame)})
                     else:
                         if is_llm:
                             for num_shots in [4]:

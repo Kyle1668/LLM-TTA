@@ -41,11 +41,15 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
             return predicted_class, logits
 
     is_qa_task = dataset_name.startswith("squad")
-    tokenized_prompt = tokenizer.encode(input_entry["text"], return_tensors="pt", max_length=512).to(device) if model.config.architectures[0].startswith("T5") else tokenizer.encode(prompt, return_tensors="pt", max_length=tokenizer.model_max_length).to(device)
+    tokenized_prompt = (
+        tokenizer.encode(input_entry["text"], return_tensors="pt", max_length=512).to(device)
+        if model.config.architectures[0].startswith("T5")
+        else tokenizer.encode(prompt, return_tensors="pt", max_length=tokenizer.model_max_length).to(device)
+    )
     with torch.no_grad():
         outputs = model.generate(tokenized_prompt, max_new_tokens=100, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id)
         start_decoding_index = len(tokenized_prompt[0]) if is_large_language_model(model.name_or_path) else 0
-        generation = tokenizer.decode(outputs["sequences"][0][start_decoding_index :], skip_special_tokens=True).split("\n")[0].replace("</s>", "").strip()
+        generation = tokenizer.decode(outputs["sequences"][0][start_decoding_index:], skip_special_tokens=True).split("\n")[0].replace("</s>", "").strip()
     try:
         if is_qa_task:
             return generation
@@ -144,7 +148,7 @@ def get_outcome_type(original_judgment, styled_jdugment, label):
     return "NA"
 
 
-def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, adaptive_method_name=None, num_shots=None):
+def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, adaptive_method_name=None, num_shots=None, trim_exemplars=False):
     is_adaptive_set = adaptive_method_name is not None and adaptive_method_name != "No Adaptation"
     should_retrieve_exemplars = should_get_exemplars(model, evaluate_style_transfer)
     icl_method = icl_method if should_retrieve_exemplars else None
@@ -177,12 +181,12 @@ def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset
             entry["original_text"] = entry["text"]
             if dataset_name == "boss_nli":
                 entry["text"] = entry["Premise"]
-                entry["style_prompt"], styled_premise = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars)
+                entry["style_prompt"], styled_premise = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars)
                 entry["text"] = entry["Hypothesis"]
-                entry["style_prompt"], styled_hypothesis = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars)
+                entry["style_prompt"], styled_hypothesis = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars)
                 entry["text"] = f"{styled_premise} / {styled_hypothesis}"
             else:
-                entry["style_prompt"], entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars)
+                entry["style_prompt"], entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars)
 
         prompt = generate_prompt(model_name, template, exemplars, entry, dataset_name) if should_retrieve_exemplars else None
         judgment = get_judgment(model, tokenizer, prompt, device, entry, dataset_name)
@@ -212,7 +216,7 @@ def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset
         os.makedirs(f"results/{experiment_id}")
 
     dataset_name = f"{dataset_name}-{eval_set}" if dataset_name.startswith("boss_") else dataset_name
-    save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots)
+    save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots, trim_exemplars)
 
     # Save new mistakes_lods
 
@@ -222,7 +226,7 @@ def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset
     inference_log_frame["outcome"] = inference_log_frame.apply(lambda row: get_outcome_type(row["original judgment"], row["judgment"], row["label"]), axis=1)
 
     return inference_log_frame, generate_evaluation_Report(
-        experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, adaptive_method_name, num_shots, num_failed_generations
+        experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, adaptive_method_name, num_shots, num_failed_generations, trim_exemplars
     )
 
 
@@ -231,17 +235,18 @@ def get_baseline_inference_log_frame(experiment_id, model_name, dataset_name, ic
     if is_large_language_model(model_name):
         compare_file_name_prefix = f'{model_name.replace("/", "-")}-{dataset_name}-{eval_set}-{icl_method}-No Adaptation'
     else:
-        compare_file_name_prefix = f'{model_name.replace("/", "-")}-{dataset_name}-{eval_set}-static-No Adaptation'
+        set_name = dataset_name.split("-")[0] if dataset_name.startswith("boss_") else eval_set
+        compare_file_name_prefix = f'{model_name.replace("/", "-")}-{set_name}-{eval_set}-static-No Adaptation'
 
     no_adapt_logs_filename = [file_name for file_name in os.listdir(f"results/{experiment_id}") if compare_file_name_prefix in file_name][0]
     return pd.read_csv(f"results/{experiment_id}/{no_adapt_logs_filename}")
 
 
-def save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots):
+def save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots, trim_exemplars="NA"):
     current_logs = pd.DataFrame(inference_logs)
     model_name = model_name.replace("/", "-")
     adaptive_method_name = adaptive_method_name.replace("/", "-") if adaptive_method_name is not None else None
-    current_logs.to_csv(f"results/{experiment_id}/{model_name}-{dataset_name}-{eval_set}-{icl_method}-{adaptive_method_name}-{num_shots}-inference-logs.csv", index=False)
+    current_logs.to_csv(f"results/{experiment_id}/{model_name}-{dataset_name}-{eval_set}-{icl_method}-{adaptive_method_name}-{num_shots}-TrimExemplars={trim_exemplars}-inference-logs.csv", index=False)
     if eval_set != "test+adaptive":
         return
 
@@ -256,6 +261,7 @@ def save_inference_log(inference_logs, experiment_id, model_name, dataset_name, 
         combined_inference_log["label"] = test_baseline_log["label"]
         combined_inference_log["original input"] = test_baseline_log["input"]
         combined_inference_log["original judgment"] = test_baseline_log["judgment"]
+        combined_inference_log["trim_exemplars"] = trim_exemplars
 
     for saved_log_name in saved_logs_names:
         if not saved_log_name.startswith(f"{model_name.replace('/', '-')}-{dataset_name}-{eval_set}"):
@@ -266,20 +272,25 @@ def save_inference_log(inference_logs, experiment_id, model_name, dataset_name, 
         combined_inference_log[f"{column_name_prefix} Judgment"] = prev_log["judgment"]
         combined_inference_log[f"{column_name_prefix} Input"] = prev_log["input"]
         combined_inference_log[f"{column_name_prefix} Prompt"] = prev_log["style prompt"]
+
     combined_inference_log.to_csv(f"results/{experiment_id}/{combined_inference_log_file_name}")
 
 
-def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemplars):
+def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemplars, trim_exemplars):
     style_input = input_entry["text"].replace("\n", " ")
     num_example_tokens = adaptive_tokenizer(style_input, return_tensors="pt")["input_ids"].shape[1]
-    style_transfer_exemplars = "".join([f'"{adaptive_tokenizer.decode(adaptive_tokenizer.encode(exemplar["text"].strip())[:num_example_tokens * 2])}"\n' for exemplar in exemplars])
-    # style_transfer_exemplars = "".join([f'"{exemplar["text"].strip()}"\n' for exemplar in exemplars])
+    style_transfer_exemplars = None
+    if trim_exemplars:
+        style_transfer_exemplars = "".join([f'"{adaptive_tokenizer.decode(adaptive_tokenizer.encode(exemplar["text"].strip())[:num_example_tokens * 2])}"\n' for exemplar in exemplars])
+    else:
+        style_transfer_exemplars = "".join([f'"{exemplar["text"].strip()}"\n' for exemplar in exemplars])
+
     task_prompt = f"""Paraphrase the input text into the exact writing style of the following examples while keeping the same semantic meaning. Keep all facts and information.
 Examples:
 {style_transfer_exemplars}
 Now paraphrase the new domain input text into the same style as the old domain examples. Only return the paraphrased text for the below input text. Make sure to keep all facts, information, and meaning.
 
-Input Text: "{style_input}\"\nNew Domain Input in Old Domain Style:"""
+Input Text: "{style_input}\"\n""".replace("<s>", "")
     input_prompts = f"User: {task_prompt}\nAssistant:" if "vicuna" in adaptive_model.config.name_or_path else task_prompt
 
     tokenized_prompt = adaptive_tokenizer.encode(input_prompts, return_tensors="pt").to("cuda")
@@ -308,6 +319,8 @@ Input Text: "{style_input}\"\nNew Domain Input in Old Domain Style:"""
         generation = generation.split("<|endoftext|>")[0]
     if generation.startswith('"') and generation.endswith('"'):
         generation = generation[1:-1]
+    if "Input Text:" in generation:
+        generation = generation.split("Input Text:")[0].strip()
 
     return input_prompts, generation
 
