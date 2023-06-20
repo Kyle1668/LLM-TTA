@@ -164,7 +164,7 @@
             "request": "launch",
             "program": "evaluate_styling.py",
             "console": "integratedTerminal",
-            "justMyCode": false,
+            "justMyCode": true,
             "env": {
                 // "CUDA_VISIBLE_DEVICES": "1"
                 "CUDA_VISIBLE_DEVICES": "1,2,3,4"
@@ -173,10 +173,11 @@
                 "--max_examples=50",
                 "--dataset=imdb_rotten_tomatoes",
                 "--splits=test",
-                "--model=selected_models/imdb/bert",
+                // "--model=selected_models/imdb/bert",
+                "--model=selected_models/imdb/t5",
                 // "--baseline=skip",
                 "--skip_style_model_eval",
-                "--icl_method=topk_nearest,topk_centroid,topk_furthest,random,static"
+                "--icl_method=topk_nearest,topk_centroid,topk_furthest,static"
             ]
         },
         {

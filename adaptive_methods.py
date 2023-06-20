@@ -11,7 +11,7 @@ import os
 import re
 
 from util_data import generate_evaluation_Report
-from util_modeling import get_model_objects, is_large_language_model
+from util_modeling import get_model_objects, is_large_language_model, is_language_model
 from util_icl import generate_prompt, get_prompt_template, get_retriever, get_static_exemplars, get_dynamic_exemplars
 
 
@@ -41,11 +41,11 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
             return predicted_class, logits
 
     is_qa_task = dataset_name.startswith("squad")
-    tokenized_prompt = tokenizer.encode(prompt, return_tensors="pt").to(device)
+    tokenized_prompt = tokenizer.encode(prompt, return_tensors="pt", max_length=tokenizer.model_max_length).to(device)
     with torch.no_grad():
         outputs = model.generate(tokenized_prompt, max_new_tokens=100, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id)
-
-        generation = tokenizer.decode(outputs["sequences"][0][len(tokenized_prompt[0]) :]).split("\n")[0].replace("</s>", "").strip()
+        start_decoding_index = len(tokenized_prompt[0]) if is_large_language_model(model.name_or_path) else 0
+        generation = tokenizer.decode(outputs["sequences"][0][start_decoding_index :], skip_special_tokens=True).split("\n")[0].replace("</s>", "").strip()
     try:
         if is_qa_task:
             return generation
@@ -470,14 +470,16 @@ def evaluate_fine_tuning(experiment_id, task_model_name, task_model, task_tokeni
     start_funetuning_time = time.perf_counter()
 
     print(f"Fine-Tuning {task_model_name} on {dataset_name}")
+    is_lm = is_language_model(task_model_name)
     for batch_inputs, batch_labels in tqdm(data_loader):
         task_model.train()
         optimizer.zero_grad()
-        tokenized_batch = task_tokenizer(batch_inputs, padding=True, truncation=True, return_tensors="pt").to(device)
-        labels = batch_labels.to(device)
+        tokenized_batch = task_tokenizer(batch_inputs, padding=True, truncation=True, max_length=512, return_tensors="pt").to(device)
+        labels = task_tokenizer([str(label) for label in batch_labels.tolist()], return_tensors="pt", padding=True, truncation=True, max_length=512) if is_lm else batch_labels
+        labels = labels.input_ids if is_lm else labels
+        labels = labels.to(task_model.device)
 
-        logits = task_model(**tokenized_batch).logits
-        loss = criterion(logits, labels)
+        loss = task_model(**tokenized_batch, labels=labels).loss
         loss.backward()
         optimizer.step()
 
@@ -489,10 +491,11 @@ def evaluate_fine_tuning(experiment_id, task_model_name, task_model, task_tokeni
     print(f"Evaluating {dataset_name}-{eval_set} with {task_model_name} using fine-tuning baseline")
     for entry in tqdm(dataset[eval_set]):
         with torch.no_grad():
-            eval_text = entry["text"]
-            tokenized_sample = task_tokenizer(eval_text, return_tensors="pt").to(device)
-            logits = task_model(**tokenized_sample).logits
-            eval_prediciton = torch.argmax(logits, dim=1).cpu().item()
+            # eval_text = entry["text"]
+            # tokenized_sample = task_tokenizer(eval_text, return_tensors="pt").to(device)
+            # logits = task_model(**tokenized_sample).logits
+            # eval_prediciton = torch.argmax(logits, dim=1).cpu().item()
+            eval_prediciton = get_judgment(task_model, task_tokenizer, entry["text"], task_model.device, entry, dataset_name)
             inference_log = {}
             inference_log["latency"] = fine_tuning_latency
             inference_log["input"] = entry["text"]

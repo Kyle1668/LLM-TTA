@@ -214,7 +214,7 @@ def main():
                                         if wandb_enabled:
                                             wandb.log(current_report)
                                             wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
-                                            wandb_run.log({f"{evaluation_set}_style_logs": wandb.Table(dataframe=style_inference_log_frame)})
+                                            wandb_run.log({f"{evaluation_set}_{adaptive_method}_{style_icl_method}_style_logs": wandb.Table(dataframe=style_inference_log_frame)})
                     else:
                         if is_llm:
                             for num_shots in [4]:
