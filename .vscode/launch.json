@@ -170,13 +170,13 @@
                 "CUDA_VISIBLE_DEVICES": "1,2,3,4"
             },
             "args": [
-                "--max_examples=100",
+                "--max_examples=50",
                 "--dataset=imdb_rotten_tomatoes",
                 "--splits=test",
                 "--model=selected_models/imdb/bert",
-                "--baseline=skip",
+                // "--baseline=skip",
                 "--skip_style_model_eval",
-                "--icl_method=topk_centroid,topk_furthest,topk,random,static"
+                "--icl_method=topk_nearest,topk_centroid,topk_furthest,random,static"
             ]
         },
         {

@@ -38,15 +38,15 @@ def get_split_log_name(eval_set, adaptive_method_name):
         return "OOD w/ Style Transfer"
 
 
-def generate_evaluation_Report(
-    experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, adaptive_method_name, num_shots=None, num_failed_generations=None
-):
+def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, adaptive_method_name, num_shots=None, num_failed_generations=None):
     if not os.path.exists(f"results/{experiment_id}"):
         os.makedirs(f"results/{experiment_id}")
 
+    original_judgments = inference_log_frame["judgment"]
+    gold_labels = inference_log_frame["label"]
+
     is_qa_task = dataset_name.startswith("squad")
     formatted_model_name = model_name.replace("/", "-")
-    gold_labels = [entry["label"] for entry in dataset[eval_set.replace("+adaptive", "")]]
     report_dict = qa_report(original_judgments, gold_labels) if is_qa_task else classification_report(gold_labels, original_judgments, output_dict=True)
     formatted_split_name = get_split_log_name(eval_set, adaptive_method_name)
 
@@ -62,6 +62,7 @@ def generate_evaluation_Report(
         "avg precision": report_dict["macro avg"]["precision"] if not is_qa_task else None,
         "avg recall": report_dict["macro avg"]["recall"] if not is_qa_task else None,
         "avg f1": report_dict["macro avg"]["f1-score"] if not is_qa_task else report_dict["f1-score"],
+        "avg latency": round(inference_log_frame["latency"].mean(), 3),
         "num failed generations": num_failed_generations,
         "exact match rate": report_dict["exact match rate"] if is_qa_task else None,
     }

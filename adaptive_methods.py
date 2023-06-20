@@ -6,6 +6,7 @@ from tqdm import tqdm
 import nlpaug.augmenter.word as naw
 import pandas as pd
 import torch
+import time
 import os
 import re
 
@@ -92,6 +93,7 @@ def evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dat
 
     description = f"Evaluating {dataset_name}-{eval_set} with {model_name} using {icl_method}"
     for entry in tqdm(dataset[eval_set.replace("+adaptive", "")]):
+        start_time = time.perf_counter()
         exemplars = mean_exemplar_distance = None
         if should_retrieve_exemplars:
             if icl_method == "static":
@@ -109,6 +111,7 @@ def evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dat
             print(f"Warning: {model_name} failed to generate a judgment for the following input: {entry['text']}")
 
         inference_log = {}
+        inference_log["latency"] = time.perf_counter() - start_time
         inference_log["input"] = entry["text"]
         if dataset_name.startswith("squad"):
             inference_log["question"] = entry["question"]
@@ -124,7 +127,8 @@ def evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dat
 
     save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, "No Adaptation", num_shots)
     dataset_name = f"{dataset_name}-{eval_set}" if dataset_name.startswith("boss_") else dataset_name
-    return generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, "No Adaptation", num_shots, num_failed_generations)
+    inference_log_frame = pd.DataFrame(inference_logs)
+    return generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, "No Adaptation", num_shots, num_failed_generations)
 
 
 def get_outcome_type(original_judgment, styled_jdugment, label):
@@ -159,6 +163,7 @@ def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset
     description = f"Evaluating {dataset_name}-{eval_set} with {model_name} using {icl_method}"
     print(f"{description} and {adaptive_method_name} for style transfer" if is_adaptive_set else description)
     for entry in tqdm(dataset[eval_set.replace("+adaptive", "")]):
+        start_time = time.perf_counter()
         exemplars = mean_exemplar_distance = None
         if should_retrieve_exemplars:
             if icl_method == "static":
@@ -187,6 +192,7 @@ def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset
             print(f"Warning: {model_name} failed to generate a judgment for the following input: {entry['text']}")
 
         inference_log = {}
+        inference_log["latency"] = time.perf_counter() - start_time
         inference_log["input"] = entry["text"]
         if is_adaptive_set:
             inference_log["original_input"] = entry["original_text"]
@@ -215,7 +221,7 @@ def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset
     inference_log_frame["outcome"] = inference_log_frame.apply(lambda row: get_outcome_type(row["original judgment"], row["judgment"], row["label"]), axis=1)
 
     return inference_log_frame, generate_evaluation_Report(
-        experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, adaptive_method_name, num_shots, num_failed_generations
+        experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, adaptive_method_name, num_shots, num_failed_generations
     )
 
 
@@ -310,12 +316,13 @@ Input Text: "{style_input}\""""
 # TODO: Add support for LLM inference
 def evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, eval_set, icl_method, aug_method):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    paraphrase_tokenizer, paraphrase_model = get_model_objects("humarin/chatgpt_paraphraser_on_T5_base")
+    paraphrase_tokenizer, paraphrase_model = get_model_objects("humarin/chatgpt_paraphraser_on_T5_base", num_labels=-1)
     aug = naw.ContextualWordEmbsAug(action="substitute", device="cuda")
     inference_logs = []
 
     print(f"Evaluating {dataset_name} with {model_name} using TTA baseline")
     for entry in tqdm(dataset[eval_set.replace("+adaptive", "")]):
+        start_time = time.perf_counter()
         original_text_input = entry["text"]
 
         augmented_inputs = None
@@ -338,6 +345,7 @@ def evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer,
 
         final_judgment = torch.stack(logits).mean(dim=0).argmax().detach().item()
         inference_log = {}
+        inference_log["latency"] = time.perf_counter() - start_time
         inference_log["input"] = entry["text"]
         inference_log["label"] = entry["label"]
         inference_log["judgment"] = final_judgment
@@ -349,16 +357,15 @@ def evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer,
         os.makedirs(f"results/{experiment_id}")
 
     save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, f"test_time_aug_{aug_method}", None)
-    data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
-    original_judgments = [log["judgment"] for log in inference_logs]
     dataset_name = f"{dataset_name}-{eval_set}" if dataset_name.startswith("boss_") else dataset_name
-    return generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, f"Test-Time Augmentation - {aug_method}")
+    inference_log_frame = pd.DataFrame(inference_logs)
+    return generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, f"Test-Time Augmentation - {aug_method}")
 
 
 # TODO: Add support for LLM inference
 def evaluate_memo(experiment_id, task_model_name, task_model, task_tokenizer, dataset_name, dataset, eval_set, icl_method, aug_method):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    paraphrase_tokenizer, paraphrase_model = get_model_objects("humarin/chatgpt_paraphraser_on_T5_base")
+    paraphrase_tokenizer, paraphrase_model = get_model_objects("humarin/chatgpt_paraphraser_on_T5_base", num_labels=-1)
     optimizer = AdamW(task_model.parameters(), lr=0.0000003)
     aug = naw.ContextualWordEmbsAug(action="substitute", device="cuda")
 
@@ -366,6 +373,7 @@ def evaluate_memo(experiment_id, task_model_name, task_model, task_tokenizer, da
     entropies = []
     print(f"Evaluating {dataset_name} with {task_model_name} using MEMO baseline")
     for entry in tqdm(dataset[eval_set]):
+        start_time = time.perf_counter()
         task_model.train()
         optimizer.zero_grad()
 
@@ -397,6 +405,7 @@ def evaluate_memo(experiment_id, task_model_name, task_model, task_tokenizer, da
             final_judgment = torch.argmax(input_logits).detach().item()
 
             inference_log = {}
+            inference_log["latency"] = time.perf_counter() - start_time
             inference_log["input"] = entry["text"]
             inference_log["label"] = entry["label"]
             inference_log["judgment"] = final_judgment
@@ -408,10 +417,9 @@ def evaluate_memo(experiment_id, task_model_name, task_model, task_tokenizer, da
         os.makedirs(f"results/{experiment_id}")
 
     save_inference_log(inference_logs, experiment_id, task_model_name, dataset_name, icl_method, eval_set, f"memo_{aug_method}", None)
-    data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
-    original_judgments = [log["judgment"] for log in inference_logs]
     dataset_name = f"{dataset_name}-{eval_set}" if dataset_name.startswith("boss_") else dataset_name
-    return generate_evaluation_Report(experiment_id, task_model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, f"MEMO - {aug_method}")
+    inference_log_frame = pd.DataFrame(inference_logs)
+    return generate_evaluation_Report(experiment_id, task_model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, f"MEMO - {aug_method}")
 
 
 def get_paraphrase_augmentations(
@@ -459,6 +467,7 @@ def evaluate_fine_tuning(experiment_id, task_model_name, task_model, task_tokeni
     criterion = torch.nn.CrossEntropyLoss()
     task_dataset = GenericDataset(dataset[eval_set])
     data_loader = DataLoader(task_dataset, batch_size=8)
+    start_funetuning_time = time.perf_counter()
 
     print(f"Fine-Tuning {task_model_name} on {dataset_name}")
     for batch_inputs, batch_labels in tqdm(data_loader):
@@ -476,15 +485,16 @@ def evaluate_fine_tuning(experiment_id, task_model_name, task_model, task_tokeni
     optimizer.zero_grad()
     inference_logs = []
 
+    fine_tuning_latency = (time.perf_counter() - start_funetuning_time) / len(dataset[eval_set])
     print(f"Evaluating {dataset_name}-{eval_set} with {task_model_name} using fine-tuning baseline")
     for entry in tqdm(dataset[eval_set]):
         with torch.no_grad():
             eval_text = entry["text"]
             tokenized_sample = task_tokenizer(eval_text, return_tensors="pt").to(device)
             logits = task_model(**tokenized_sample).logits
-            eval_prediciton = torch.argmax(logits, dim=1).cpu().numpy()
-
+            eval_prediciton = torch.argmax(logits, dim=1).cpu().item()
             inference_log = {}
+            inference_log["latency"] = fine_tuning_latency
             inference_log["input"] = entry["text"]
             inference_log["label"] = entry["label"]
             inference_log["judgment"] = eval_prediciton
@@ -496,10 +506,9 @@ def evaluate_fine_tuning(experiment_id, task_model_name, task_model, task_tokeni
         os.makedirs(f"results/{experiment_id}")
 
     save_inference_log(inference_logs, experiment_id, task_model_name, dataset_name, icl_method, eval_set, "fine_tuning", None)
-    data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
-    original_judgments = [log["judgment"] for log in inference_logs]
     dataset_name = f"{dataset_name}-{eval_set}" if dataset_name.startswith("boss_") else dataset_name
-    return generate_evaluation_Report(experiment_id, task_model_name, dataset_name, icl_method, eval_set, dataset, data_reader, original_judgments, "Fine-Tuning")
+    inference_log_frame = pd.DataFrame(inference_logs)
+    return generate_evaluation_Report(experiment_id, task_model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, "Fine-Tuning")
 
 
 class GenericDataset(Dataset):
