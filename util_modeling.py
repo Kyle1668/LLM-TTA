@@ -19,8 +19,12 @@ def get_model_objects(model_name, num_labels):
     is_qa_model = model_config.architectures[0].endswith("ForQuestionAnswering")
     is_llm = model_config.architectures[0].endswith("ForCausalLM")
     is_llama_based_model = is_llm and "llama" in model_name or "vicuna" in model_name
+
     # tokenizer = LlamaTokenizer.from_pretrained(model_name) if is_llama_based_model else AutoTokenizer.from_pretrained("bert-base-uncased")
     tokenizer = LlamaTokenizer.from_pretrained(model_name) if is_llama_based_model else AutoTokenizer.from_pretrained(model_name)
+    if tokenizer.pad_token is None:
+        tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+
     model = None
     device = "cuda" if torch.cuda.is_available() else "cpu"
     if is_llm:

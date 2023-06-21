@@ -1,6 +1,7 @@
 transformers
 accelerate
 bitsandbytes
+peft
 datasets
 openai
 torch

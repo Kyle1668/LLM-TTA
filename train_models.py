@@ -1,11 +1,7 @@
-from transformers import AutoConfig, AutoTokenizer, LlamaTokenizer, AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoModelForSequenceClassification, AutoModelForQuestionAnswering
-from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
-from datasets import load_dataset, Dataset, DatasetDict
-from util_metrics import SquadMetrics
+from peft import get_peft_config, get_peft_model, LoraConfig, TaskType
+from sklearn.metrics import classification_report
+from datasets import Dataset, DatasetDict
 from argparse import ArgumentParser
-from datasets import load_dataset
-from wilds import get_dataset
-from datetime import datetime
 from torch.utils.data import DataLoader
 from time import time
 from tqdm import tqdm
@@ -16,7 +12,7 @@ import os
 import torch
 import wandb
 
-from util_modeling import get_model_objects, is_language_model
+from util_modeling import get_model_objects, is_language_model, is_large_language_model
 from util_data import get_formatted_dataset
 from adaptive_methods import GenericDataset
 
@@ -128,13 +124,13 @@ def evaluate_model(experiment_id, dataset_name, model, tokenizer, test_set, epoc
 def main():
     parser = ArgumentParser()
     parser.add_argument("--dataset", type=str, required=True)
-    parser.add_argument("--num_classes", type=int, required=True)
+    parser.add_argument("--num_labels", type=int, required=True)
     parser.add_argument("--base_model", type=str, required=False, default="bert-base-uncased")
     parser.add_argument("--max_examples", type=int, required=False, default=None)
     parser.add_argument("--use_wandb", action="store_true")
     args = parser.parse_args()
 
-    experiment_id = f"training_{int(time())}_{args.dataset}_{args.base_model}"
+    experiment_id = f"training_{int(time())}_{args.dataset}_{args.base_model.replace('/', '_')}"
     num_epochs = 20
     dataset_name = args.dataset
     model_name = args.base_model
@@ -147,11 +143,11 @@ def main():
         wandb_run = wandb.init(project=project_name, group="training", name=experiment_id, config=args)
 
     dataset = get_dataset(dataset_name)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # tokenizer = AutoTokenizer.from_pretrained(model_name)
-    # model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=num_classes).to(device)
-
-    tokenizer, model = get_model_objects(model_name, num_classes=args.num_classes)
+    tokenizer, model = get_model_objects(model_name, num_labels=args.num_labels)
+    if is_large_language_model(model_name):
+        peft_config = LoraConfig(task_type=TaskType.CAUSAL_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1)
+        model = get_peft_model(model, peft_config)
+        model.print_trainable_parameters()
 
     training_set = dataset["train"][: args.max_examples] if args.max_examples is not None else dataset["train"]
     test_set = dataset["test"][: args.max_examples] if args.max_examples is not None else dataset["test"]

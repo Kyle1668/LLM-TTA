@@ -206,7 +206,7 @@ def main():
                             else:
                                 for style_icl_method in icl_methods:
                                     for num_shots in [8, 2]:
-                                        for trim_exemplars in [False, True]:
+                                        for trim_exemplars in [False]:
                                             style_inference_log_frame, current_report = evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset_name, dataset, style_icl_method, evaluation_set, adaptive_method, num_shots, trim_exemplars)
                                             reports.append(current_report)
                                             all_reports = pd.DataFrame(reports).drop_duplicates()
