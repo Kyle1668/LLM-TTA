@@ -235,8 +235,11 @@ def get_baseline_inference_log_frame(experiment_id, model_name, dataset_name, ic
     if is_large_language_model(model_name):
         compare_file_name_prefix = f'{model_name.replace("/", "-")}-{dataset_name}-{eval_set}-{icl_method}-No Adaptation'
     else:
-        set_name = dataset_name.split("-")[0] if dataset_name.startswith("boss_") else eval_set
-        compare_file_name_prefix = f'{model_name.replace("/", "-")}-{set_name}-{eval_set}-static-No Adaptation'
+        if dataset_name.startswith("boss_"):
+            set_name = dataset_name.split("-")[0]
+            compare_file_name_prefix = f'{model_name.replace("/", "-")}-{set_name}-{eval_set}-static-No Adaptation'
+        else:
+            compare_file_name_prefix = f'{model_name.replace("/", "-")}-{dataset_name}-{eval_set}-static-No Adaptation'
 
     no_adapt_logs_filename = [file_name for file_name in os.listdir(f"results/{experiment_id}") if compare_file_name_prefix in file_name][0]
     return pd.read_csv(f"results/{experiment_id}/{no_adapt_logs_filename}")

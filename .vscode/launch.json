@@ -32,18 +32,18 @@
             "justMyCode": false,
             "env": {
                 // "CUDA_VISIBLE_DEVICES": "1"
-                "CUDA_VISIBLE_DEVICES": "3"
+                "CUDA_VISIBLE_DEVICES": "2"
             },
             "args": [
-                "--max_examples=50",
+                "--max_examples=1000",
                 // "--model=trained_models/edit_experiment_2023-06-10_19-48-53/boss_sentiment/bert-base-uncased_1",
-                "--model=selected_models/boss_sentiment/bert",
+                "--model=selected_models/boss_sentiment/t5",
                 "--dataset=boss_sentiment",
                 // "--report_wandb",
                 "--baseline=skip",
                 "--skip_style_model_eval",
-                // "--splits=toxigen",
-                "--icl_method=static,topk_nearest,topk_centroid,topk_furthest",
+                "--splits=sst5",
+                "--icl_method=topk_nearest,topk_centroid,topk_furthest,static,",
             ]
         },
         {
@@ -162,6 +162,28 @@
             ]
         },
         {
+            "name": "IMDB_RT Ablate",
+            "type": "python",
+            "request": "launch",
+            "program": "evaluate_styling.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                // "CUDA_VISIBLE_DEVICES": "1"
+                "CUDA_VISIBLE_DEVICES": "0"
+            },
+            "args": [
+                "--max_examples=5000",
+                "--dataset=imdb_rotten_tomatoes",
+                "--splits=test",
+                // "--model=selected_models/imdb/bert",
+                "--model=selected_models/imdb/t5,selected_models/imdb/bert",
+                "--baseline=skip",
+                "--skip_style_model_eval",
+                "--icl_method=topk_nearest,topk_centroid,topk_furthest,static,"
+            ]
+        },
+        {
             "name": "IMDB_RT",
             "type": "python",
             "request": "launch",
@@ -170,7 +192,7 @@
             "justMyCode": true,
             "env": {
                 // "CUDA_VISIBLE_DEVICES": "1"
-                "CUDA_VISIBLE_DEVICES": "1"
+                "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
                 "--max_examples=15",
