@@ -33,13 +33,15 @@
             "args": [
                 "--max_examples=500",
                 "--dataset=boss_sentiment",
-                "--num_labels=2",
+                "--num_labels=3",
                 "--base_model=decapoda-research/llama-7b-hf",
+                // "--base_model=EleutherAI/pythia-1b",
                 // "--use_wandb"
             ],
             "env": {
                 // "CUDA_VISIBLE_DEVICES": "1"
-                "CUDA_VISIBLE_DEVICES": "3"
+                "CUDA_VISIBLE_DEVICES": "3",
+                "CUDA_LAUNCH_BLOCKING": "1"
             },
         },
         {
@@ -51,10 +53,10 @@
             "justMyCode": false,
             "env": {
                 // "CUDA_VISIBLE_DEVICES": "1"
-                "CUDA_VISIBLE_DEVICES": "2"
+                "CUDA_VISIBLE_DEVICES": "2,3"
             },
             "args": [
-                "--max_examples=1000",
+                "--max_examples=5000",
                 // "--model=trained_models/edit_experiment_2023-06-10_19-48-53/boss_sentiment/bert-base-uncased_1",
                 "--model=selected_models/boss_sentiment/t5",
                 "--dataset=boss_sentiment",
@@ -63,6 +65,7 @@
                 "--skip_style_model_eval",
                 "--splits=sst5",
                 "--icl_method=topk_nearest,topk_centroid,topk_furthest,static,",
+                "--num_shots=2"
             ]
         },
         {

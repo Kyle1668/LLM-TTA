@@ -51,7 +51,7 @@ def get_dataset(dataset_name):
 
 def train_model(model, tokenizer, training_set):
     prepped_train_set = GenericDataset(training_set)
-    batch_size = 16 if is_language_model(model.name_or_path) else 32
+    batch_size = 4 if is_language_model(model.name_or_path) else 32
     training_loader = DataLoader(prepped_train_set, batch_size=batch_size, shuffle=True)
     optimizer = torch.optim.AdamW(model.parameters(), lr=2e-5)
     criterion = torch.nn.CrossEntropyLoss()
@@ -63,7 +63,7 @@ def train_model(model, tokenizer, training_set):
         model.train()
         optimizer.zero_grad()
 
-        tokenized_inputs = tokenizer(input_batch, padding=True, truncation=True, return_tensors="pt", max_length=512).to(model.device)
+        tokenized_inputs = tokenizer(input_batch, padding=True, truncation=True, return_tensors="pt").to(model.device)
         labels = tokenizer([str(label) for label in label_batch.tolist()], return_tensors="pt", padding=True, truncation=True, max_length=512) if is_lm else label_batch
         labels = labels.input_ids if is_lm else labels
         labels = labels.to(model.device)
@@ -143,11 +143,11 @@ def main():
         wandb_run = wandb.init(project=project_name, group="training", name=experiment_id, config=args)
 
     dataset = get_dataset(dataset_name)
-    tokenizer, model = get_model_objects(model_name, num_labels=args.num_labels)
+    tokenizer, model = get_model_objects(model_name, num_labels=args.num_labels, training=True)
     if is_large_language_model(model_name):
         peft_config = LoraConfig(task_type=TaskType.CAUSAL_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1)
-        model = get_peft_model(model, peft_config)
-        model.print_trainable_parameters()
+        # model = get_peft_model(model, peft_config)
+        # model.print_trainable_parameters()
 
     training_set = dataset["train"][: args.max_examples] if args.max_examples is not None else dataset["train"]
     test_set = dataset["test"][: args.max_examples] if args.max_examples is not None else dataset["test"]

@@ -15,6 +15,7 @@ def main():
     parser.add_argument("--splits", type=str, default=None)
     parser.add_argument("--baseline", type=str, default=None)
     parser.add_argument("--icl_method", type=str, default=None)
+    parser.add_argument("--num_shots", type=str, default=None)
     parser.add_argument("--adaptive_model", type=str, default=None)
     parser.add_argument("--max_examples", type=int, default=None)
     parser.add_argument("--use_wandb", action="store_true")
@@ -38,7 +39,8 @@ def main():
             "wilds_civil_comments",
         ]
     )
-    icl_methods = args.icl_method.split(",") if args.icl_method is not None else ["static"]  # ["static", "topk", "mdl"]
+    icl_methods = args.icl_method.split(",") if args.icl_method is not None else ["static"]
+    num_shots = [int(char) for char in args.num_shots.split(",")] if args.num_shots is not None else [8,2]
     splits = args.splits.split(",") if args.splits is not None else None
     adaptive_model_names = (
         args.adaptive_model.split(",")
@@ -202,12 +204,12 @@ def main():
 
                                 # Since fine-tuning the model further updates the model's parameters, we
                                 # need to reload the model so as to not affect the next experiment
-                                tokenizer, model = get_model_objects(model_name, num_labels)
+                                tokenizer, model = get_model_objects(model_name, num_labels, training=True)
                             else:
                                 for style_icl_method in icl_methods:
-                                    for num_shots in [8, 2]:
+                                    for shots in num_shots:
                                         for trim_exemplars in [False]:
-                                            style_inference_log_frame, current_report = evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset_name, dataset, style_icl_method, evaluation_set, adaptive_method, num_shots, trim_exemplars)
+                                            style_inference_log_frame, current_report = evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset_name, dataset, style_icl_method, evaluation_set, adaptive_method, shots, trim_exemplars)
                                             reports.append(current_report)
                                             all_reports = pd.DataFrame(reports).drop_duplicates()
                                             print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "trim exemplars", "style transfer model", "dataset size", "accuracy", "avg f1"]])
@@ -218,7 +220,7 @@ def main():
                                                 wandb_run.log({f"{evaluation_set}_{adaptive_method}_{style_icl_method}_style_logs": wandb.Table(dataframe=style_inference_log_frame)})
                     else:
                         if is_llm:
-                            for num_shots in [4]:
+                            for num_shots in num_shots:
                                 current_report = evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, "static", evaluation_set, num_shots=num_shots)
                                 reports.append(current_report)
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
