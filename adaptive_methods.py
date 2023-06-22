@@ -40,17 +40,19 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
 
             return predicted_class, logits
 
-    is_qa_task = dataset_name.startswith("squad")
-    tokenized_prompt = (
-        tokenizer.encode(input_entry["text"], return_tensors="pt", max_length=512).to(device)
-        if model.config.architectures[0].startswith("T5")
-        else tokenizer.encode(prompt, return_tensors="pt", max_length=tokenizer.model_max_length).to(device)
-    )
-    with torch.no_grad():
-        outputs = model.generate(tokenized_prompt, max_new_tokens=100, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id)
-        start_decoding_index = len(tokenized_prompt[0]) if is_large_language_model(model.name_or_path) else 0
-        generation = tokenizer.decode(outputs["sequences"][0][start_decoding_index:], skip_special_tokens=True).split("\n")[0].replace("</s>", "").strip()
     try:
+        tokenized_prompt = None
+        if model.config.architectures[0].startswith("T5"):
+            tokenized_prompt = tokenizer.encode(input_entry["text"], return_tensors="pt", max_length=512).to(device)
+        else:
+            tokenized_prompt = tokenizer.encode(prompt, return_tensors="pt", max_length=tokenizer.model_max_length).to(device)
+
+        with torch.no_grad():
+            outputs = model.generate(tokenized_prompt, max_new_tokens=100, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id)
+            start_decoding_index = len(tokenized_prompt[0]) if is_large_language_model(model.name_or_path) else 0
+            generation = tokenizer.decode(outputs["sequences"][0][start_decoding_index:], skip_special_tokens=True).split("\n")[0].replace("</s>", "").strip()
+
+        is_qa_task = dataset_name.startswith("squad")
         if is_qa_task:
             return generation
 
@@ -76,8 +78,8 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
             return int(extracted_integer[0])
 
         return -1
-    except:
-        print(f"Error: {generation} - unable to convert to int")
+    except Exception as e:
+        print(f"Error for input {input_entry} ---- {e}")
         return -1
 
 
@@ -249,7 +251,9 @@ def save_inference_log(inference_logs, experiment_id, model_name, dataset_name, 
     current_logs = pd.DataFrame(inference_logs)
     model_name = model_name.replace("/", "-")
     adaptive_method_name = adaptive_method_name.replace("/", "-") if adaptive_method_name is not None else None
-    current_logs.to_csv(f"results/{experiment_id}/{model_name}-{dataset_name}-{eval_set}-{icl_method}-{adaptive_method_name}-{num_shots}-TrimExemplars={trim_exemplars}-inference-logs.csv", index=False)
+    current_logs.to_csv(
+        f"results/{experiment_id}/{model_name}-{dataset_name}-{eval_set}-{icl_method}-{adaptive_method_name}-{num_shots}-TrimExemplars={trim_exemplars}-inference-logs.csv", index=False
+    )
     if eval_set != "test+adaptive":
         return
 
@@ -293,19 +297,25 @@ Examples:
 {style_transfer_exemplars}
 Now paraphrase the new domain input text into the same style as the old domain examples. Only return the paraphrased text for the below input text. Make sure to keep all facts, information, and meaning.
 
-Input Text: "{style_input}\"\n""".replace("<s>", "")
+Input Text: "{style_input}\"\n""".replace(
+        "<s>", ""
+    )
     input_prompts = f"User: {task_prompt}\nAssistant:" if "vicuna" in adaptive_model.config.name_or_path else task_prompt
 
     tokenized_prompt = adaptive_tokenizer.encode(input_prompts, return_tensors="pt").to("cuda")
-    with torch.no_grad():
-        outputs = adaptive_model.generate(
-            tokenized_prompt,
-            do_sample=False,
-            # temperature=0.1,
-            max_new_tokens=num_example_tokens * 3,
-            early_stopping=True,
-            return_dict_in_generate=True,
-        )
+    try:
+        with torch.no_grad():
+            outputs = adaptive_model.generate(
+                tokenized_prompt,
+                do_sample=False,
+                max_new_tokens=num_example_tokens * 3,
+                early_stopping=True,
+                return_dict_in_generate=True,
+            )
+    except torch.cuda.OutOfMemoryError as generation_error:
+        print(generation_error)
+        print(f"Ran out of memory when generating an input for the following prompt: {input_prompts}")
+        return input_prompts, ""
 
     generation = adaptive_tokenizer.decode(outputs["sequences"][0][len(tokenized_prompt[0]) :]).replace("\n", " ").replace("</s>", "").strip()
     if "###" in generation:

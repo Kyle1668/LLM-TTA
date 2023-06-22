@@ -208,6 +208,7 @@ def main():
                             else:
                                 for style_icl_method in icl_methods:
                                     for shots in num_shots:
+                                        print(f"Evaluating style transfer with {shots} shots")
                                         for trim_exemplars in [False]:
                                             style_inference_log_frame, current_report = evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset_name, dataset, style_icl_method, evaluation_set, adaptive_method, shots, trim_exemplars)
                                             reports.append(current_report)
