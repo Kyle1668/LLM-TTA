@@ -52,8 +52,7 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "env": {
-                // "CUDA_VISIBLE_DEVICES": "1"
-                "CUDA_VISIBLE_DEVICES": "2"
+                "CUDA_VISIBLE_DEVICES": "3"
             },
             "args": [
                 "--max_examples=500",
@@ -64,7 +63,7 @@
                 "--baseline=skip",
                 "--skip_style_model_eval",
                 "--splits=sst5",
-                "--icl_method=topk_nearest,topk_centroid,topk_furthest,static",
+                "--icl_method=topk_nearest,topk_centroid,topk_furthest,static,",
                 "--num_shots=16"
             ]
         },
