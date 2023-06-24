@@ -1,7 +1,12 @@
 from datetime import datetime
 import pandas as pd
 import argparse
+import random
+import numpy as np
+import torch
 import wandb
+import json
+import os
 
 from adaptive_methods import evaluate_test_time_augmentation, evaluate_style_transfer, evaluate_fine_tuning, evaluate_memo, evaluate_without_adaptation
 from util_data import get_formatted_dataset, get_num_labels
@@ -10,11 +15,13 @@ from util_modeling import get_model_objects, is_large_language_model
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, default=None)
+    parser.add_argument("--seed", type=int, default=1668)
     parser.add_argument("--dataset", type=str, default=None)
+    parser.add_argument("--model", type=str, default=None)
     parser.add_argument("--splits", type=str, default=None)
     parser.add_argument("--baseline", type=str, default=None)
     parser.add_argument("--icl_method", type=str, default=None)
+    parser.add_argument("--temperature", type=str, default=None)
     parser.add_argument("--num_shots", type=str, default=None)
     parser.add_argument("--adaptive_model", type=str, default=None)
     parser.add_argument("--max_examples", type=int, default=None)
@@ -23,7 +30,16 @@ def main():
     parser.add_argument("--skip_style_model_eval", action="store_true")
     args = parser.parse_args()
 
+    # Set random seeds
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+
+    # Create expeirment directory
     experiment_id = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{args.dataset}_{args.model.replace('/', '-')}"
+    os.mkdir(f"results/{experiment_id}")
+    json.dump(vars(args), open(f"results/{experiment_id}/args.json", "w"))
+
     dataset_names = (
         args.dataset.split(",")
         if args.dataset is not None
@@ -40,7 +56,8 @@ def main():
         ]
     )
     icl_methods = args.icl_method.split(",") if args.icl_method is not None else ["static"]
-    num_shots = [int(char) for char in args.num_shots.split(",")] if args.num_shots is not None else [8,2]
+    domain_transfer_temperatures = [float(char) for char in args.temperature.split(",")] if args.temperature is not None else [0.0]
+    num_shots = [int(char) for char in args.num_shots.split(",")] if args.num_shots is not None else [8, 2]
     splits = args.splits.split(",") if args.splits is not None else None
     adaptive_model_names = (
         args.adaptive_model.split(",")
@@ -81,6 +98,7 @@ def main():
     print(f"Task Model Names: {model_names}")
     print(f"Style Model Names: {adaptive_model_names}")
     print(f"Max Examples: {args.max_examples}")
+    print(args)
     print("--------------------------------------------------\n")
 
     wandb_enabled = args.use_wandb
@@ -113,7 +131,6 @@ def main():
 
             for evaluation_set in splits:
                 for icl_method in icl_methods if is_llm else ["static"]:
-
                     # Evaluate style model on the task
                     if not args.skip_style_model_eval:
                         for adaptive_model_name in adaptive_model_names:
@@ -121,7 +138,9 @@ def main():
                                 if adaptive_model is None:
                                     adaptive_tokenizer, adaptive_model = get_model_objects(adaptive_model_name, num_labels)
 
-                                current_report = evaluate_without_adaptation(experiment_id, adaptive_model_name, adaptive_model, adaptive_tokenizer, dataset_name, dataset, style_icl_method, evaluation_set)
+                                current_report = evaluate_without_adaptation(
+                                    experiment_id, adaptive_model_name, adaptive_model, adaptive_tokenizer, dataset_name, dataset, style_icl_method, evaluation_set
+                                )
                                 reports.append(current_report)
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
                                 print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1"]])
@@ -209,11 +228,30 @@ def main():
                                 for style_icl_method in icl_methods:
                                     for shots in num_shots:
                                         print(f"Evaluating style transfer with {shots} shots")
-                                        for trim_exemplars in [False]:
-                                            style_inference_log_frame, current_report = evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset_name, dataset, style_icl_method, evaluation_set, adaptive_method, shots, trim_exemplars)
+                                        for trim_exemplars in [True]:
+                                            for temperature in domain_transfer_temperatures:
+                                                    style_inference_log_frame, current_report = evaluate_style_transfer(
+                                                    experiment_id,
+                                                    model_name,
+                                                    model,
+                                                    tokenizer,
+                                                    dataset_name,
+                                                    dataset,
+                                                    style_icl_method,
+                                                    evaluation_set,
+                                                    adaptive_method,
+                                                    shots,
+                                                    trim_exemplars,
+                                                    temperature,
+                                                )
+
                                             reports.append(current_report)
                                             all_reports = pd.DataFrame(reports).drop_duplicates()
-                                            print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "trim exemplars", "style transfer model", "dataset size", "accuracy", "avg f1"]])
+                                            print(
+                                                all_reports[
+                                                    ["dataset", "split", "task model", "icl_method", "exemplar count", "trim exemplars", "style transfer model", "dataset size", "accuracy", "avg f1"]
+                                                ]
+                                            )
                                             all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
                                             if wandb_enabled:
                                                 wandb.log(current_report)

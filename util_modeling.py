@@ -20,7 +20,6 @@ def get_model_objects(model_name, num_labels, training=False):
     is_llm = model_config.architectures[0].endswith("ForCausalLM")
     is_llama_based_model = is_llm and "llama" in model_name or "vicuna" in model_name
 
-    # tokenizer = LlamaTokenizer.from_pretrained(model_name) if is_llama_based_model else AutoTokenizer.from_pretrained("bert-base-uncased")
     tokenizer = LlamaTokenizer.from_pretrained(model_name) if is_llama_based_model else AutoTokenizer.from_pretrained(model_name)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = "<s>" if str(tokenizer.eos_token) == "" else tokenizer.eos_token
@@ -31,6 +30,7 @@ def get_model_objects(model_name, num_labels, training=False):
     if is_llm:
         num_billions = [int(entry[:-1]) for entry in model_name.split("-") if entry[0].isdigit() and entry.lower().endswith("b")]
         load_in_8bit = (len(num_billions) > 0 and num_billions[0] > 7) and not training
+        load_in_8bit = True
         if load_in_8bit:
             print("Loading in 8-bit mode since the model has more than 7B parameters")
             model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, load_in_8bit=True, llm_int8_threshold=0, device_map="auto").eval()

@@ -150,7 +150,7 @@ def get_outcome_type(original_judgment, styled_jdugment, label):
     return "NA"
 
 
-def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, adaptive_method_name=None, num_shots=None, trim_exemplars=False):
+def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, adaptive_method_name=None, num_shots=None, trim_exemplars=False, temperature=0):
     is_adaptive_set = adaptive_method_name is not None and adaptive_method_name != "No Adaptation"
     should_retrieve_exemplars = should_get_exemplars(model, evaluate_style_transfer)
     icl_method = icl_method if should_retrieve_exemplars else None
@@ -183,12 +183,12 @@ def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset
             entry["original_text"] = entry["text"]
             if dataset_name == "boss_nli":
                 entry["text"] = entry["Premise"]
-                entry["style_prompt"], styled_premise = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars)
+                entry["style_prompt"], styled_premise = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature)
                 entry["text"] = entry["Hypothesis"]
-                entry["style_prompt"], styled_hypothesis = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars)
+                entry["style_prompt"], styled_hypothesis = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature)
                 entry["text"] = f"{styled_premise} / {styled_hypothesis}"
             else:
-                entry["style_prompt"], entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars)
+                entry["style_prompt"], entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature)
 
         prompt = generate_prompt(model_name, template, exemplars, entry, dataset_name) if should_retrieve_exemplars else None
         judgment = get_judgment(model, tokenizer, prompt, device, entry, dataset_name)
@@ -283,12 +283,12 @@ def save_inference_log(inference_logs, experiment_id, model_name, dataset_name, 
     combined_inference_log.to_csv(f"results/{experiment_id}/{combined_inference_log_file_name}")
 
 
-def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemplars, trim_exemplars):
+def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemplars, trim_exemplars, temperature):
     style_input = input_entry["text"].replace("\n", " ")
     num_example_tokens = adaptive_tokenizer(style_input, return_tensors="pt")["input_ids"].shape[1]
     style_transfer_exemplars = None
     if trim_exemplars:
-        style_transfer_exemplars = "".join([f'"{adaptive_tokenizer.decode(adaptive_tokenizer.encode(exemplar["text"].strip())[:num_example_tokens * 2])}"\n' for exemplar in exemplars])
+        style_transfer_exemplars = "".join([f'"{adaptive_tokenizer.decode(adaptive_tokenizer.encode(exemplar["text"].strip())[:int(1500 / len(exemplars))])}"\n' for exemplar in exemplars])
     else:
         style_transfer_exemplars = "".join([f'"{exemplar["text"].strip()}"\n' for exemplar in exemplars])
 
@@ -307,7 +307,8 @@ Input Text: "{style_input}\"\n""".replace(
         with torch.no_grad():
             outputs = adaptive_model.generate(
                 tokenized_prompt,
-                do_sample=False,
+                do_sample=temperature != 0.0,
+                temperature=temperature,
                 max_new_tokens=num_example_tokens * 3,
                 early_stopping=True,
                 return_dict_in_generate=True,

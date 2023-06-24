@@ -52,19 +52,20 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "env": {
-                "CUDA_VISIBLE_DEVICES": "3"
+                "CUDA_VISIBLE_DEVICES": "5"
             },
             "args": [
-                "--max_examples=500",
+                "--max_examples=200",
                 // "--model=trained_models/edit_experiment_2023-06-10_19-48-53/boss_sentiment/bert-base-uncased_1",
-                "--model=selected_models/boss_sentiment/t5",
+                "--model=selected_models/boss_sentiment/bert",
+                "--adaptive_model=TheBloke/vicuna-7B-1.1-HF",
                 "--dataset=boss_sentiment",
                 // "--report_wandb",
                 "--baseline=skip",
                 "--skip_style_model_eval",
                 "--splits=sst5",
-                "--icl_method=topk_nearest,topk_centroid,topk_furthest,static,",
-                "--num_shots=16"
+                "--icl_method=random,topk_nearest",
+                "--num_shots=32,16,8,2"
             ]
         },
         {
