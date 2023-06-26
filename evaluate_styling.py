@@ -5,6 +5,7 @@ import random
 import numpy as np
 import torch
 import wandb
+import time
 import json
 import os
 
@@ -37,8 +38,9 @@ def main():
 
     # Create expeirment directory
     experiment_id = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{args.dataset}_{args.model.replace('/', '-')}"
+    time.sleep(5)
     os.mkdir(f"results/{experiment_id}")
-    json.dump(vars(args), open(f"results/{experiment_id}/args.json", "w"))
+    json.dump(vars(args), open(f"results/{experiment_id}/args.json", "w", encoding="utf-8"), indent=4)
 
     dataset_names = (
         args.dataset.split(",")
@@ -230,7 +232,7 @@ def main():
                                         print(f"Evaluating style transfer with {shots} shots")
                                         for trim_exemplars in [True]:
                                             for temperature in domain_transfer_temperatures:
-                                                    style_inference_log_frame, current_report = evaluate_style_transfer(
+                                                style_inference_log_frame, current_report = evaluate_style_transfer(
                                                     experiment_id,
                                                     model_name,
                                                     model,
@@ -244,19 +246,18 @@ def main():
                                                     trim_exemplars,
                                                     temperature,
                                                 )
-
-                                            reports.append(current_report)
-                                            all_reports = pd.DataFrame(reports).drop_duplicates()
-                                            print(
-                                                all_reports[
-                                                    ["dataset", "split", "task model", "icl_method", "exemplar count", "trim exemplars", "style transfer model", "dataset size", "accuracy", "avg f1"]
-                                                ]
-                                            )
-                                            all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
-                                            if wandb_enabled:
-                                                wandb.log(current_report)
-                                                wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
-                                                wandb_run.log({f"{evaluation_set}_{adaptive_method}_{style_icl_method}_style_logs": wandb.Table(dataframe=style_inference_log_frame)})
+                                                reports.append(current_report)
+                                                all_reports = pd.DataFrame(reports).drop_duplicates()
+                                                print(
+                                                    all_reports[
+                                                        ["dataset", "split", "task model", "icl_method", "exemplar count", "trim exemplars", "style transfer model", "dataset size", "accuracy", "avg f1"]
+                                                    ]
+                                                )
+                                                all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                                                if wandb_enabled:
+                                                    wandb.log(current_report)
+                                                    wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
+                                                    wandb_run.log({f"{evaluation_set}_{adaptive_method}_{style_icl_method}_style_logs": wandb.Table(dataframe=style_inference_log_frame)})
                     else:
                         if is_llm:
                             for num_shots in num_shots:

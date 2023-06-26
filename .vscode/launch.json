@@ -52,10 +52,10 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "env": {
-                "CUDA_VISIBLE_DEVICES": "5"
+                "CUDA_VISIBLE_DEVICES": "3"
             },
             "args": [
-                "--max_examples=200",
+                "--max_examples=250",
                 // "--model=trained_models/edit_experiment_2023-06-10_19-48-53/boss_sentiment/bert-base-uncased_1",
                 "--model=selected_models/boss_sentiment/bert",
                 "--adaptive_model=TheBloke/vicuna-7B-1.1-HF",
@@ -65,7 +65,8 @@
                 "--skip_style_model_eval",
                 "--splits=sst5",
                 "--icl_method=random,topk_nearest",
-                "--num_shots=32,16,8,2"
+                "--num_shots=32,8",
+                "--temperature=0.0,0.7"
             ]
         },
         {
@@ -156,9 +157,15 @@
             },
             "args": [
                 "--max_examples=100",
-                "--model=nateraw/bert-base-uncased-ag-news,mosesju/distilbert-base-uncased-finetuned-news",
+                "--model=selected_models/ag_news/bert",
                 "--dataset=ag_news_twitter",
-                "--icl_method=static,topk",
+                "--icl_method=random,topk_nearest",
+                "--baseline=skip",
+                "--skip_style_model_eval",
+                "--splits=test",
+                "--num_shots=16,8,4",
+                "--temperature=0.0,0.7",
+                "--adaptive_model=TheBloke/vicuna-7B-1.1-HF",
             ]
         },
         {
@@ -180,7 +187,7 @@
                 "--baseline=skip",
                 "--skip_style_model_eval",
                 "--splits=test",
-                "--icl_method=static,topk_nearest,topk_centroid,topk_furthest",
+                "--icl_method=random,topk_nearest,topk_centroid,topk_furthest",
             ]
         },
         {
