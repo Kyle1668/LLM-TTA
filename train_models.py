@@ -134,6 +134,8 @@ def main():
     num_epochs = 20
     dataset_name = args.dataset
     model_name = args.base_model
+    if not os.path.exists("trained_models"):
+        os.mkdir("trained_models")
     os.mkdir(f"trained_models/{experiment_id}")
     json.dump(vars(args), open(f"trained_models/{experiment_id}/config.json", "w"), indent=4)
 

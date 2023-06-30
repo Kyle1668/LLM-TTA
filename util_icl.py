@@ -31,7 +31,7 @@ def get_num_shots(dataset_name):
 def get_retriever(icl_method, data, dataset_name, index_split="train"):
     icl_method = icl_method.replace("_furthest", "").replace("_centroid", "").replace("_nearest", "")
     if icl_method == "topk":
-        return TopkRetriever(dataset_reader=data, ice_num=get_num_shots(dataset_name), index_split=index_split, tokenizer_name="sentence-transformers/all-mpnet-base-v2")
+        return TopkRetriever(dataset_reader=data, ice_num=get_num_shots(dataset_name), index_split=index_split)
     elif icl_method == "mdl":
         return MDLRetriever(dataset_reader=data, ice_num=get_num_shots(dataset_name), index_split=index_split)
     elif icl_method == "random":

@@ -221,17 +221,20 @@
             "justMyCode": true,
             "env": {
                 // "CUDA_VISIBLE_DEVICES": "1"
-                "CUDA_VISIBLE_DEVICES": "0"
+                "CUDA_VISIBLE_DEVICES": "1"
             },
             "args": [
-                "--max_examples=15",
+                "--max_examples=200",
                 "--dataset=imdb_rotten_tomatoes",
                 "--splits=test",
-                // "--model=selected_models/imdb/bert",
-                "--model=selected_models/imdb/bert,selected_models/imdb/t5",
+                "--model=aychang/roberta-base-imdb",
+                // "--model=selected_models/imdb/bert,selected_models/imdb/t5",
                 "--baseline=skip",
                 "--skip_style_model_eval",
-                "--icl_method=static,topk_nearest,topk_centroid,topk_furthest"
+                // "--icl_method=mdl,static,topk_nearest,topk_centroid,topk_furthest",
+                "--icl_method=static",
+                "--num_shots=32,16,8,4",
+                "--temperature=0.0,0.7,0.3",
             ]
         },
         {

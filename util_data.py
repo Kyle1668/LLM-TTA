@@ -38,7 +38,7 @@ def get_split_log_name(eval_set, adaptive_method_name):
         return "OOD w/ Style Transfer"
 
 
-def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, adaptive_method_name, num_shots=None, num_failed_generations=None, trim_exemplars=None):
+def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, adaptive_method_name, num_shots=None, num_failed_generations=None, trim_exemplars=None, temperature=None):
     if not os.path.exists(f"results/{experiment_id}"):
         os.makedirs(f"results/{experiment_id}")
 
@@ -58,6 +58,7 @@ def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_meth
         "task model": formatted_model_name,
         "style transfer model": adaptive_method_name if formatted_split_name == "OOD w/ Style Transfer" else None,
         "exemplar count": num_shots,
+        "temperature": temperature,
         "trim exemplars": trim_exemplars,
         "accuracy": report_dict["accuracy"] if not is_qa_task else None,
         "avg precision": report_dict["macro avg"]["precision"] if not is_qa_task else None,
@@ -110,6 +111,7 @@ def get_formatted_dataset(set_name, max_examples=None):
         "imdb": ("text", "label"),
         "adv_sst2": ("sentence", "label"),
         "sst2": ("sentence", "label"),
+        "imdb_rotten_tomatoes": ("sentence", "label"),
         "ag_news": ("text", "label"),
         "squad": ("context", "answers", "question"),
         "ag_news_twitter": ("tweet summary", "label"),
@@ -139,7 +141,7 @@ def get_formatted_dataset(set_name, max_examples=None):
     elif set_name == "rotten_tomatoes_imdb":
         hf_dataset = DatasetDict({"train": load_dataset("rotten_tomatoes", split="train"), "validation": load_dataset("rotten_tomatoes", split="test"), "test": load_dataset("imdb", split="test")})
     elif set_name == "imdb_rotten_tomatoes":
-        hf_dataset = DatasetDict({"train": load_dataset("imdb", split="train"), "validation": load_dataset("imdb", split="test"), "test": load_dataset("rotten_tomatoes", split="test")})
+        hf_dataset = DatasetDict({"train": load_dataset("imdb", split="train"), "validation": load_dataset("imdb", split="test"), "test": load_dataset("sst2", split="validation")})
     elif set_name.startswith("squadshifts_"):
         test_set_name = set_name.split("_")[1]
         train_set = load_dataset("squad", split="train")

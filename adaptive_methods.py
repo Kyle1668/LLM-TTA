@@ -229,7 +229,7 @@ def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset
     inference_log_frame.to_csv(style_inference_log_name, index=False)
 
     return inference_log_frame, generate_evaluation_Report(
-        experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, adaptive_method_name, num_shots, num_failed_generations, trim_exemplars
+        experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, adaptive_method_name, num_shots, num_failed_generations, trim_exemplars, temperature
     )
 
 
@@ -293,70 +293,16 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
     else:
         style_transfer_exemplars = "".join([f'- "{exemplar["text"].strip()}"\n' for exemplar in exemplars])
 
-#     task_prompt = f"""### Style Examples:
-# {style_transfer_exemplars}
-# ### Instructions: Rewrite the input text into the writing style of the previous examples. Don't change any of the facts, sentiment, or information.
 
-# ### Input Text: "{style_input}"
+    task_prompt = None
+    with open("prompts/domain_transfer_no_aug_tasks_v2.txt", "r") as style_transfer_prompt_file:
+        prompt_template = style_transfer_prompt_file.read()
+        prompt_template = prompt_template.replace("<style_transfer_exemplars>", style_transfer_exemplars)
+        prompt_template = prompt_template.replace("<style_input>", style_input)
+        prompt_template = prompt_template.replace("<s>", "")
+        task_prompt = prompt_template
 
-# ### Styled Version:"""
-#     task_prompt = f"""### Instructions ###
-# Your task is to rewrite the input text from a new domain into the writing style of the previous domain examples. Don't change any of the facts, sentiment, or information. You must give an answer with a single rewritten verison of the input text.
-
-# ### Style Examples ###
-# - "Fears for T N pension after talks Unions representing workers at Turner Newall say they are 'disappointed' after talks with stricken parent firm Federal Mogul."
-# - "The Race is On: Second Private Team Sets Launch Date for Human Spaceflight (SPACE.com) SPACE.com - TORONTO, Canada -- A second\team of rocketeers competing for the #36;10 million Ansari X Prize, a contest for\privately funded suborbital space flight, has officially announced the first\launch date for its manned rocket."
-# - "Ky. Company Wins Grant to Study Peptides (AP) AP - A company founded by a chemistry researcher at the University of Louisville won a grant to develop a method of producing better peptides, which are short chains of amino acids, the building blocks of proteins."
-# - "Prediction Unit Helps Forecast Wildfires (AP) AP - It's barely dawn when Mike Fitzpatrick starts his shift with a blur of colorful maps, figures and endless charts, but already he knows what the day will bring. Lightning will strike in places he expects. Winds will pick up, moist places will dry and flames will roar."
-# - "Calif. Aims to Limit Farm-Related Smog (AP) AP - Southern California's smog-fighting agency went after emissions of the bovine variety Friday, adopting the nation's first rules to reduce air pollution from dairy cow manure."
-# - "Open Letter Against British Copyright Indoctrination in Schools The British Department for Education and Skills (DfES) recently launched a "Music Manifesto" campaign, with the ostensible intention of educating the next generation of British musicians. Unfortunately, they also teamed up with the music industry (EMI, and various artists) to make this popular. EMI has apparently negotiated their end well, so that children in our schools will now be indoctrinated about the illegality of downloading music.The ignorance and audacity of this got to me a little, so I wrote an open letter to the DfES about it. Unfortunately, it's pedantic, as I suppose you have to be when writing to goverment representatives. But I hope you find it useful, and perhaps feel inspired to do something similar, if or when the same thing has happened in your area."
-# - "Loosing the War on Terrorism \\"Sven Jaschan, self-confessed author of the Netsky and Sasser viruses, is\responsible for 70 percent of virus infections in 2004, according to a six-month\virus roundup published Wednesday by antivirus company Sophos."\\"The 18-year-old Jaschan was taken into custody in Germany in May by police who\said he had admitted programming both the Netsky and Sasser worms, something\experts at Microsoft confirmed. (A Microsoft antivirus reward program led to the\teenager's arrest.) During the five months preceding Jaschan's capture, there\were at least 25 variants of Netsky and one of the port-scanning network worm\Sasser."\\"Graham Cluley, senior technology consultant at Sophos, said it was staggeri ...\\"
-# - "FOAFKey: FOAF, PGP, Key Distribution, and Bloom Filters \\FOAF/LOAF and bloom filters have a lot of interesting properties for social\network and whitelist distribution.\\I think we can go one level higher though and include GPG/OpenPGP key\fingerpring distribution in the FOAF file for simple web-of-trust based key\distribution.\\What if we used FOAF and included the PGP key fingerprint(s) for identities?\This could mean a lot. You include the PGP key fingerprints within the FOAF\file of your direct friends and then include a bloom filter of the PGP key\fingerprints of your entire whitelist (the source FOAF file would of course need\to be encrypted ).\\Your whitelist would be populated from the social network as your client\discovered new identit ...\\"
-
-# ### Input Text ###
-# "UK card fraud unit scores big win w/ 36K stolen cards recovered in first 2 years resulting in 171 arrests & £65m saved! #fightingfraud #crimestoppers"
-
-# ### Rewritten Text ###
-# {{Card fraud unit nets 36,000 cards In its first two years, the UK's dedicated card fraud unit, has recovered 36,000 stolen cards and 171 arrests - and estimates it saved 65m.}}
-
-# ### Style Examples ###
-# {style_transfer_exemplars}
-# ### Input Text ###
-# "{style_input}"
-
-# ### Rewritten Text ###"""
-    task_prompt = f"""### Instructions ###
-Your task is to rewrite the input text from a new domain into the writing style of the previous domain examples. Don't change any of the facts, sentiment, or information. You must give an answer with a single rewritten verison of the input text.
-
-<task example>
-### Style Examples ###
-- "Fears for T N pension after talks Unions representing workers at Turner Newall say they are 'disappointed' after talks with stricken parent firm Federal Mogul."
-- "The Race is On: Second Private Team Sets Launch Date for Human Spaceflight (SPACE.com) SPACE.com - TORONTO, Canada -- A second\team of rocketeers competing for the #36;10 million Ansari X Prize, a contest for\privately funded suborbital space flight, has officially announced the first\launch date for its manned rocket."
-- "Ky. Company Wins Grant to Study Peptides (AP) AP - A company founded by a chemistry researcher at the University of Louisville won a grant to develop a method of producing better peptides, which are short chains of amino acids, the building blocks of proteins."
-- "Prediction Unit Helps Forecast Wildfires (AP) AP - It's barely dawn when Mike Fitzpatrick starts his shift with a blur of colorful maps, figures and endless charts, but already he knows what the day will bring. Lightning will strike in places he expects. Winds will pick up, moist places will dry and flames will roar."
-
-### Input Text ###
-``` UK card fraud unit scores big win w/ 36K stolen cards recovered in first 2 years resulting in 171 arrests & £65m saved! #fightingfraud #crimestoppers ```
-
-### Rewritten Text ###
-``` Card fraud unit nets 36,000 cards In its first two years, the UK's dedicated card fraud unit, has recovered 36,000 stolen cards and 171 arrests - and estimates it saved 65m. ```
-
-### Input Text ###
-``` You gotta follow the safety rules, no exceptions. ```
-
-### Rewritten Text ###
-``` It is imperative that you comply with the company's safety regulations. ```
-<end task example>
-
-### Style Examples ###
-{style_transfer_exemplars}
-### Input Text ###
-```{style_input}```
-
-### Rewritten Text ###"""
-    task_prompt = task_prompt.replace("<s>", "")
-    input_prompts = f"User: {task_prompt}\nAssistant:" if "vicuna" in adaptive_model.config.name_or_path else task_prompt
-
+    input_prompts = f"User: {task_prompt} Assistant:" if "vicuna" in adaptive_model.config.name_or_path else task_prompt
     tokenized_prompt = adaptive_tokenizer.encode(input_prompts, return_tensors="pt").to("cuda")
     try:
         with torch.no_grad():
@@ -364,7 +310,7 @@ Your task is to rewrite the input text from a new domain into the writing style 
                 tokenized_prompt,
                 do_sample=temperature != 0.0,
                 temperature=temperature,
-                max_new_tokens=num_example_tokens * 3,
+                max_new_tokens=num_example_tokens * 5,
                 early_stopping=True,
                 return_dict_in_generate=True,
             )

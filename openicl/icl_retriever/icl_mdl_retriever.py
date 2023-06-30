@@ -5,7 +5,7 @@ from openicl.icl_retriever.icl_topk_retriever import TopkRetriever
 from openicl.utils.calculate import entropy
 from openicl.utils.logging import get_logger
 from typing import List, Union, Optional, Tuple
-from transformers import AutoModelForCausalLM
+from transformers import AutoModelForCausalLM, AutoTokenizer
 import tqdm
 import torch
 import numpy as np
@@ -74,6 +74,8 @@ class MDLRetriever(TopkRetriever):
         self.prompt_template = prompt_template
         self.labels = labels
         self.seed = seed
+        self.tokenizer = AutoTokenizer.from_pretrained(self.tokenizer_name)
+        self.tokenizer.pad_token = self.tokenizer.eos_token
 
     def topk_search(self):
         np.random.seed(self.seed)
@@ -117,7 +119,7 @@ class MDLRetriever(TopkRetriever):
 
         return rtr_idx_list
 
-    def get_exemplars(self, text, ice_num):
+    def get_exemplars(self, text, ice_num, distance_goal="nearest"):
         embed = self.model.encode([text], show_progress_bar=False)
         rtr_idx_list = [[]]
         near_ids = self.index.search(embed, ice_num)[1][0].tolist()
@@ -156,7 +158,7 @@ class MDLRetriever(TopkRetriever):
     def cal_ce(self, input_texts: List[str], mask_length=None):
         if self.metric_model is None:
             logger.info(f'Load model {self.ce_model_name} for calculating MDL...')
-            self.metric_model = AutoModelForCausalLM.from_pretrained(self.ce_model_name, device_map="auto")
+            self.metric_model = AutoModelForCausalLM.from_pretrained(self.ce_model_name, torch_dtype=torch.float16).to(torch.device("cuda"))
             # self.metric_model.to(self.device)
         inputs = self.tokenizer(input_texts, padding=True, return_tensors='pt', truncation=True)
         inputs = {k: v.to(self.device) for k, v in inputs.items()}

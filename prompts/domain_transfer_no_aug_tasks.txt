@@ -1,0 +1,9 @@
+Your task is to rewrite the input text from a new domain into the writing style of the previous domain examples. You must give an answer with a single rewritten version of the input text.
+
+### Style Examples ###
+<style_transfer_exemplars>
+### Input Text ###
+"<style_input>"
+
+### Rewritten Text ###
+Rewritten Text:

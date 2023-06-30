@@ -39,6 +39,8 @@ def main():
     # Create expeirment directory
     experiment_id = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{args.dataset}_{args.model.replace('/', '-')}"
     time.sleep(5)
+    if not os.path.exists("results"):
+        os.mkdir("results")
     os.mkdir(f"results/{experiment_id}")
     json.dump(vars(args), open(f"results/{experiment_id}/args.json", "w", encoding="utf-8"), indent=4)
 
@@ -65,9 +67,9 @@ def main():
         args.adaptive_model.split(",")
         if args.adaptive_model is not None
         else [
-            "TheBloke/vicuna-13B-1.1-HF",
+            
             "TheBloke/vicuna-7B-1.1-HF",
-            "tiiuae/falcon-7b-instruct",
+            "TheBloke/vicuna-13B-1.1-HF",
             "tiiuae/falcon-7b",
         ]
     )
