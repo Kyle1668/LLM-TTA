@@ -64,7 +64,7 @@ def train_model(model, tokenizer, training_set):
         optimizer.zero_grad()
 
         tokenized_inputs = tokenizer(input_batch, padding=True, truncation=True, return_tensors="pt").to(model.device)
-        labels = tokenizer([str(label) for label in label_batch.tolist()], return_tensors="pt", padding=True, truncation=True, max_length=512) if is_lm else label_batch
+        labels = tokenizer([f"{entry[0]} {entry[1]}" for entry in zip(input_batch, label_batch)], return_tensors="pt", padding=True, truncation=True, max_length=512) if is_lm else label_batch
         labels = labels.input_ids if is_lm else labels
         labels = labels.to(model.device)
 
@@ -148,8 +148,8 @@ def main():
     tokenizer, model = get_model_objects(model_name, num_labels=args.num_labels, training=True)
     if is_large_language_model(model_name):
         peft_config = LoraConfig(task_type=TaskType.CAUSAL_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1)
-        # model = get_peft_model(model, peft_config)
-        # model.print_trainable_parameters()
+        model = get_peft_model(model, peft_config)
+        model.print_trainable_parameters()
 
     training_set = dataset["train"][: args.max_examples] if args.max_examples is not None else dataset["train"]
     test_set = dataset["test"][: args.max_examples] if args.max_examples is not None else dataset["test"]

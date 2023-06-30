@@ -41,5 +41,5 @@ def get_model_objects(model_name, num_labels, training=False):
     elif is_seq2seq_lm:
         model = AutoModelForSeq2SeqLM.from_pretrained(model_name, trust_remote_code=True, torch_dtype=numerical_precision).eval().to(device)
     else:
-        model = AutoModelForSequenceClassification.from_pretrained(model_name, trust_remote_code=True, num_labels=num_labels, torch_dtype=numerical_precision).eval().to(device)
+        model = AutoModelForSequenceClassification.from_pretrained(model_name, trust_remote_code=True, num_labels=num_labels).eval().to(device)
     return tokenizer, model

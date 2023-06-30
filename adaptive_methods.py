@@ -181,14 +181,15 @@ def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset
 
         if is_adaptive_set:
             entry["original_text"] = entry["text"]
-            if dataset_name == "boss_nli":
-                entry["text"] = entry["Premise"]
-                entry["style_prompt"], styled_premise = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature)
-                entry["text"] = entry["Hypothesis"]
-                entry["style_prompt"], styled_hypothesis = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature)
-                entry["text"] = f"{styled_premise} / {styled_hypothesis}"
-            else:
-                entry["style_prompt"], entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature)
+            entry["style_prompt"], entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature)
+            # if dataset_name == "boss_nli":
+            #     entry["text"] = entry["Premise"]
+            #     entry["style_prompt"], styled_premise = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature)
+            #     entry["text"] = entry["Hypothesis"]
+            #     entry["style_prompt"], styled_hypothesis = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature)
+            #     entry["text"] = f"{styled_premise} / {styled_hypothesis}"
+            # else:
+            #     entry["style_prompt"], entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature)
 
         prompt = generate_prompt(model_name, template, exemplars, entry, dataset_name) if should_retrieve_exemplars else None
         judgment = get_judgment(model, tokenizer, prompt, device, entry, dataset_name)

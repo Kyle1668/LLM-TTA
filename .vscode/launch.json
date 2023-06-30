@@ -40,7 +40,7 @@
             ],
             "env": {
                 // "CUDA_VISIBLE_DEVICES": "1"
-                "CUDA_VISIBLE_DEVICES": "3",
+                "CUDA_VISIBLE_DEVICES": "1",
                 "CUDA_LAUNCH_BLOCKING": "1"
             },
         },
@@ -124,7 +124,14 @@
             "args": [
                 "--max_examples=25",
                 "--model=microsoft/deberta-large-mnli",
-                "--dataset=boss_nli"
+                "--dataset=boss_nli",
+                "--icl_method=random,topk_nearest",
+                "--baseline=skip",
+                "--skip_style_model_eval",
+                "--splits=wanli",
+                "--num_shots=16,8,4",
+                "--temperature=0.0,0.7",
+                "--adaptive_model=TheBloke/vicuna-7B-1.1-HF",
             ]
         },
         {

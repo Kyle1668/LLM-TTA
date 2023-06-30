@@ -89,7 +89,7 @@ def get_num_labels(dataset_name):
         "ag_news_twitter": 4,
         "boss_sentiment": 3,
         "boss_toxicity": 2,
-        "boss_nli": 1,
+        "boss_nli": 3,
         "toxigen": 2,
         "disaster_tweets": 2,
         "wilds_civil_comments": 2,
@@ -285,7 +285,7 @@ def load_boss_nli_task():
 
 def load_ag_news_twitter():
     ag_news = load_dataset("ag_news")
-    tweets = pd.read_csv("datasets/ag_news_twitter/shifted_test_set_gpt3.csv")
+    tweets = pd.read_csv("datasets/ag_news_twitter/ag_news_twitter.csv")
     formatted_tweets = Dataset.from_pandas(tweets.rename(columns={"generated_summary": "text"}))
     return DatasetDict({"train": ag_news["train"], "validation": ag_news["test"], "test": formatted_tweets})
 
