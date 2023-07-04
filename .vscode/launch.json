@@ -246,6 +246,25 @@
             ]
         },
         {
+            "name": "IMDB_RT Only Baslines",
+            "type": "python",
+            "request": "launch",
+            "program": "evaluate_styling.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                // "CUDA_VISIBLE_DEVICES": "1"
+                "CUDA_VISIBLE_DEVICES": "1"
+            },
+            "args": [
+                "--max_examples=100",
+                "--dataset=imdb_rotten_tomatoes",
+                "--model=aychang/roberta-base-imdb",
+                "--skip_style_model_eval",
+                "--icl_method=static",
+            ]
+        },
+        {
             "name": "RT_IMDB",
             "type": "python",
             "request": "launch",

@@ -67,8 +67,7 @@ def compute_metrics(eval_preds):
     report = classification_report(labels, predictions, output_dict=True)
     return {
         "eval_f1": report["macro avg"]["f1-score"],
-        "eval_acc": report["accuracy"],
-        "eval_accuracy": report["accuracy"],
+        "eval_acc": report["accuracy"]
     }
 
 
@@ -103,7 +102,7 @@ def fine_tune_model():
     if is_language_model(model_name):
         tokenized_datasets = dataset.map(lambda example: tokenize_t5(example, tokenizer), batched=True, remove_columns=["text"])
     else:
-        tokenized_datasets = dataset.map(lambda example: tokenizer(example["text"]), batched=True, remove_columns=["text"])
+        tokenized_datasets = dataset.map(lambda example: tokenizer(example["text"], truncation=True, max_length=512), batched=True, remove_columns=["text"])
 
     trainer = None
     if is_language_model(model_name):
@@ -136,7 +135,13 @@ def fine_tune_model():
             evaluation_strategy="epoch",
             save_strategy="epoch",
             load_best_model_at_end=True,
+            run_name=experiment_id,
+            report_to="wandb",
         )
+        if args.use_wandb:
+            training_args.wandb_project = project_name
+            training_args.run_name = experiment_id
+
         trainer = Trainer(
             model, training_args, train_dataset=tokenized_datasets["train"], eval_dataset=tokenized_datasets["test"], data_collator=data_collator, tokenizer=tokenizer, compute_metrics=compute_metrics
         )

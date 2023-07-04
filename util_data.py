@@ -42,7 +42,7 @@ def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_meth
     if not os.path.exists(f"results/{experiment_id}"):
         os.makedirs(f"results/{experiment_id}")
 
-    original_judgments = inference_log_frame["judgment"]
+    original_judgments = [judgment for judgment, logits in inference_log_frame["judgment"]] if isinstance(inference_log_frame["judgment"][0], tuple) else inference_log_frame["judgment"]
     gold_labels = inference_log_frame["label"]
 
     is_qa_task = dataset_name.startswith("squad")
