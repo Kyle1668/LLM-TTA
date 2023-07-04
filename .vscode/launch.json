@@ -257,11 +257,12 @@
                 "CUDA_VISIBLE_DEVICES": "1"
             },
             "args": [
-                "--max_examples=100",
+                "--max_examples=20",
                 "--dataset=imdb_rotten_tomatoes",
                 "--model=aychang/roberta-base-imdb",
-                "--skip_style_model_eval",
-                "--icl_method=static",
+                // "--skip_style_model_eval",
+                "--sip_eval_styling",
+                "--icl_method=random",
             ]
         },
         {

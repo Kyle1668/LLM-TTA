@@ -404,7 +404,7 @@ def evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer,
 def evaluate_memo(experiment_id, task_model_name, task_model, task_tokenizer, dataset_name, dataset, eval_set, icl_method, aug_method):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     paraphrase_tokenizer, paraphrase_model = get_model_objects("humarin/chatgpt_paraphraser_on_T5_base", num_labels=-1)
-    optimizer = AdamW(task_model.parameters(), lr=0.0000003)
+    optimizer = AdamW(task_model.parameters(), lr=0.000001, weight_decay=0.01)
     aug = naw.ContextualWordEmbsAug(action="substitute", device="cuda")
 
     inference_logs = []

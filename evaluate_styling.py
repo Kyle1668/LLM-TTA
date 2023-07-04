@@ -67,10 +67,9 @@ def main():
         args.adaptive_model.split(",")
         if args.adaptive_model is not None
         else [
-            
             "TheBloke/vicuna-7B-1.1-HF",
             "TheBloke/vicuna-13B-1.1-HF",
-            "tiiuae/falcon-7b",
+            # "tiiuae/falcon-7b",
         ]
     )
     baselines = args.baseline.split(",") if args.baseline is not None else [] if args.baseline == "skip" else ["fine-tuning", "test_time_augmentation", "memo"]

@@ -75,7 +75,7 @@ def generate_classification_prompt(input_text, exemplars, template, dataset_name
         if exemplars[i]["text"] == "" or exemplars[i]["text"] == None:
             continue
         formatted_exemplars.append(
-            {"label": exemplars[i]["label"], "text": (" ".join(exemplars[i]["text"].split()[:500]) if len(exemplars[i]["text"].split()) >= 500 else exemplars[i]["text"]).replace("\n", " ").lstrip()}
+            {"label": exemplars[i]["label"], "text": (" ".join(exemplars[i]["text"].split()[:100]) if len(exemplars[i]["text"].split()) >= 100 else exemplars[i]["text"]).replace("\n", " ").lstrip()}
         )
 
     instructions = json.load(open("prompts/instructions.json", encoding="utf-8"))[dataset_name]
