@@ -31,7 +31,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--max_examples=500",
+                "--max_examples=100",
                 "--dataset=boss_sentiment",
                 "--num_labels=3",
                 "--base_model=decapoda-research/llama-7b-hf",
@@ -40,7 +40,7 @@
             ],
             "env": {
                 // "CUDA_VISIBLE_DEVICES": "1"
-                "CUDA_VISIBLE_DEVICES": "1",
+                "CUDA_VISIBLE_DEVICES": "7",
                 "CUDA_LAUNCH_BLOCKING": "1"
             },
         },

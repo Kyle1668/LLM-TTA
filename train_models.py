@@ -51,7 +51,7 @@ def get_dataset(dataset_name):
 
 def train_model(model, tokenizer, training_set):
     prepped_train_set = GenericDataset(training_set)
-    batch_size = 4 if is_language_model(model.name_or_path) else 32
+    batch_size = 3 if is_language_model(model.name_or_path) else 32
     training_loader = DataLoader(prepped_train_set, batch_size=batch_size, shuffle=True)
     optimizer = torch.optim.AdamW(model.parameters(), lr=2e-5)
     criterion = torch.nn.CrossEntropyLoss()
@@ -63,11 +63,19 @@ def train_model(model, tokenizer, training_set):
         model.train()
         optimizer.zero_grad()
 
-        tokenized_inputs = tokenizer(input_batch, padding=True, truncation=True, return_tensors="pt").to(model.device)
-        labels = tokenizer([f"{entry[0]} {entry[1]}" for entry in zip(input_batch, label_batch)], return_tensors="pt", padding=True, truncation=True, max_length=512) if is_lm else label_batch
-        labels = labels.input_ids if is_lm else labels
-        labels = labels.to(model.device)
+        labels = None
+        tokenized_inputs = None
+        if is_large_language_model(model.name_or_path):
+            labels = tokenizer([f"{entry[0]} {entry[1]}" for entry in zip(input_batch, label_batch)], return_tensors="pt", padding=True, truncation=True, max_length=512) if is_lm else label_batch
+            labels = labels.to(model.device)
+            tokenized_inputs = labels
+            labels = labels.input_ids
+        else:
+            labels = tokenizer([f"{entry[0]} {entry[1]}" for entry in zip(input_batch, label_batch)], return_tensors="pt", padding=True, truncation=True, max_length=512) if is_lm else label_batch
+            labels = labels.input_ids if is_lm else labels
+            labels = labels.to(model.device)
 
+            tokenized_inputs = tokenizer(input_batch, padding=True, truncation=True, return_tensors="pt").to(model.device) if not is_large_language_model(model.name_or_path) else labels
         loss = model(**tokenized_inputs, labels=labels).loss
         loss.backward()
         optimizer.step()
@@ -79,7 +87,7 @@ def train_model(model, tokenizer, training_set):
 def evaluate_model(experiment_id, dataset_name, model, tokenizer, test_set, epoch) -> float:
     model.eval()
     prepped_test_set = GenericDataset(test_set)
-    test_loader = DataLoader(prepped_test_set, batch_size=32, shuffle=True)
+    test_loader = DataLoader(prepped_test_set, batch_size=1, shuffle=True)
     is_lm = is_language_model(model.name_or_path)
 
     predicitons = []
@@ -90,8 +98,9 @@ def evaluate_model(experiment_id, dataset_name, model, tokenizer, test_set, epoc
 
             if is_lm:
                 eval_predicitons = [
-                    chars[0] if len(chars) > 0 else chars for chars in tokenizer.batch_decode(model.generate(**tokenized_input, do_sample=False), skip_special_tokens=True, max_new_tokens=0)
+                    chars[0] if len(chars) > 0 else chars for chars in tokenizer.batch_decode((model.generate(**tokenized_input, do_sample=False, max_new_tokens=50))[len(tokenized_input["input_ids"]):], skip_special_tokens=True)
                 ]
+                eval_predicitons = [int(pred) if pred in ["0", "1", "2", "3", "4"] else -1 for pred in eval_predicitons]
                 predicitons += eval_predicitons
                 labels += [str(label) for label in eval_labels.tolist()]
             else:
@@ -111,7 +120,7 @@ def evaluate_model(experiment_id, dataset_name, model, tokenizer, test_set, epoc
     if not os.path.exists(f"trained_models/{experiment_id}/{dataset_name}"):
         os.mkdir(f"trained_models/{experiment_id}/{dataset_name}")
 
-    model_name = model.config.name_or_path
+    model_name = model.config.name_or_path.replace("/", "_")
     os.mkdir(f"trained_models/{experiment_id}/{dataset_name}/{model_name}_{epoch}")
     model.save_pretrained(f"trained_models/{experiment_id}/{dataset_name}/{model_name}_{epoch}")
     tokenizer.save_pretrained(f"trained_models/{experiment_id}/{dataset_name}/{model_name}_{epoch}")
@@ -165,19 +174,21 @@ def main():
         if args.use_wandb:
             wandb.log({"train_loss": train_loss})
 
-        test_set_perf_report = evaluate_model(experiment_id, dataset_name, model, tokenizer, test_set, epoch)
-        formatted_report = (
-            test_set_perf_report
-            if not is_language_model(model_name)
-            else {str(label): test_set_perf_report[str(label)] for label in range(args.num_classes)} | {"accuracy": test_set_perf_report["accuracy"], "macro avg": test_set_perf_report["macro avg"]}
-        )
 
-        epoch_reports.append(formatted_report)
-        epoch_accuracies.append(formatted_report["accuracy"])
-        if args.use_wandb:
-            wandb.log(formatted_report)
-            table = wandb.Table(dataframe=pd.DataFrame(epoch_reports))
-            wandb_run.log({"test_set_reports": table})
+        if epoch % 5 == 0:
+            test_set_perf_report = evaluate_model(experiment_id, dataset_name, model, tokenizer, test_set, epoch)
+            formatted_report = (
+                test_set_perf_report
+                if not is_language_model(model_name)
+                else {str(label): test_set_perf_report[str(label)] for label in range(args.num_labels)} | {"accuracy": test_set_perf_report["accuracy"], "macro avg": test_set_perf_report["macro avg"]}
+            )
+
+            epoch_reports.append(formatted_report)
+            epoch_accuracies.append(formatted_report["accuracy"])
+            if args.use_wandb:
+                wandb.log(formatted_report)
+                table = wandb.Table(dataframe=pd.DataFrame(epoch_reports))
+                wandb_run.log({"test_set_reports": table})
 
     print(epoch_accuracies)
     highest_acc_epoch = np.argmax(epoch_accuracies)
