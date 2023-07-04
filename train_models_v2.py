@@ -1,5 +1,5 @@
+from transformers import DataCollatorWithPadding, Trainer, TrainingArguments, Seq2SeqTrainer, Seq2SeqTrainingArguments
 from peft import get_peft_config, get_peft_model, LoraConfig, TaskType
-from transformers import DataCollatorWithPadding, Trainer, TrainingArguments
 from sklearn.metrics import classification_report
 from datasets import Dataset, DatasetDict
 from argparse import ArgumentParser
@@ -66,9 +66,19 @@ def compute_metrics(eval_preds):
     predictions = np.argmax(logits, axis=-1)
     report = classification_report(labels, predictions, output_dict=True)
     return {
-        "eval_f1": report["macro avg"]["f1-score"], "eval_acc": report["accuracy"],
+        "eval_f1": report["macro avg"]["f1-score"],
+        "eval_acc": report["accuracy"],
         "eval_accuracy": report["accuracy"],
     }
+
+
+def tokenize_t5(example, tokenizer):
+    inputs = example["text"]
+    labels = example["label"]
+    source_encodings = tokenizer(inputs, truncation=True, max_length=512)
+    target_encodings = tokenizer([str(label) for label in labels], truncation=True, max_length=512)
+    source_encodings["labels"] = target_encodings["input_ids"]
+    return source_encodings
 
 
 def fine_tune_model():
@@ -87,32 +97,49 @@ def fine_tune_model():
 
     dataset = get_dataset(dataset_name, args.max_examples)
     tokenizer, model = get_model_objects(model_name, num_labels=args.num_labels, training=True)
-    tokenized_datasets = dataset.map(lambda example: tokenizer(example["text"]), batched=True, remove_columns=["text"])
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
-    # Train the model
-    training_args = TrainingArguments(
-        output_dir=f"trained_models/{experiment_id}/model",
-        per_device_train_batch_size=32,
-        num_train_epochs=num_epochs,
-        warmup_ratio=0.1,
-        weight_decay=0.01,
-        learning_rate=2e-5,
-        logging_dir=f"trained_models/{experiment_id}/logs",
-        metric_for_best_model="eval_f1",
-        evaluation_strategy="epoch",
-        save_strategy="epoch",
-        load_best_model_at_end=True,
-    )
-    trainer = Trainer(
-        model,
-        training_args,
-        train_dataset=tokenized_datasets["train"],
-        eval_dataset=tokenized_datasets["test"],
-        data_collator=data_collator,
-        tokenizer=tokenizer,
-        compute_metrics=compute_metrics
-    )
+    tokenized_datasets = None
+    if is_language_model(model_name):
+        tokenized_datasets = dataset.map(lambda example: tokenize_t5(example, tokenizer), batched=True, remove_columns=["text"])
+    else:
+        tokenized_datasets = dataset.map(lambda example: tokenizer(example["text"]), batched=True, remove_columns=["text"])
+
+    trainer = None
+    if is_language_model(model_name):
+        training_args = Seq2SeqTrainingArguments(
+            output_dir=f"trained_models/{experiment_id}/model",
+            per_device_train_batch_size=32,
+            num_train_epochs=num_epochs,
+            warmup_ratio=0.1,
+            weight_decay=0.01,
+            learning_rate=2e-5,
+            logging_dir=f"trained_models/{experiment_id}/logs",
+            metric_for_best_model="eval_f1",
+            evaluation_strategy="epoch",
+            save_strategy="epoch",
+            load_best_model_at_end=True,
+        )
+        trainer = Seq2SeqTrainer(
+            model, training_args, train_dataset=tokenized_datasets["train"], eval_dataset=tokenized_datasets["test"], data_collator=data_collator, tokenizer=tokenizer, compute_metrics=compute_metrics
+        )
+    else:
+        training_args = TrainingArguments(
+            output_dir=f"trained_models/{experiment_id}/model",
+            per_device_train_batch_size=32,
+            num_train_epochs=num_epochs,
+            warmup_ratio=0.1,
+            weight_decay=0.01,
+            learning_rate=2e-5,
+            logging_dir=f"trained_models/{experiment_id}/logs",
+            metric_for_best_model="eval_f1",
+            evaluation_strategy="epoch",
+            save_strategy="epoch",
+            load_best_model_at_end=True,
+        )
+        trainer = Trainer(
+            model, training_args, train_dataset=tokenized_datasets["train"], eval_dataset=tokenized_datasets["test"], data_collator=data_collator, tokenizer=tokenizer, compute_metrics=compute_metrics
+        )
     trainer.train()
 
     # Save best model and tokenizer to its own directory

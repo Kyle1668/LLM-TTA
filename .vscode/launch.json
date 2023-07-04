@@ -12,11 +12,11 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--max_examples=2000",
+                "--max_examples=1000",
                 "--dataset=ag_news",
                 "--num_labels=4",
-                "--base_model=bert-base-uncased",
-                // "--base_model=t5-large",
+                // "--base_model=bert-base-uncased",
+                "--base_model=t5-large",
                 // "--use_wandb"
             ],
             "env": {
