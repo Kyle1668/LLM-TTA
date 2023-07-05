@@ -1,4 +1,4 @@
-from transformers import DataCollatorWithPadding, Trainer, TrainingArguments, Seq2SeqTrainer, Seq2SeqTrainingArguments, LlamaTokenizer
+from transformers import DataCollatorWithPadding, DataCollatorForSeq2Seq, Trainer, TrainingArguments, Seq2SeqTrainer, Seq2SeqTrainingArguments, LlamaTokenizer
 from peft import get_peft_config, get_peft_model, prepare_model_for_int8_training, get_peft_model_state_dict, LoraConfig, TaskType
 from sklearn.metrics import classification_report
 from datasets import Dataset, DatasetDict
@@ -59,11 +59,8 @@ def get_dataset(dataset_name, max_examples):
         dataset["test"] = dataset["validation"]
 
     if max_examples is not None:
-        dataset["train"] = dataset["train"].select(range(max_examples))
-        dataset["test"] = dataset["test"].select(range(max_examples))
-    else:
-        dataset["train"] = dataset["train"].select(range(len(dataset["train"])))
-        dataset["test"] = dataset["test"].select(range(len(dataset["test"])))
+        dataset["train"] = dataset["train"].select(range(max_examples)) if max_examples < len(dataset["train"]) else dataset["train"]
+        dataset["test"] = dataset["test"].select(range(max_examples)) if max_examples < len(dataset["test"]) else dataset["test"]
 
     return dataset
 
@@ -120,14 +117,14 @@ def tokenize_t5(example, tokenizer):
 def tokenize_llm(example, tokenizer, dataset_name):
     entries = zip(example["text"], example["label"])
     prompts = [f"{generate_classification_prompt(entry[0], [], None, dataset_name)}{entry[1]}{tokenizer.eos_token}" for entry in entries]
-    tokenized_input = tokenizer(prompts, truncation=True, padding=True, max_length=2000)
-    tokenized_input["label"] = tokenized_input["input_ids"].copy()
+    tokenized_input = tokenizer(prompts)
+    tokenized_input["labels"] = tokenized_input["input_ids"].copy()
     return tokenized_input
 
 
 def fine_tune_model():
     args = get_cli_args()
-    num_epochs = 20
+    num_epochs = 5
     dataset_name = args.dataset
     model_name = args.base_model
 
@@ -142,7 +139,7 @@ def fine_tune_model():
     dataset = get_dataset(dataset_name, args.max_examples)
     tokenizer, model = get_model_objects(model_name, num_labels=args.num_labels, training=True)
     GLOBAL_TOKENIZER = tokenizer
-    data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
+    data_collator = DataCollatorForSeq2Seq(tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True)
     if is_large_language_model(model_name):
         peft_config = LoraConfig(task_type=TaskType.CAUSAL_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1)
         model = prepare_model_for_int8_training(model)
@@ -151,7 +148,7 @@ def fine_tune_model():
 
     tokenized_datasets = None
     if is_large_language_model(model_name):
-        tokenized_datasets = dataset.map(lambda example: tokenize_llm(example, tokenizer, dataset_name), batched=True, remove_columns=["text"])
+        tokenized_datasets = dataset.map(lambda example: tokenize_llm(example, tokenizer, dataset_name), batched=True)
     elif is_language_model(model_name):
         tokenized_datasets = dataset.map(lambda example: tokenize_t5(example, tokenizer), batched=True, remove_columns=["text"])
     else:
@@ -176,6 +173,7 @@ def fine_tune_model():
     #         model, training_args, train_dataset=tokenized_datasets["train"], eval_dataset=tokenized_datasets["test"], data_collator=data_collator, tokenizer=tokenizer, compute_metrics=compute_metrics
     #     )
     # else:
+    tokenized_datasets = tokenized_datasets.remove_columns(dataset["train"].column_names)
     training_args = TrainingArguments(
         output_dir=f"trained_models/{experiment_id}/model",
         per_device_train_batch_size=32,
@@ -188,10 +186,13 @@ def fine_tune_model():
         evaluation_strategy="epoch",
         save_strategy="epoch",
         load_best_model_at_end=True,
-        fp16=True,
         run_name=experiment_id,
         report_to="wandb",
     )
+    if is_large_language_model(model_name):
+        # training_args.gradient_accumulation_steps = 16
+        training_args.per_device_train_batch_size = 128
+        training_args.fp16 = True
     if args.use_wandb:
         training_args.wandb_project = project_name
         training_args.run_name = experiment_id

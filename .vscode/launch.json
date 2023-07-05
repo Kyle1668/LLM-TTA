@@ -32,7 +32,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                // "--max_examples=500",
+                "--max_examples=5000",
                 "--dataset=sst2",
                 "--num_labels=2",
                 "--base_model=decapoda-research/llama-7b-hf",
