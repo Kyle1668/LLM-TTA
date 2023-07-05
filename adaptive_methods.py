@@ -226,7 +226,9 @@ def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset
     inference_log_frame = pd.DataFrame(inference_logs)
     inference_log_frame["original judgment"] = no_adapt_logs["judgment"]
     inference_log_frame["outcome"] = inference_log_frame.apply(lambda row: get_outcome_type(row["original judgment"], row["judgment"], row["label"]), axis=1)
-    style_inference_log_name = f"results/{experiment_id}/{model_name.replace('/', '-')}-{dataset_name}-{icl_method}-{eval_set}-{adaptive_method_name.replace('/', '-')}-{num_shots}-style_inference_log.csv"
+    style_inference_log_name = (
+        f"results/{experiment_id}/{model_name.replace('/', '-')}-{dataset_name}-{icl_method}-{eval_set}-{adaptive_method_name.replace('/', '-')}-{num_shots}-style_inference_log.csv"
+    )
     inference_log_frame.to_csv(style_inference_log_name, index=False)
 
     return inference_log_frame, generate_evaluation_Report(
@@ -294,7 +296,6 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
     else:
         style_transfer_exemplars = "".join([f'- "{exemplar["text"].strip()}"\n' for exemplar in exemplars])
 
-
     task_prompt = None
     with open("prompts/domain_transfer_no_aug_tasks_v2.txt", "r") as style_transfer_prompt_file:
         prompt_template = style_transfer_prompt_file.read()
@@ -337,8 +338,8 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
         generation = generation[1:-1]
     if "Input Text:" in generation:
         generation = generation.split("Input Text:")[0].strip()
-    if "\"  Assistant: " in generation:
-        generation = generation.split("\"  Assistant: ")[0]
+    if '"  Assistant: ' in generation:
+        generation = generation.split('"  Assistant: ')[0]
         if generation[0] == '"':
             generation = generation[1:]
         if generation[-1] == '"':

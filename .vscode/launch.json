@@ -246,7 +246,7 @@
             ]
         },
         {
-            "name": "IMDB_RT Only Baslines",
+            "name": "AG Tweets Only Baslines",
             "type": "python",
             "request": "launch",
             "program": "evaluate_styling.py",
@@ -257,12 +257,13 @@
                 "CUDA_VISIBLE_DEVICES": "1"
             },
             "args": [
-                "--max_examples=20",
-                "--dataset=imdb_rotten_tomatoes",
-                "--model=aychang/roberta-base-imdb",
+                "--max_examples=50",
+                "--dataset=ag_news_twitter",
+                "--model=trained_models/training_1688508345_ag_news_bert-base-uncased/model/checkpoint-18000",
                 // "--skip_style_model_eval",
                 "--sip_eval_styling",
-                "--icl_method=random",
+                "--icl_method=topk_nearest,random",
+                "--num_shots=16,8,4"
             ]
         },
         {

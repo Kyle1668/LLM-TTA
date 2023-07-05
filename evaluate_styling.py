@@ -138,22 +138,23 @@ def main():
                     if not args.skip_style_model_eval:
                         for adaptive_model_name in adaptive_model_names:
                             for style_icl_method in icl_methods:
-                                if adaptive_model is None:
-                                    adaptive_tokenizer, adaptive_model = get_model_objects(adaptive_model_name, num_labels)
+                                for shots in num_shots:
+                                    if adaptive_model is None:
+                                        adaptive_tokenizer, adaptive_model = get_model_objects(adaptive_model_name, num_labels)
 
-                                current_report = evaluate_without_adaptation(
-                                    experiment_id, adaptive_model_name, adaptive_model, adaptive_tokenizer, dataset_name, dataset, style_icl_method, evaluation_set
-                                )
-                                reports.append(current_report)
-                                all_reports = pd.DataFrame(reports).drop_duplicates()
-                                print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1"]])
-                                all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
-                                if wandb_enabled:
-                                    wandb.log(current_report)
-                                    wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
+                                    current_report = evaluate_without_adaptation(
+                                        experiment_id, adaptive_model_name, adaptive_model, adaptive_tokenizer, dataset_name, dataset, style_icl_method, evaluation_set, shots
+                                    )
+                                    reports.append(current_report)
+                                    all_reports = pd.DataFrame(reports).drop_duplicates()
+                                    print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1"]])
+                                    all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                                    if wandb_enabled:
+                                        wandb.log(current_report)
+                                        wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
 
-                                adaptive_tokenizer = None
-                                adaptive_model = None
+                                    adaptive_tokenizer = None
+                                    adaptive_model = None
 
                     if evaluation_set not in ["validation"]:
                         for adaptive_method in adaptive_methods:
