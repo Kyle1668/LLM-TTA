@@ -67,8 +67,8 @@ def main():
         args.adaptive_model.split(",")
         if args.adaptive_model is not None
         else [
-            "TheBloke/vicuna-7B-1.1-HF",
             "TheBloke/vicuna-13B-1.1-HF",
+            "TheBloke/vicuna-7B-1.1-HF",
             # "tiiuae/falcon-7b",
         ]
     )

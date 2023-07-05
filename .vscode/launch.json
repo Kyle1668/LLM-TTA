@@ -32,7 +32,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                // "--max_examples=50",
+                // "--max_examples=500",
                 "--dataset=sst2",
                 "--num_labels=2",
                 "--base_model=decapoda-research/llama-7b-hf",
@@ -79,13 +79,13 @@
             "justMyCode": false,
             "env": {
                 // "CUDA_VISIBLE_DEVICES": "1"
-                "CUDA_VISIBLE_DEVICES": "1"
+                "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
-                "--max_examples=16",
-                "--model=trained_models/final_boss_toxicity/boss_toxicity/final",
+                // "--max_examples=16",
+                "--model=selected_models/boss_toxicity/bert",
                 "--dataset=boss_toxicity",
-                "--report_wandb=true",
+                "--split=toxigen",
                 "--baseline=skip",
             ]
         },

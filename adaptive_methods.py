@@ -57,26 +57,35 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
             return generation
 
         leading_token = generation.strip()[0]
+        final_tokens = generation.replace("</s>", "").replace("<s>", "")[-2:]
+        if leading_token == "{" and final_tokens == "}":
+            generation = generation.replace("{", "").replace("}", "").strip()
+
         possible_int_labels = [str(label) for label in range(get_num_labels(dataset_name))]
         if leading_token in possible_int_labels:
             return int(leading_token)
 
-        final_tokens = generation.replace("</s>", "").replace("<s>", "")[-2:]
         if final_tokens[1] in possible_int_labels or final_tokens[1] in possible_int_labels:
             return int(final_tokens[1])
         elif final_tokens[0] == "0" or final_tokens[0] == "1":
             return int(final_tokens[0])
 
         split_tokens = [word.replace(".", "") for word in generation.split()]
-        if split_tokens[0].lower() in ["positive", "negative"]:
-            return 0 if split_tokens[0].lower() == "negative" else 1
-        if split_tokens[-1].lower() in ["positive", "negative"]:
-            return 0 if split_tokens[-1].lower() == "negative" else 1
+        verbalizers = {
+            "negative": 0,
+            "positive": 1,
+            "neutral": 2,
+        }
+        if split_tokens[0].lower() in verbalizers:
+            return verbalizers[split_tokens[0].lower()]
+        if split_tokens[-1].lower() in verbalizers:
+            return verbalizers[split_tokens[0].lower()]
 
         extracted_integer = re.findall(r"\d+", generation)
         if len(extracted_integer) == 1:
             return int(extracted_integer[0])
 
+        print(f"WARNING: Could not extract judgment from: {generation}")
         return -1
     except Exception as e:
         print(f"Error for input {input_entry} ---- {e}")

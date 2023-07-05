@@ -61,6 +61,9 @@ def get_dataset(dataset_name, max_examples):
     if max_examples is not None:
         dataset["train"] = dataset["train"].select(range(max_examples))
         dataset["test"] = dataset["test"].select(range(max_examples))
+    else:
+        dataset["train"] = dataset["train"].select(range(len(dataset["train"])))
+        dataset["test"] = dataset["test"].select(range(len(dataset["test"])))
 
     return dataset
 
