@@ -32,8 +32,8 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--max_examples=50",
-                "--dataset=boss_toxicity",
+                // "--max_examples=50",
+                "--dataset=sst2",
                 "--num_labels=2",
                 "--base_model=decapoda-research/llama-7b-hf",
                 // "--base_model=EleutherAI/pythia-1b",
