@@ -10,6 +10,7 @@ selected_models
 results
 notebooks/data/
 icl_inference_output/
+*.zip
 
 ### Data ###
 *.pt

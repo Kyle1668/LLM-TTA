@@ -28,20 +28,20 @@
             "name": "Model LoRA Training",
             "type": "python",
             "request": "launch",
-            "program": "train_models.py",
+            "program": "train_models_v2.py",
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--max_examples=100",
-                "--dataset=boss_sentiment",
-                "--num_labels=3",
+                "--max_examples=50",
+                "--dataset=boss_toxicity",
+                "--num_labels=2",
                 "--base_model=decapoda-research/llama-7b-hf",
                 // "--base_model=EleutherAI/pythia-1b",
                 // "--use_wandb"
             ],
             "env": {
                 // "CUDA_VISIBLE_DEVICES": "1"
-                "CUDA_VISIBLE_DEVICES": "7",
+                "CUDA_VISIBLE_DEVICES": "0",
                 "CUDA_LAUNCH_BLOCKING": "1"
             },
         },

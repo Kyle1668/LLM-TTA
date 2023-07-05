@@ -83,7 +83,7 @@ def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_meth
 def get_num_labels(dataset_name):
     dataset_num_labels = {
         "sst2": 2,
-        "adv_sst2": 4,
+        "adv_sst2": 2,
         "squad": 1,
         "ag_news": 4,
         "ag_news_twitter": 4,

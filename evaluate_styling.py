@@ -16,7 +16,7 @@ from util_modeling import get_model_objects, is_large_language_model
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--seed", type=int, default=1668)
+    parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--dataset", type=str, default=None)
     parser.add_argument("--model", type=str, default=None)
     parser.add_argument("--splits", type=str, default=None)
@@ -27,7 +27,7 @@ def main():
     parser.add_argument("--adaptive_model", type=str, default=None)
     parser.add_argument("--max_examples", type=int, default=None)
     parser.add_argument("--use_wandb", action="store_true")
-    parser.add_argument("--sip_eval_styling", action="store_true")
+    parser.add_argument("--skip_eval_styling", action="store_true")
     parser.add_argument("--skip_style_model_eval", action="store_true")
     args = parser.parse_args()
 
@@ -59,9 +59,9 @@ def main():
             "wilds_civil_comments",
         ]
     )
-    icl_methods = args.icl_method.split(",") if args.icl_method is not None else ["static"]
-    domain_transfer_temperatures = [float(char) for char in args.temperature.split(",")] if args.temperature is not None else [0.0]
-    num_shots = [int(char) for char in args.num_shots.split(",")] if args.num_shots is not None else [8, 2]
+    icl_methods = args.icl_method.split(",") if args.icl_method is not None else ["random"]
+    domain_transfer_temperatures = [float(char) for char in args.temperature.split(",")] if args.temperature is not None else [0.0, 0.7]
+    num_shots = [int(char) for char in args.num_shots.split(",")] if args.num_shots is not None else [16, 8]
     splits = args.splits.split(",") if args.splits is not None else None
     adaptive_model_names = (
         args.adaptive_model.split(",")
@@ -91,7 +91,7 @@ def main():
     )
 
     # Evalaute with baselines
-    adaptive_methods = ["No Adaptation"] + [method for method in baselines if method != "skip"] + ([] if args.sip_eval_styling else adaptive_model_names)
+    adaptive_methods = ["No Adaptation"] + [method for method in baselines if method != "skip"] + ([] if args.skip_eval_styling else adaptive_model_names)
 
     print("--------------------------------------------------")
     print("Running experiment with the following parameters:")

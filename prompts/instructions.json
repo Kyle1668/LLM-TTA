@@ -1,5 +1,5 @@
 {
-  "toxigen": "Return 1 if the following sequence is hate speech, 0 otherwise.",
+  "toxigen": "Return 1 if the following sequence is toxic, 0 otherwise.",
   "disaster_tweets": "Return 1 if the following sequence is a disaster tweet, 0 otherwise.",
   "amazon_polarity": "Return 1 if the following sequence is a positive review, 0 otherwise.",
   "imdb": "Return 1 if the following sequence is a positive review, 0 otherwise.",
@@ -7,13 +7,13 @@
   "adv_sst2": "Return 1 if the sentiment of the text is positive, 0 otherwise.",
   "rotten_tomatoes_imdb": "Return 1 if the sentiment of the text is positive, 0 otherwise.",
   "imdb_rotten_tomatoes": "Return 1 if the sentiment of the text is positive, 0 otherwise.",
-  "wilds_civil_comments": "Given a piece of text, your task is to classify whether it contains hate speech or not. If the text does not contain hate speech, return 0. If it does contain hate speech, return 1.",
-  "civil_toxigen": "Given a piece of text, your task is to classify whether it contains hate speech or not. If the text does not contain hate speech, return 0. If it does contain hate speech, return 1.",
+  "wilds_civil_comments": "Given a piece of text, your task is to classify whether it contains toxic or not. If the text is not toxic, return 0. If it is toxic, return 1.",
+  "civil_toxigen": "Given a piece of text, your task is to classify whether it contains toxic or not. If the text is not toxic, return 0. If it is toxic, return 1.",
   "wilds_amazon": "The following is a review with 1-5 stars. Return 1, 2, 3, 4, or 5 for how many stars the review has.",
   "scotus": "Given the legal text, classify whether the topic of the case is of the following. Return the integer ID for each category.\n\nCriminal Procedure = 0, Civil Rights = 1, First Amendment = 2, Due Process = 3, Privacy = 4, Attorneys = 5, Unions = 6, Economic Activity = 7, Judicial Power = 8, Federalism = 9, Federal Taxation = 10",
   "ag_news": "Given the news text, classify whether the topic of the article is of the following. Return the integer ID for each category.\n\nWorld = 0, Sports=1, Business = 2, Sci/Tech=3",
   "ag_news_twitter": "Given the news text, classify whether the topic of the article is of the following. Return the integer ID for each category.\n\nWorld = 0, Sports=1, Business = 2, Sci/Tech=3",
   "boss_sentiment": "The following text has either a negative, neutral, or positive. Return the sentiment label for the text.",
   "boss_nli": "Tell me whether the hypothesis sentence entails, contradicts, and is neutral to the premise sentence. Return the integer ID for each category.\n\nEntailment = 0, Contradiction = 1, Neutral = 2",
-  "boss_toxicity": "Given a piece of text, your task is to classify whether it contains hate speech or not. If the text does not contain hate speech, return 0. If it does contain hate speech, return 1."
+  "boss_toxicity": "Given a piece of text, your task is to classify whether it contains toxic or not. If the text is not toxic, return 0. If it is toxic, return 1."
 }
