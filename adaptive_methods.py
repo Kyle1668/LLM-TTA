@@ -159,7 +159,7 @@ def get_outcome_type(original_judgment, styled_jdugment, label):
     return "NA"
 
 
-def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, adaptive_method_name=None, num_shots=None, trim_exemplars=False, temperature=0):
+def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, adaptive_method_name=None, num_shots=None, trim_exemplars=False, temperature=0, transfer_prompt=None):
     is_adaptive_set = adaptive_method_name is not None and adaptive_method_name != "No Adaptation"
     should_retrieve_exemplars = should_get_exemplars(model, evaluate_style_transfer)
     icl_method = icl_method if should_retrieve_exemplars else None
@@ -190,7 +190,7 @@ def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset
 
         if is_adaptive_set:
             entry["original_text"] = entry["text"]
-            entry["style_prompt"], entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature)
+            entry["style_prompt"], entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature, transfer_prompt)
             # if dataset_name == "boss_nli":
             #     entry["text"] = entry["Premise"]
             #     entry["style_prompt"], styled_premise = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature)
@@ -296,17 +296,17 @@ def save_inference_log(inference_logs, experiment_id, model_name, dataset_name, 
     combined_inference_log.to_csv(f"results/{experiment_id}/{combined_inference_log_file_name}")
 
 
-def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemplars, trim_exemplars, temperature):
+def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemplars, trim_exemplars, temperature, transfer_prompt):
     style_input = input_entry["text"].replace("\n", " ")
     num_example_tokens = adaptive_tokenizer(style_input, return_tensors="pt")["input_ids"].shape[1]
     style_transfer_exemplars = None
     if trim_exemplars:
         style_transfer_exemplars = "".join([f'- "{adaptive_tokenizer.decode(adaptive_tokenizer.encode(exemplar["text"].strip())[:int(1500 / len(exemplars))])}"\n' for exemplar in exemplars])
     else:
-        style_transfer_exemplars = "".join(["- " + exemplar["text"].strip().replace("\n", "") + "\n" for exemplar in exemplars])
+        style_transfer_exemplars = "".join(['- "' + exemplar["text"].strip().replace("\n", "") + '"\n' for exemplar in exemplars])
 
     task_prompt = None
-    with open("prompts/domain_transfer_no_aug_tasks_v3.txt", "r") as style_transfer_prompt_file:
+    with open(f"prompts/{transfer_prompt}.txt", "r") as style_transfer_prompt_file:
         prompt_template = style_transfer_prompt_file.read()
         prompt_template = prompt_template.replace("<style_transfer_exemplars>", style_transfer_exemplars)
         prompt_template = prompt_template.replace("<style_input>", style_input)
@@ -314,7 +314,7 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
         task_prompt = prompt_template
 
     input_prompts = f"User: {task_prompt} Assistant:" if "vicuna" in adaptive_model.config.name_or_path else task_prompt
-    input_prompts = f"### Human: {input_prompts.replace('###', '---').strip()} ###" if "xgen-7b-8k-inst" in adaptive_model.config.name_or_path else task_prompt
+    input_prompts = f"### Human: {input_prompts.replace('###', '---').strip()}\n###" if "xgen-7b-8k-inst" in adaptive_model.config.name_or_path else task_prompt
 
     tokenized_prompt = adaptive_tokenizer.encode(input_prompts, return_tensors="pt").to("cuda")
     try:
@@ -335,8 +335,8 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
     generation = adaptive_tokenizer.decode(outputs["sequences"][0][len(tokenized_prompt[0]) :]).replace("\n", " ").replace("</s>", "").replace("```", "").strip()
     if "###" in generation:
         generation = generation.split("###")[0]
-    if " Text:" in generation:
-        generation = generation.split(" Text:")[1].strip()
+    # if " Text:" in generation:
+    #     generation = generation.split(" Text:")[1].strip()
     if "</s>" in generation:
         generation = generation.split("</s>")[0]
     if "<s>" in generation:
@@ -361,6 +361,8 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
         generation = generation[1:-1]
     if generation.startswith("Assistant:"):
         generation = generation.split("Assistant:")[1].strip()
+    if generation.startswith("Paraphrased:"):
+        generation = generation.split("Paraphrased:")[1].strip()
     if generation.startswith('"'):
         generation = generation.split('"')[1]
 

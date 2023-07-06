@@ -29,6 +29,7 @@ def main():
     parser.add_argument("--use_wandb", action="store_true")
     parser.add_argument("--skip_eval_styling", action="store_true")
     parser.add_argument("--skip_style_model_eval", action="store_true")
+    parser.add_argument("--transfer_prompt", type=str, default="domain_transfer_no_aug_tasks_v4")
     args = parser.parse_args()
 
     # Set random seeds
@@ -67,7 +68,8 @@ def main():
         args.adaptive_model.split(",")
         if args.adaptive_model is not None
         else [
-            "TheBloke/vicuna-13B-1.1-HF",
+            # "TheBloke/vicuna-13B-1.1-HF",
+            "Salesforce/xgen-7b-8k-inst",
             "TheBloke/vicuna-7B-1.1-HF",
             # "tiiuae/falcon-7b",
         ]
@@ -232,7 +234,7 @@ def main():
                                 for style_icl_method in icl_methods:
                                     for shots in num_shots:
                                         print(f"Evaluating style transfer with {shots} shots")
-                                        for trim_exemplars in [False, True]:
+                                        for trim_exemplars in [True]:
                                             for temperature in domain_transfer_temperatures:
                                                 style_inference_log_frame, current_report = evaluate_style_transfer(
                                                     experiment_id,
@@ -247,6 +249,7 @@ def main():
                                                     shots,
                                                     trim_exemplars,
                                                     temperature,
+                                                    args.transfer_prompt,
                                                 )
                                                 reports.append(current_report)
                                                 all_reports = pd.DataFrame(reports).drop_duplicates()

@@ -30,6 +30,7 @@ def get_model_objects(model_name, num_labels, training=False):
     if is_llm:
         num_billions = [int(entry[:-1]) for entry in model_name.split("-") if entry[0].isdigit() and entry.lower().endswith("b")]
         load_in_8bit = (len(num_billions) > 0 and num_billions[0] > 7) or training
+        load_in_8bit = False
         if load_in_8bit:
             print("Loading in 8-bit mode since the model has more than 7B parameters or we are training.")
             model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, load_in_8bit=True, llm_int8_threshold=0, device_map="auto").eval()

@@ -95,6 +95,56 @@
             ]
         },
         {
+            "name": "ToxiGen XGen",
+            "type": "python",
+            "request": "launch",
+            "program": "evaluate_styling.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                // "CUDA_VISIBLE_DEVICES": "1"
+                "CUDA_VISIBLE_DEVICES": "7"
+            },
+            "args": [
+                "--max_examples=200",
+                "--model=selected_models/boss_toxicity/bert",
+                "--adaptive_model=Salesforce/xgen-7b-8k-inst",
+                "--dataset=boss_toxicity",
+                "--split=toxigen",
+                "--baseline=skip",
+                "--num_shots=16",
+                // "--skip_style_model_eval",
+                "--temperature=0.0",
+                "--icl_method=random",
+                "--transfer_prompt=domain_transfer_no_aug_tasks_v4"
+            ]
+        },
+        {
+            "name": "AG Tweets XGen",
+            "type": "python",
+            "request": "launch",
+            "program": "evaluate_styling.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                // "CUDA_VISIBLE_DEVICES": "1"
+                "CUDA_VISIBLE_DEVICES": "7"
+            },
+            "args": [
+                "--max_examples=200",
+                "--model=selected_models/ag_news/bert",
+                "--adaptive_model=Salesforce/xgen-7b-8k-inst",
+                "--dataset=ag_news_twitter",
+                "--split=test",
+                "--baseline=skip",
+                "--num_shots=16",
+                // "--skip_style_model_eval",
+                "--temperature=0.0",
+                "--icl_method=random",
+                "--transfer_prompt=domain_transfer_no_aug_tasks_v4"
+            ]
+        },
+        {
             "name": "BOSS Sentiment XGen",
             "type": "python",
             "request": "launch",
