@@ -232,7 +232,7 @@ def main():
                                 for style_icl_method in icl_methods:
                                     for shots in num_shots:
                                         print(f"Evaluating style transfer with {shots} shots")
-                                        for trim_exemplars in [True]:
+                                        for trim_exemplars in [False, True]:
                                             for temperature in domain_transfer_temperatures:
                                                 style_inference_log_frame, current_report = evaluate_style_transfer(
                                                     experiment_id,

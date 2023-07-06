@@ -1,0 +1,10 @@
+### Instructions ###
+The assistant is to rewrite the input text in the writing style of the examples.
+
+Here are the examples you should mimick
+
+### Style Examples ###
+<style_transfer_exemplars>
+Without changing the meaning/intent, rewrite "<style_input>" in the style of the examples. Don't change the semantics/sentiment of the text.
+
+Rewritten Text:

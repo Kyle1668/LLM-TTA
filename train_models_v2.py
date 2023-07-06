@@ -71,7 +71,7 @@ def compute_metrics(eval_preds):
     if not isinstance(eval_preds.label_ids[0], int):
         tokenizer = LlamaTokenizer.from_pretrained("decapoda-research/llama-7b-hf")
         raw_predictions = [tokenizer.decode(word_dist.argmax(-1)).split("Label:")[-1].split("\n")[0].lower().strip() for word_dist in eval_preds.predictions]
-        labels = [int(tokenizer.decode(label_ids)[-1]) for label_ids in eval_preds.label_ids]
+        labels = [int(tokenizer.decode([id for id in label_ids if id > 0])[-1]) for label_ids in eval_preds.label_ids]
         verbalizers = {
             "pos": 1,
             "positive": 1,

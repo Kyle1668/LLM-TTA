@@ -20,9 +20,9 @@ def get_model_objects(model_name, num_labels, training=False):
     is_llm = model_config.architectures[0].endswith("ForCausalLM")
     is_llama_based_model = is_llm and "llama" in model_name or "vicuna" in model_name
 
-    tokenizer = LlamaTokenizer.from_pretrained(model_name) if is_llama_based_model else AutoTokenizer.from_pretrained(model_name)
+    tokenizer = LlamaTokenizer.from_pretrained(model_name) if is_llama_based_model else AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
     if tokenizer.pad_token is None:
-        tokenizer.pad_token = "<s>" if str(tokenizer.eos_token) == "" else tokenizer.eos_token
+        tokenizer.pad_token = "<s>" if tokenizer.pad_token in [None, ""] and str(tokenizer.eos_token) in [None, ""] else tokenizer.eos_token
 
     model = None
     device = "cuda" if torch.cuda.is_available() else "cpu"

@@ -32,7 +32,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--max_examples=5000",
+                "--max_examples=500",
                 "--dataset=sst2",
                 "--num_labels=2",
                 "--base_model=decapoda-research/llama-7b-hf",
@@ -71,7 +71,7 @@
             ]
         },
         {
-            "name": "BOSS Toxicity",
+            "name": "IMDB XGen",
             "type": "python",
             "request": "launch",
             "program": "evaluate_styling.py",
@@ -79,14 +79,41 @@
             "justMyCode": false,
             "env": {
                 // "CUDA_VISIBLE_DEVICES": "1"
-                "CUDA_VISIBLE_DEVICES": "0"
+                "CUDA_VISIBLE_DEVICES": "7"
             },
             "args": [
-                // "--max_examples=16",
-                "--model=selected_models/boss_toxicity/bert",
-                "--dataset=boss_toxicity",
-                "--split=toxigen",
+                "--max_examples=100",
+                "--model=selected_models/imdb/bert",
+                "--adaptive_model=Salesforce/xgen-7b-8k-inst",
+                "--dataset=imdb_rotten_tomatoes",
+                "--split=test",
                 "--baseline=skip",
+                "--num_shots=16",
+                "--skip_style_model_eval",
+                "--temperature=0.0",
+                "--icl_method=topk_nearest,random",
+            ]
+        },
+        {
+            "name": "BOSS Sentiment XGen",
+            "type": "python",
+            "request": "launch",
+            "program": "evaluate_styling.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                // "CUDA_VISIBLE_DEVICES": "1"
+                "CUDA_VISIBLE_DEVICES": "7"
+            },
+            "args": [
+                "--max_examples=100",
+                "--model=selected_models/boss_sentiment/bert",
+                "--adaptive_model=Salesforce/xgen-7b-8k-inst",
+                "--dataset=boss_sentiment",
+                "--split=sst5",
+                "--baseline=skip",
+                "--num_shots=64",
+                "--skip_style_model_eval",
             ]
         },
         {

@@ -303,10 +303,10 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
     if trim_exemplars:
         style_transfer_exemplars = "".join([f'- "{adaptive_tokenizer.decode(adaptive_tokenizer.encode(exemplar["text"].strip())[:int(1500 / len(exemplars))])}"\n' for exemplar in exemplars])
     else:
-        style_transfer_exemplars = "".join([f'- "{exemplar["text"].strip()}"\n' for exemplar in exemplars])
+        style_transfer_exemplars = "".join(["- " + exemplar["text"].strip().replace("\n", "") + "\n" for exemplar in exemplars])
 
     task_prompt = None
-    with open("prompts/domain_transfer_no_aug_tasks_v2.txt", "r") as style_transfer_prompt_file:
+    with open("prompts/domain_transfer_no_aug_tasks_v3.txt", "r") as style_transfer_prompt_file:
         prompt_template = style_transfer_prompt_file.read()
         prompt_template = prompt_template.replace("<style_transfer_exemplars>", style_transfer_exemplars)
         prompt_template = prompt_template.replace("<style_input>", style_input)
@@ -314,6 +314,8 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
         task_prompt = prompt_template
 
     input_prompts = f"User: {task_prompt} Assistant:" if "vicuna" in adaptive_model.config.name_or_path else task_prompt
+    input_prompts = f"### Human: {input_prompts.replace('###', '---').strip()} ###" if "xgen-7b-8k-inst" in adaptive_model.config.name_or_path else task_prompt
+
     tokenized_prompt = adaptive_tokenizer.encode(input_prompts, return_tensors="pt").to("cuda")
     try:
         with torch.no_grad():
@@ -357,7 +359,12 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
         generation = generation.split("<end task example>")[0].strip()
     if generation.startswith('"') and generation.endswith('"'):
         generation = generation[1:-1]
+    if generation.startswith("Assistant:"):
+        generation = generation.split("Assistant:")[1].strip()
+    if generation.startswith('"'):
+        generation = generation.split('"')[1]
 
+    print(f"Original Input: {style_input}\n\nGenerated input: {generation}")
     return input_prompts, generation
 
 
