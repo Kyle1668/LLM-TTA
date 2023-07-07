@@ -79,10 +79,10 @@
             "justMyCode": false,
             "env": {
                 // "CUDA_VISIBLE_DEVICES": "1"
-                "CUDA_VISIBLE_DEVICES": "7"
+                "CUDA_VISIBLE_DEVICES": "2"
             },
             "args": [
-                "--max_examples=100",
+                "--max_examples=200",
                 "--model=selected_models/imdb/bert",
                 "--adaptive_model=Salesforce/xgen-7b-8k-inst",
                 "--dataset=imdb_rotten_tomatoes",
@@ -91,7 +91,7 @@
                 "--num_shots=16",
                 "--skip_style_model_eval",
                 "--temperature=0.0",
-                "--icl_method=topk_nearest,random",
+                "--icl_method=random",
             ]
         },
         {
@@ -128,7 +128,7 @@
             "justMyCode": false,
             "env": {
                 // "CUDA_VISIBLE_DEVICES": "1"
-                "CUDA_VISIBLE_DEVICES": "7"
+                "CUDA_VISIBLE_DEVICES": "5"
             },
             "args": [
                 "--max_examples=200",
@@ -137,8 +137,8 @@
                 "--dataset=ag_news_twitter",
                 "--split=test",
                 "--baseline=skip",
-                "--num_shots=16",
-                // "--skip_style_model_eval",
+                // "--num_shots=16",
+                "--skip_style_model_eval",
                 "--temperature=0.0",
                 "--icl_method=random",
                 "--transfer_prompt=domain_transfer_no_aug_tasks_v4"
@@ -197,19 +197,20 @@
             "justMyCode": false,
             "env": {
                 // "CUDA_VISIBLE_DEVICES": "1"
-                "CUDA_VISIBLE_DEVICES": "3,4,5,6"
+                "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
-                "--max_examples=25",
+                "--max_examples=200",
                 "--model=microsoft/deberta-large-mnli",
                 "--dataset=boss_nli",
                 "--icl_method=random,topk_nearest",
                 "--baseline=skip",
                 "--skip_style_model_eval",
                 "--splits=wanli",
-                "--num_shots=16,8,4",
-                "--temperature=0.0,0.7",
-                "--adaptive_model=TheBloke/vicuna-7B-1.1-HF",
+                "--num_shots=64,32,16,8",
+                "--temperature=0.0",
+                "--adaptive_model=Salesforce/xgen-7b-8k-inst",
+                "--icl_method=random",
             ]
         },
         {
@@ -225,7 +226,7 @@
             },
             "args": [
                 "--max_examples=100",
-                "--model=valhalla/t5-base-e2e-qg,csarron/bert-base-uncased-squad-v1",
+                "--model=csarron/bert-base-uncased-squad-v1",
                 "--dataset=squadshifts_reddit"
             ]
         },
