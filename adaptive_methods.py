@@ -367,6 +367,8 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
         generation = generation.split('"')[1]
 
     print(f"Original Input: {style_input}\n\nGenerated input: {generation}")
+    if generation.strip() == "":
+        print("Generation was empty")
     return input_prompts, generation
 
 
