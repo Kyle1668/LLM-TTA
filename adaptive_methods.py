@@ -88,7 +88,7 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
         print(f"WARNING: Could not extract judgment from: {generation}")
         return -1
     except Exception as e:
-        print(f"Error for input {input_entry} ---- {e}")
+        print(f"Error for input {input_entry['text']} ---- Error: {e} ---- Generation: {generation}")
         return -1
 
 

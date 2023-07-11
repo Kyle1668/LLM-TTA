@@ -60,7 +60,7 @@ def main():
             "wilds_civil_comments",
         ]
     )
-    icl_methods = args.icl_method.split(",") if args.icl_method is not None else ["random"]
+    icl_methods = args.icl_method.split(",") if args.icl_method is not None else ["random", "topk_nearest"]
     domain_transfer_temperatures = [float(char) for char in args.temperature.split(",")] if args.temperature is not None else [0.0, 0.7]
     num_shots = [int(char) for char in args.num_shots.split(",")] if args.num_shots is not None else [16, 8]
     splits = args.splits.split(",") if args.splits is not None else None
@@ -68,9 +68,9 @@ def main():
         args.adaptive_model.split(",")
         if args.adaptive_model is not None
         else [
-            # "TheBloke/vicuna-13B-1.1-HF",
             "Salesforce/xgen-7b-8k-inst",
             "TheBloke/vicuna-7B-1.1-HF",
+            "TheBloke/vicuna-13B-1.1-HF",
             # "tiiuae/falcon-7b",
         ]
     )

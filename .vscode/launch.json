@@ -64,10 +64,10 @@
                 // "--report_wandb",
                 "--baseline=skip",
                 "--skip_style_model_eval",
-                "--splits=sst5",
+                // "--splits=sst5",
                 "--icl_method=random,topk_nearest",
-                "--num_shots=32,8",
-                "--temperature=0.0,0.7"
+                // "--num_shots=32,8",
+                // "--temperature=0.0,0.7"
             ]
         },
         {
@@ -158,12 +158,13 @@
             "args": [
                 "--max_examples=100",
                 "--model=selected_models/boss_sentiment/bert",
-                "--adaptive_model=Salesforce/xgen-7b-8k-inst",
+                // "--adaptive_model=Salesforce/xgen-7b-8k-inst",
+                "--adaptive_model=TheBloke/vicuna-7B-1.1-HF",
                 "--dataset=boss_sentiment",
-                "--split=sst5",
+                // "--split=sst5",
                 "--baseline=skip",
-                "--num_shots=64",
-                "--skip_style_model_eval",
+                // "--num_shots=64",
+                // "--skip_style_model_eval",
             ]
         },
         {
