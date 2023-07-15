@@ -12,7 +12,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--max_examples=1000",
+                "--max_examples=5000",
                 "--dataset=ag_news",
                 "--num_labels=4",
                 // "--base_model=bert-base-uncased",
