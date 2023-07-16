@@ -70,7 +70,7 @@ def main():
         else [
             "Salesforce/xgen-7b-8k-inst",
             "TheBloke/vicuna-7B-1.1-HF",
-            "TheBloke/vicuna-13B-1.1-HF",
+            # "TheBloke/vicuna-13B-1.1-HF",
             # "tiiuae/falcon-7b",
         ]
     )
