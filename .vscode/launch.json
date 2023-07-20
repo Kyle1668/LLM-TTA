@@ -8,11 +8,11 @@
             "name": "Model Training",
             "type": "python",
             "request": "launch",
-            "program": "train_models_v2.py",
+            "program": "train_models_v1.py",
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--max_examples=5000",
+                "--max_examples=50",
                 "--dataset=ag_news",
                 "--num_labels=4",
                 // "--base_model=bert-base-uncased",
@@ -20,8 +20,8 @@
                 // "--use_wandb"
             ],
             "env": {
-                // "CUDA_VISIBLE_DEVICES": "1"
-                "CUDA_VISIBLE_DEVICES": "0"
+                "CUDA_VISIBLE_DEVICES": "1"
+                // "CUDA_VISIBLE_DEVICES": "0"
             },
         },
         {

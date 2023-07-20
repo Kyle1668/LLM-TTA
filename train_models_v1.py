@@ -97,9 +97,12 @@ def evaluate_model(experiment_id, dataset_name, model, tokenizer, test_set, epoc
             tokenized_input = tokenizer(eval_text, padding=True, truncation=True, return_tensors="pt", max_length=512).to(model.device)
 
             if is_lm:
-                eval_predicitons = [
-                    chars[0] if len(chars) > 0 else chars for chars in tokenizer.batch_decode((model.generate(**tokenized_input, do_sample=False, max_new_tokens=50))[len(tokenized_input["input_ids"]):], skip_special_tokens=True)
-                ]
+                generations = model.generate(**tokenized_input, do_sample=False, max_new_tokens=50)
+                decoded_generations = tokenizer.batch_decode(generations, skip_special_tokens=True)[len(tokenized_input["input_ids"]):]
+                if len(decoded_generations) == 0:
+                    decoded_generations = ["_"]
+
+                eval_predicitons = [chars[0] if len(chars) > 0 else chars for chars in decoded_generations]
                 eval_predicitons = [int(pred) if pred in ["0", "1", "2", "3", "4"] else -1 for pred in eval_predicitons]
                 predicitons += eval_predicitons
                 labels += [str(label) for label in eval_labels.tolist()]
@@ -109,8 +112,10 @@ def evaluate_model(experiment_id, dataset_name, model, tokenizer, test_set, epoc
                 predicitons += eval_predicitons.tolist()
                 labels += eval_labels.tolist()
 
-    print(classification_report(labels, predicitons))
-    report = classification_report(labels, predicitons, output_dict=True)
+    string_labels = [str(label) for label in labels]
+    string_predicitons = [str(pred) for pred in predicitons]
+    print(classification_report(string_labels, string_predicitons))
+    report = classification_report(string_labels, string_predicitons, output_dict=True)
 
     # Save report
     if not os.path.exists("trained_models"):
