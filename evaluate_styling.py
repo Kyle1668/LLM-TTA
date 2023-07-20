@@ -29,6 +29,7 @@ def main():
     parser.add_argument("--use_wandb", action="store_true")
     parser.add_argument("--skip_eval_styling", action="store_true")
     parser.add_argument("--skip_style_model_eval", action="store_true")
+    parser.add_argument("--evaluate_id_adaptation", action="store_true")
     parser.add_argument("--transfer_prompt", type=str, default="domain_transfer_no_aug_tasks_v4")
     args = parser.parse_args()
 
@@ -158,7 +159,7 @@ def main():
                                     adaptive_tokenizer = None
                                     adaptive_model = None
 
-                    if evaluation_set not in ["validation"]:
+                    if args.evaluate_id_adaptation or evaluation_set not in ["validation"]:
                         for adaptive_method in adaptive_methods:
                             if adaptive_method == "No Adaptation":
                                 # Evaluate the task model
