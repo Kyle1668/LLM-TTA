@@ -63,7 +63,7 @@ def main():
     )
     icl_methods = args.icl_method.split(",") if args.icl_method is not None else ["random", "topk_nearest"]
     domain_transfer_temperatures = [float(char) for char in args.temperature.split(",")] if args.temperature is not None else [0.0, 0.7]
-    num_shots = [int(char) for char in args.num_shots.split(",")] if args.num_shots is not None else [16, 8]
+    num_shots = [int(char) for char in args.num_shots.split(",")] if args.num_shots is not None else [32, 16, 8]
     splits = args.splits.split(",") if args.splits is not None else None
     adaptive_model_names = (
         args.adaptive_model.split(",")
