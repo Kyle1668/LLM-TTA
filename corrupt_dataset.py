@@ -65,7 +65,7 @@ def main():
     hf_model_path = "sentence-transformers/all-mpnet-base-v2"
     sentence_tokenizer = AutoTokenizer.from_pretrained(hf_model_path)
     sentence_model = AutoModel.from_pretrained(hf_model_path)
-    word_replacer = naw.ContextualWordEmbsAug(device="cuda", action="insert")
+    word_replacer = naw.ContextualWordEmbsAug(device="cuda", action="substitute")
     random_deleter = naw.RandomWordAug(action="delete", aug_p=0.30)
 
     formatted_dataset["text"] = formatted_dataset.progress_apply(lambda row: get_augmentation(
@@ -82,6 +82,7 @@ def main():
     if not os.path.exists(corruped_datasets_path):
         os.makedirs(corruped_datasets_path)
 
+    formatted_dataset = formatted_dataset[["text", "label", "class"]]
     formatted_dataset.to_csv(f"{corruped_datasets_path}/{args.dataset}{args.max_examples if args.max_examples is not None else ''}.csv", index=False)
 
 
