@@ -390,7 +390,7 @@ def evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer,
             hypothesis = aug.augment(entry["Hypothesis"], n=4) if aug_method == "replace" else get_paraphrase_augmentations(entry["Hypothesis"], paraphrase_tokenizer, paraphrase_model, device)
             augmented_inputs = [f"{p} / {h}" for (p, h) in zip(premises, hypothesis)]
         else:
-            augmented_inputs = aug.augment(original_text_input, n=4) if aug_method == "replace" else get_paraphrase_augmentations(original_text_input, paraphrase_tokenizer, paraphrase_model, device)
+            augmented_inputs = get_augmentations(aug_method, device, paraphrase_tokenizer, paraphrase_model, aug, original_text_input)
 
         logits = []
         judgments = []
@@ -419,6 +419,16 @@ def evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer,
     dataset_name = f"{dataset_name}-{eval_set}" if dataset_name.startswith("boss_") else dataset_name
     inference_log_frame = pd.DataFrame(inference_logs)
     return generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, f"Test-Time Augmentation - {aug_method}")
+
+
+def get_augmentations(aug_method, device, paraphrase_tokenizer, paraphrase_model, aug, original_text_input):
+    if aug_method == "replace":
+        return aug.augment(original_text_input, n=4)
+    if aug_method == "paraphrase":
+        return get_paraphrase_augmentations(original_text_input, paraphrase_tokenizer, paraphrase_model, device)
+    # if aug_method == "rewrite":
+
+    return aug.augment(original_text_input, n=4) if aug_method == "replace" else get_paraphrase_augmentations(original_text_input, paraphrase_tokenizer, paraphrase_model, device)
 
 
 # TODO: Add support for LLM inference

@@ -8,6 +8,22 @@
             "name": "Model Training",
             "type": "python",
             "request": "launch",
+            "program": "corrupt_dataset.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--max_examples=50",
+                "--dataset=imdb",
+            ],
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "1"
+                // "CUDA_VISIBLE_DEVICES": "0"
+            },
+        },
+        {
+            "name": "Model Training",
+            "type": "python",
+            "request": "launch",
             "program": "train_models_v1.py",
             "console": "integratedTerminal",
             "justMyCode": true,
