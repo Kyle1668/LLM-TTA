@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Model Training",
+            "name": "Corrupt Dataset",
             "type": "python",
             "request": "launch",
             "program": "corrupt_dataset.py",
@@ -24,19 +24,19 @@
             "name": "Model Training",
             "type": "python",
             "request": "launch",
-            "program": "train_models_v1.py",
+            "program": "train_models_v2.py",
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--max_examples=50",
-                "--dataset=ag_news",
-                "--num_labels=4",
+                "--max_examples=100",
+                "--dataset=boss_sentiment",
+                "--num_labels=3",
                 // "--base_model=bert-base-uncased",
-                "--base_model=t5-large",
+                "--base_model=decapoda-research/llama-7b-hf",
                 // "--use_wandb"
             ],
             "env": {
-                "CUDA_VISIBLE_DEVICES": "1"
+                "CUDA_VISIBLE_DEVICES": "3"
                 // "CUDA_VISIBLE_DEVICES": "0"
             },
         },

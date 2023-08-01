@@ -28,7 +28,7 @@ def get_model_objects(model_name, num_labels, training=False):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     numerical_precision = torch.float32 if training else torch.float16
     if is_llm:
-        num_billions = [int(entry[:-1]) for entry in model_name.split("-") if entry[0].isdigit() and entry.lower().endswith("b")]
+        num_billions = [float(entry[:-1]) for entry in model_name.split("-") if entry[0].isdigit() and entry.lower().endswith("b")]
         load_in_8bit = (len(num_billions) > 0 and num_billions[0] > 7) or training
         if load_in_8bit:
             print("Loading in 8-bit mode since the model has more than 7B parameters or we are training.")

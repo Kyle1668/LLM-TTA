@@ -129,6 +129,15 @@ def tokenize_llm(example, tokenizer, dataset_name):
     return tokenized_input
 
 
+def get_learning_rate(model_name):
+    if is_large_language_model(model_name):
+        return 1e-4
+    elif is_language_model(model_name):
+        return 1e-3
+    else:
+        return 2e-5
+
+
 def fine_tune_model():
     args = get_cli_args()
     num_epochs = 20
@@ -160,6 +169,7 @@ def fine_tune_model():
         tokenized_datasets = dataset.map(lambda example: tokenize_t5(example, tokenizer), batched=True, remove_columns=["text", "label"])
     else:
         tokenized_datasets = dataset.map(lambda example: tokenizer(example["text"], truncation=True, max_length=512), batched=True, remove_columns=["text", "label"])
+    tokenized_datasets = tokenized_datasets.remove_columns("label") if "label" in tokenized_datasets["train"].column_names else tokenized_datasets
 
     trainer = None
     if is_language_model(model_name):
@@ -181,11 +191,11 @@ def get_trainer(args, num_epochs, model_name, experiment_id, project_name, datas
     tokenized_datasets = tokenized_datasets.remove_columns(dataset["train"].column_names)
     training_args = TrainingArguments(
             output_dir=f"trained_models/{experiment_id}/model",
-            per_device_train_batch_size=32,
+            per_device_train_batch_size=16,
             num_train_epochs=num_epochs,
             warmup_ratio=0.1,
             weight_decay=0.01,
-            learning_rate=3e-4 if is_language_model(model_name) else 2e-5,
+            learning_rate=get_learning_rate(model_name),
             logging_dir=f"trained_models/{experiment_id}/logs",
             metric_for_best_model="eval_f1",
             evaluation_strategy="epoch",
