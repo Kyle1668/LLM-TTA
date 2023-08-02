@@ -139,7 +139,8 @@ def get_learning_rate(model_name):
     if is_large_language_model(model_name):
         return 1e-4
     elif is_language_model(model_name):
-        return 1e-3
+        # return 1e-3
+        return 1e-4
     else:
         return 2e-5
 
@@ -200,7 +201,6 @@ def get_trainer(args, num_epochs, model_name, experiment_id, project_name, datas
             output_dir=f"trained_models/{experiment_id}/model",
             per_device_train_batch_size=16,
             num_train_epochs=num_epochs,
-            warmup_ratio=0.1,
             weight_decay=0.01,
             learning_rate=get_learning_rate(model_name),
             logging_dir=f"trained_models/{experiment_id}/logs",
@@ -211,6 +211,10 @@ def get_trainer(args, num_epochs, model_name, experiment_id, project_name, datas
             run_name=experiment_id,
             report_to="wandb",
         )
+
+    if args.use_lr_warmup:
+        training_args.warmup_ratio = 0.1,
+
     if is_large_language_model(model_name):
         training_args.per_device_train_batch_size = 128
         training_args.fp16 = True
@@ -237,15 +241,18 @@ def get_seq2seq_trainer(args, num_epochs, experiment_id, project_name, tokenizer
             output_dir=f"trained_models/{experiment_id}/model",
             per_device_train_batch_size=8,
             num_train_epochs=num_epochs,
-            warmup_ratio=0.1,
             weight_decay=0.01,
-            learning_rate=2e-5,
+            learning_rate=get_learning_rate(args.base_model),
             logging_dir=f"trained_models/{experiment_id}/logs",
             metric_for_best_model="eval_f1",
             evaluation_strategy="epoch",
             save_strategy="epoch",
             load_best_model_at_end=True,
         )
+
+    if args.use_lr_warmup:
+        training_args.warmup_ratio = 0.1,
+
     if args.use_wandb:
         training_args.wandb_project = project_name
         training_args.run_name = experiment_id
@@ -273,6 +280,7 @@ def get_cli_args():
     parser.add_argument("--num_labels", type=int, required=True)
     parser.add_argument("--base_model", type=str, required=False, default="bert-base-uncased")
     parser.add_argument("--max_examples", type=int, required=False, default=None)
+    parser.add_argument("--use_lr_warmup", action="store_true")
     parser.add_argument("--use_wandb", action="store_true")
     args = parser.parse_args()
     return args
