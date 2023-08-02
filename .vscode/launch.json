@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Corrupt Dataset",
+            "name": "Corrupt Dataset Cosine",
             "type": "python",
             "request": "launch",
             "program": "corrupt_dataset.py",
@@ -14,6 +14,23 @@
             "args": [
                 "--max_examples=50",
                 "--dataset=boss_sentiment",
+            ],
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "1"
+                // "CUDA_VISIBLE_DEVICES": "0"
+            },
+        },
+        {
+            "name": "Corrupt Dataset Model",
+            "type": "python",
+            "request": "launch",
+            "program": "corrupt_dataset.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--max_examples=20",
+                "--dataset=boss_sentiment",
+                "--model=selected_models/boss_sentiment/bert",
             ],
             "env": {
                 "CUDA_VISIBLE_DEVICES": "1"

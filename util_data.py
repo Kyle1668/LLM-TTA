@@ -84,6 +84,7 @@ def get_num_labels(dataset_name):
     dataset_num_labels = {
         "sst2": 2,
         "adv_sst2": 2,
+        "imdb": 2,
         "squad": 1,
         "ag_news": 4,
         "ag_news_twitter": 4,

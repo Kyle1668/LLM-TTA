@@ -10,7 +10,7 @@ from tqdm import tqdm
 tqdm.pandas()
 
 from util_modeling import get_model_objects
-from util_data import get_formatted_dataset
+from util_data import get_formatted_dataset, get_num_labels
 from adaptive_methods import get_paraphrase_augmentations
 
 
@@ -33,7 +33,18 @@ def get_cosine_similarity(sentence_tokenizer, sentence_model, left_text, right_t
     return F.cosine_similarity(left_embedding, right_embedding).item()
 
 
-def get_augmentation(paraphrase_tokenizer, paraphrase_model, sentence_tokenizer, sentence_model, word_augmenter, random_deleter, current_text):
+def get_augmentation(
+    paraphrase_tokenizer,
+    paraphrase_model,
+    sentence_tokenizer,
+    sentence_model,
+    word_augmenter,
+    random_deleter,
+    task_tokenizer,
+    task_model,
+    current_entry):
+
+    current_text = current_entry["label"]
     paraphrases = get_paraphrase_augmentations(
         current_text,
         paraphrase_tokenizer,
@@ -46,16 +57,27 @@ def get_augmentation(paraphrase_tokenizer, paraphrase_model, sentence_tokenizer,
 
     corrupted_paraphrases = [word_augmenter.augment(random_deleter.augment(aug)) for aug in paraphrases]
     corrupted_paraphrases = [aug[0] for aug in corrupted_paraphrases if len(aug) > 0]
-    corrupted_cosines = [get_cosine_similarity(sentence_tokenizer, sentence_model, current_text, aug) for aug in corrupted_paraphrases]
-    corrupted_aug_cosine_pairs = list(zip(corrupted_paraphrases, corrupted_cosines))
-    most_corrupted = max(enumerate(corrupted_aug_cosine_pairs), key=lambda x: x[1])[1][0]
-    return most_corrupted
+
+    if task_model is None:
+        corrupted_cosines = [get_cosine_similarity(sentence_tokenizer, sentence_model, current_text, aug) for aug in corrupted_paraphrases]
+        corrupted_aug_cosine_pairs = list(zip(corrupted_paraphrases, corrupted_cosines))
+        most_corrupted = max(enumerate(corrupted_aug_cosine_pairs), key=lambda x: x[1])[1][0]
+        return most_corrupted
+
+    class_label = current_entry["class"]
+    tokenized_paraphrases = task_tokenizer(corrupted_paraphrases, padding=True, truncation=True, max_length=512, return_tensors='pt').to(task_model.device)
+    logits = task_model(**tokenized_paraphrases)[0]
+    class_logits = logits[:, class_label]
+    class_probs = F.softmax(class_logits, dim=0)
+    lowest_prob_index = torch.argmin(class_probs).item()
+    return corrupted_paraphrases[lowest_prob_index]
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str)
     parser.add_argument("--max_examples", type=int, default=None)
+    parser.add_argument("--model", type=str, default=None)
     args = parser.parse_args()
 
     formatted_dataset = get_formatted_dataset(args.dataset, args.max_examples)["train"].to_pandas()
@@ -65,8 +87,10 @@ def main():
     hf_model_path = "sentence-transformers/all-mpnet-base-v2"
     sentence_tokenizer = AutoTokenizer.from_pretrained(hf_model_path)
     sentence_model = AutoModel.from_pretrained(hf_model_path)
-    word_replacer = naw.ContextualWordEmbsAug(device="cuda", action="substitute")
-    random_deleter = naw.RandomWordAug(action="delete", aug_p=0.30)
+    word_replacer = naw.ContextualWordEmbsAug(device="cuda", action="substitute", aug_p=0.10)
+    random_deleter = naw.RandomWordAug(action="delete", aug_p=0.10)
+    num_labels = get_num_labels(args.dataset)
+    task_tokenizer, task_model = get_model_objects(args.model, num_labels=num_labels) if args.model is not None else (None, None)
 
     formatted_dataset["text"] = formatted_dataset.progress_apply(lambda row: get_augmentation(
         paraphrase_tokenizer,
@@ -75,7 +99,9 @@ def main():
         sentence_model,
         word_replacer,
         random_deleter,
-        row["label"]), axis=1)
+        task_tokenizer,
+        task_model,
+        row), axis=1)
 
     print(formatted_dataset.head())
     corruped_datasets_path = "./datasets/corruped"
@@ -83,7 +109,10 @@ def main():
         os.makedirs(corruped_datasets_path)
 
     formatted_dataset = formatted_dataset[["text", "label", "class"]]
-    formatted_dataset.to_csv(f"{corruped_datasets_path}/{args.dataset}{args.max_examples if args.max_examples is not None else ''}.csv", index=False)
+    file_name = f"{args.dataset}{args.max_examples if args.max_examples is not None else ''}"
+    if args.model is not None:
+        file_name += f"_{args.model.replace('/', '_')}"
+    formatted_dataset.to_csv(f"{corruped_datasets_path}/{file_name}.csv", index=False)
 
 
 if __name__ == "__main__":
