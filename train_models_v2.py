@@ -65,20 +65,20 @@ def get_dataset(dataset_name, max_examples):
     return dataset
 
 
-def compute_metrics(eval_preds):
+def preprocess_logits_for_metrics(logits, labels):
     predictions = None
-    labels = None
-    if not isinstance(eval_preds.label_ids[0], int):
+    formatted_labels = None
+    if not isinstance(logits[0], int):
         model_name = get_cli_args().base_model
         tokenizer = LlamaTokenizer.from_pretrained(model_name) if "llama" in model_name else AutoTokenizer.from_pretrained(model_name)
+        formatted_labels = [int(tokenizer.decode([id for id in label_ids if id > 0], skip_special_tokens=True)[-1]) for label_ids in labels]
 
         raw_predictions = None
-        if isinstance(eval_preds.predictions, tuple):
-            raw_predictions = [tokenizer.decode(word_dist.argmax(-1), skip_special_tokens=True).split("Label:")[-1].split("\n")[0].lower().strip() for word_dist in eval_preds.predictions[0]]
+        if isinstance(logits, tuple):
+            raw_predictions = [tokenizer.decode(word_dist.argmax(-1), skip_special_tokens=True).split("Label:")[-1].split("\n")[0].lower().strip() for word_dist in logits[0]]
         else:
-            raw_predictions = [tokenizer.decode(word_dist.argmax(-1), skip_special_tokens=True).split("Label:")[-1].split("\n")[0].lower().strip() for word_dist in eval_preds.predictions]
+            raw_predictions = [tokenizer.decode(word_dist.argmax(-1), skip_special_tokens=True).split("Label:")[-1].split("\n")[0].lower().strip() for word_dist in logits]
 
-        labels = [int(tokenizer.decode([id for id in label_ids if id > 0], skip_special_tokens=True)[-1]) for label_ids in eval_preds.label_ids]
         verbalizers = {
             "pos": 1,
             "positive": 1,
@@ -105,10 +105,15 @@ def compute_metrics(eval_preds):
                 except:
                     predictions.append(-1)
     else:
-        logits, labels = eval_preds
         predictions = np.argmax(logits, axis=-1)
+        formatted_labels = labels
 
-    report = classification_report(labels, predictions, output_dict=True)
+    return torch.Tensor(predictions), torch.Tensor(formatted_labels)
+
+def compute_metrics(eval_preds):
+    predicitons = eval_preds.predictions[0]
+    labels = eval_preds.predictions[1]
+    report = classification_report(labels, predicitons, output_dict=True)
     return {"eval_f1": report["macro avg"]["f1-score"], "eval_acc": report["accuracy"]}
 
 
@@ -187,6 +192,7 @@ def fine_tune_model():
     trainer.train()
     trainer.save_model(f"trained_models/{experiment_id}/best_F1={trainer.state.best_metric}")
 
+
 def get_trainer(args, num_epochs, model_name, experiment_id, project_name, dataset, tokenizer, model, data_collator, tokenized_datasets):
     tokenized_datasets = tokenized_datasets.remove_columns(dataset["train"].column_names)
     training_args = TrainingArguments(
@@ -205,7 +211,6 @@ def get_trainer(args, num_epochs, model_name, experiment_id, project_name, datas
             report_to="wandb",
         )
     if is_large_language_model(model_name):
-            # training_args.gradient_accumulation_steps = 16
         training_args.per_device_train_batch_size = 128
         training_args.fp16 = True
 
@@ -214,7 +219,14 @@ def get_trainer(args, num_epochs, model_name, experiment_id, project_name, datas
         training_args.run_name = experiment_id
 
     trainer = Trainer(
-            model, training_args, train_dataset=tokenized_datasets["train"], eval_dataset=tokenized_datasets["test"], data_collator=data_collator, tokenizer=tokenizer, compute_metrics=compute_metrics
+            model,
+            training_args,
+            train_dataset=tokenized_datasets["train"],
+            eval_dataset=tokenized_datasets["test"],
+            data_collator=data_collator,
+            tokenizer=tokenizer,
+            preprocess_logits_for_metrics=preprocess_logits_for_metrics,
+            compute_metrics=compute_metrics
         )
 
     return trainer
@@ -249,6 +261,7 @@ def get_seq2seq_trainer(args, num_epochs, experiment_id, project_name, tokenizer
             eval_dataset=tokenized_datasets["test"],
             data_collator=data_collator,
             tokenizer=tokenizer,
+            preprocess_logits_for_metrics=preprocess_logits_for_metrics,
             compute_metrics=compute_metrics
         )
 
