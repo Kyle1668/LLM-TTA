@@ -125,6 +125,8 @@ def get_formatted_dataset(set_name, max_examples=None):
     hf_path = hf_paths[set_name] if set_name in hf_paths else set_name
     if set_name.startswith("wilds_"):
         hf_dataset = load_wilds_dataset(hf_path)
+    elif is_corrupted_set := set_name.startswith("datasets/corruped/"):
+        hf_dataset = load_corrupted_dataset(hf_path)
     elif set_name == "boss_sentiment":
         hf_dataset = load_boss_sentiment_task()
     elif set_name == "boss_toxicity":
@@ -182,7 +184,7 @@ def get_formatted_dataset(set_name, max_examples=None):
 
             new_frame = None
             split_frame = hf_dataset[split].to_pandas()
-            if is_qa_task:
+            if is_qa_task or is_corrupted_set:
                 new_frame = split_frame.sample(max_examples)
             else:
                 labels = split_frame["label"].unique()
@@ -208,6 +210,18 @@ def get_formatted_dataset(set_name, max_examples=None):
         hf_dataset["prod"] = Dataset.from_pandas(edit_set)
 
     return hf_dataset
+
+
+def load_corrupted_dataset(set_name):
+    corruped_set = pd.read_csv(set_name)
+    train_set = corruped_set.iloc[:int(len(corruped_set) * 0.8)]
+    validation_set = corruped_set.iloc[int(len(corruped_set) * 0.8):int(len(corruped_set) * 0.9)]
+    test_set = corruped_set.iloc[int(len(corruped_set) * 0.9):]
+    return DatasetDict({
+        "train": Dataset.from_pandas(train_set),
+        "validation": Dataset.from_pandas(validation_set),
+        "test": Dataset.from_pandas(test_set)
+    })
 
 
 def load_boss_sentiment_task():

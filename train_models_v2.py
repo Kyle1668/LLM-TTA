@@ -151,7 +151,7 @@ def fine_tune_model():
     dataset_name = args.dataset
     model_name = args.base_model
 
-    experiment_id = f"training_{int(time())}_{args.dataset}_{args.base_model.replace('/', '_')}"
+    experiment_id = f"training_{int(time())}_{args.dataset.replace('/', '_')}_{args.base_model.replace('/', '_')}"
     create_exp_dir(args, experiment_id)
 
     wandb_run = None
@@ -176,7 +176,11 @@ def fine_tune_model():
         tokenized_datasets = dataset.map(lambda example: tokenize_t5(example, tokenizer), batched=True, remove_columns=["text", "label"])
     else:
         tokenized_datasets = dataset.map(lambda example: tokenizer(example["text"], truncation=True, max_length=512), batched=True, remove_columns=["text", "label"])
-    tokenized_datasets = tokenized_datasets.remove_columns("label") if "label" in tokenized_datasets["train"].column_names else tokenized_datasets
+
+    for extra_column in ["class", "label"]:
+        tokenized_datasets = tokenized_datasets.remove_columns(extra_column) if extra_column in tokenized_datasets["train"].column_names else tokenized_datasets
+        # tokenized_datasets = tokenized_datasets.remove_columns(extra_column) if extra_column in tokenized_datasets["validation"].column_names else tokenized_datasets
+        tokenized_datasets = tokenized_datasets.remove_columns(extra_column) if extra_column in tokenized_datasets["test"].column_names else tokenized_datasets
 
     trainer = None
     if is_language_model(model_name):
@@ -204,7 +208,7 @@ def get_trainer(args, num_epochs, model_name, experiment_id, project_name, datas
             weight_decay=0.01,
             learning_rate=get_learning_rate(model_name),
             logging_dir=f"trained_models/{experiment_id}/logs",
-            metric_for_best_model="eval_f1",
+            metric_for_best_model="loss" if args.skip_computing_metrics else "eval_f1",
             evaluation_strategy="epoch",
             save_strategy="epoch",
             load_best_model_at_end=True,
@@ -230,9 +234,14 @@ def get_trainer(args, num_epochs, model_name, experiment_id, project_name, datas
             eval_dataset=tokenized_datasets["test"],
             data_collator=data_collator,
             tokenizer=tokenizer,
-            preprocess_logits_for_metrics=preprocess_logits_for_metrics,
-            compute_metrics=compute_metrics
         )
+
+    if not args.skip_computing_metrics:
+        print("Adding metrics to trainer")
+        trainer.preprocess_logits_for_metrics = preprocess_logits_for_metrics,
+        trainer.compute_metrics = compute_metrics
+    else:
+        print("Skipping metrics")
 
     return trainer
 
@@ -244,7 +253,7 @@ def get_seq2seq_trainer(args, num_epochs, experiment_id, project_name, tokenizer
             weight_decay=0.01,
             learning_rate=get_learning_rate(args.base_model),
             logging_dir=f"trained_models/{experiment_id}/logs",
-            metric_for_best_model="eval_f1",
+            metric_for_best_model="loss" if args.skip_computing_metrics else "eval_f1",
             evaluation_strategy="epoch",
             save_strategy="epoch",
             load_best_model_at_end=True,
@@ -262,16 +271,24 @@ def get_seq2seq_trainer(args, num_epochs, experiment_id, project_name, tokenizer
     if "__index_level_0__" in tokenized_datasets["test"].column_names:
         tokenized_datasets["test"] = tokenized_datasets["test"].remove_columns(["__index_level_0__"])
 
-    return Seq2SeqTrainer(
+    trainer = Seq2SeqTrainer(
             model,
             training_args,
             train_dataset=tokenized_datasets["train"],
             eval_dataset=tokenized_datasets["test"],
             data_collator=data_collator,
             tokenizer=tokenizer,
-            preprocess_logits_for_metrics=preprocess_logits_for_metrics,
-            compute_metrics=compute_metrics
+
         )
+
+    if not args.skip_computing_metrics:
+        print("Adding metrics to trainer")
+        trainer.preprocess_logits_for_metrics = preprocess_logits_for_metrics,
+        trainer.compute_metrics = compute_metrics
+    else:
+        print("Skipping metrics")
+
+    return trainer
 
 
 def get_cli_args():
@@ -281,6 +298,7 @@ def get_cli_args():
     parser.add_argument("--base_model", type=str, required=False, default="bert-base-uncased")
     parser.add_argument("--max_examples", type=int, required=False, default=None)
     parser.add_argument("--use_lr_warmup", action="store_true")
+    parser.add_argument("--skip_computing_metrics", action="store_true")
     parser.add_argument("--use_wandb", action="store_true")
     args = parser.parse_args()
     return args
