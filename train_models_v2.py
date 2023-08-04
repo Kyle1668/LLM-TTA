@@ -220,7 +220,6 @@ def get_trainer(args, num_epochs, model_name, experiment_id, project_name, datas
         training_args.warmup_ratio = 0.1,
 
     if is_large_language_model(model_name):
-        training_args.per_device_train_batch_size = 128
         training_args.fp16 = True
 
     if args.use_wandb:
@@ -248,7 +247,7 @@ def get_trainer(args, num_epochs, model_name, experiment_id, project_name, datas
 def get_seq2seq_trainer(args, num_epochs, experiment_id, project_name, tokenizer, model, data_collator, tokenized_datasets):
     training_args = Seq2SeqTrainingArguments(
             output_dir=f"trained_models/{experiment_id}/model",
-            per_device_train_batch_size=8,
+            per_device_train_batch_size=4,
             num_train_epochs=num_epochs,
             weight_decay=0.01,
             learning_rate=get_learning_rate(args.base_model),

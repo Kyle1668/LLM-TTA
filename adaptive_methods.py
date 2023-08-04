@@ -296,6 +296,17 @@ def save_inference_log(inference_logs, experiment_id, model_name, dataset_name, 
     combined_inference_log.to_csv(f"results/{experiment_id}/{combined_inference_log_file_name}")
 
 
+def wrap_prompt_keywords(prompt, model_name):
+    if "vicuna" in model_name:
+        return f"User: {prompt} Assistant:"
+    elif "xgen-7b-8k-inst" in model_name:
+        return f"### Human: {prompt.replace('###', '---').strip()}\n###"
+    elif "oasst" in model_name:
+        return f"<|prompter|>{prompt}<|endoftext|><|assistant|>"
+    else:
+        return prompt
+
+
 def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemplars, trim_exemplars, temperature, transfer_prompt):
     style_input = input_entry["text"].replace("\n", " ")
     num_example_tokens = adaptive_tokenizer(style_input, return_tensors="pt")["input_ids"].shape[1]
@@ -316,8 +327,7 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
             prompt_template = prompt_template.replace("<s>", "")
             task_prompt = prompt_template
 
-        input_prompts = f"User: {task_prompt} Assistant:" if "vicuna" in adaptive_model.config.name_or_path else task_prompt
-        input_prompts = f"### Human: {input_prompts.replace('###', '---').strip()}\n###" if "xgen-7b-8k-inst" in adaptive_model.config.name_or_path else task_prompt
+        input_prompts = wrap_prompt_keywords(task_prompt, adaptive_model.config.name_or_path)
     else:
         input_prompts = style_input
 
@@ -342,7 +352,7 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
         generation = adaptive_tokenizer.decode(outputs["sequences"][0][len(tokenized_prompt[0]) :]).replace("\n", " ").replace("</s>", "").replace("```", "").strip()
     else:
         generation = adaptive_tokenizer.decode(outputs[0][0], skip_special_tokens=True).replace("\n", " ").strip()
-        
+
     if "###" in generation:
         generation = generation.split("###")[0]
     # if " Text:" in generation:

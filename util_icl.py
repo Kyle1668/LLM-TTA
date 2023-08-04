@@ -70,12 +70,19 @@ def generate_qa_prompt(exemplars, input_entry):
 
 
 def generate_classification_prompt(input_text, exemplars, template, dataset_name):
+    # style_transfer_exemplars = None
+    #     if trim_exemplars:
+    #         style_transfer_exemplars = "".join([f'- "{adaptive_tokenizer.decode(adaptive_tokenizer.encode(exemplar["text"].strip())[:int(1500 / len(exemplars))])}"\n' for exemplar in exemplars])
+    #     else:
+    #         style_transfer_exemplars = "".join(['- "' + exemplar["text"].strip().replace("\n", "") + '"\n' for exemplar in exemplars])
+
     formatted_exemplars = []
+    max_words_per_exemplar = 1600 // len(exemplars)
     for i in range(len(exemplars)):
         if exemplars[i]["text"] == "" or exemplars[i]["text"] == None:
             continue
         formatted_exemplars.append(
-            {"label": exemplars[i]["label"], "text": (" ".join(exemplars[i]["text"].split()[:100]) if len(exemplars[i]["text"].split()) >= 100 else exemplars[i]["text"]).replace("\n", " ").lstrip()}
+            {"label": exemplars[i]["label"], "text": (" ".join(exemplars[i]["text"].split()[:max_words_per_exemplar]) if len(exemplars[i]["text"].split()) >= max_words_per_exemplar else exemplars[i]["text"]).replace("\n", " ").lstrip()}
         )
 
     instructions = json.load(open("prompts/instructions.json", encoding="utf-8"))[dataset_name]
@@ -100,7 +107,7 @@ def generate_prompt(model_name, template, exemplars, input_entry, dataset_name):
     else:
         prompt = generate_classification_prompt(input_entry["text"], exemplars, template, dataset_name)
 
-    supported_chat_prompts = {"TheBloke/vicuna-13B-1.1-HF": f"User: {prompt}\nAssistant:"}
+    supported_chat_prompts = {"TheBloke/vicuna-13B-1.1-HF": f"User: {prompt}\nAssistant:", "TheBloke/vicuna-7B-1.1-HF": f"User: {prompt}\nAssistant:"}
     return supported_chat_prompts[model_name] if model_name in supported_chat_prompts else prompt
 
 
