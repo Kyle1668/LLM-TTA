@@ -43,9 +43,9 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
     try:
         tokenized_prompt = None
         if model.config.architectures[0].startswith("T5"):
-            tokenized_prompt = tokenizer.encode(input_entry["text"], return_tensors="pt", max_length=512).to(device)
+            tokenized_prompt = tokenizer.encode(input_entry["text"], return_tensors="pt", max_length=512).to(model.device)
         else:
-            tokenized_prompt = tokenizer.encode(prompt, return_tensors="pt", max_length=tokenizer.model_max_length).to(device)
+            tokenized_prompt = tokenizer.encode(prompt, return_tensors="pt", max_length=tokenizer.model_max_length).to(model.device)
 
         with torch.no_grad():
             outputs = model.generate(tokenized_prompt, max_new_tokens=100, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id)
@@ -88,7 +88,7 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
         print(f"WARNING: Could not extract judgment from: {generation}")
         return -1
     except Exception as e:
-        print(f"Error for input {input_entry['text']} ---- Error: {e} ---- Generation: {generation}")
+        print(f"Error for input {input_entry['text']} ---- Error: {e}")
         return -1
 
 
@@ -335,7 +335,7 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
     else:
         input_prompts = style_input
 
-    tokenized_prompt = adaptive_tokenizer.encode(input_prompts, return_tensors="pt").to("cuda")
+    tokenized_prompt = adaptive_tokenizer.encode(input_prompts, return_tensors="pt").to(adaptive_model.device)
     try:
         with torch.no_grad():
             outputs = adaptive_model.generate(
