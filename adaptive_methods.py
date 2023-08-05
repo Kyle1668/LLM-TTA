@@ -303,6 +303,10 @@ def wrap_prompt_keywords(prompt, model_name):
         return f"### Human: {prompt.replace('###', '---').strip()}\n###"
     elif "oasst" in model_name:
         return f"<|prompter|>{prompt}<|endoftext|><|assistant|>"
+    elif "StableBeluga" in model_name:
+        system_message = prompt.split("### Input Text ###")[0]
+        user_message = "### Input Text ###" + prompt.split("### Input Text ###")[1]
+        return f"### System:\n{system_message}### User: {user_message}\n\n### Assistant:\n"
     else:
         return prompt
 
