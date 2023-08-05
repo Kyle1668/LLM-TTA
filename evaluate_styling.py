@@ -14,7 +14,27 @@ from util_data import get_formatted_dataset, get_num_labels
 from util_modeling import get_model_objects, is_large_language_model
 
 
-def main():
+
+def parse_arguments() -> argparse.Namespace:
+    """Parse command line arguments.
+
+    `--seed`: Set the random seed for reproducibility.
+    `--dataset`: The HuggingFace or custom supported dataset to evaluate on.
+    `--model`: The HuggingFace `AutoModelForSequenceClassification` model trained on the original distribution.
+    `--splits`: The splits of the dataset to evaluate on. If not specified, all splits will be evaluated.
+    `--baseline`: The baselines to evaluate. If not specified, all baselines will be evaluated. Supported baselines are: `fine-tuning`, `test_time_augmentation`, `memo`, `skip`.
+    `--icl_method`: The ICL method to use for style transfer. If not specified, all ICL methods will be evaluated. Supported ICL methods are: `random`, `topk_nearest`.
+    `--temperature`: The temperature to use for style transfer. If not specified, 0.0 and 0.7 are evaluated.
+    `--num_shots`: The number of shots to use for style transfer. If not specified, 32, 16, and 8 are evaluated.
+    `--adaptive_model`: The HuggingFace LLM that will rewrite each example. Multiple models can be specified by separating them with a comma.
+    `--max_examples`: The maximum number of examples to evaluate on. If not specified, all examples will be evaluated.
+    `--use_wandb`: Whether to use wandb to log results.
+    `--skip_eval_styling`: Whether to skip evaluating the style transfer methods.
+    `--skip_style_model_eval`: Whether to skip evaluating the style transfer models.
+    `--evaluate_id_adaptation`: Whether to evaluate the style transfer models on the in-dsitribution test set.
+    `--transfer_prompt`: The transfer prompt to use for style transfer.
+    """
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--dataset", type=str, default=None)
@@ -31,7 +51,11 @@ def main():
     parser.add_argument("--skip_style_model_eval", action="store_true")
     parser.add_argument("--evaluate_id_adaptation", action="store_true")
     parser.add_argument("--transfer_prompt", type=str, default="domain_transfer_no_aug_tasks_v4")
-    args = parser.parse_args()
+    return parser.parse_args()
+
+
+def main():
+    args = parse_arguments()
 
     # Set random seeds
     random.seed(args.seed)
@@ -71,9 +95,7 @@ def main():
         else [
             "Salesforce/xgen-7b-8k-inst",
             "TheBloke/vicuna-7B-1.1-HF",
-            # "TheBloke/vicuna-13B-1.1-HF",
-            # "tiiuae/falcon-7b",
-        ]
+         ]
     )
     baselines = args.baseline.split(",") if args.baseline is not None else [] if args.baseline == "skip" else ["fine-tuning", "test_time_augmentation", "memo"]
 
