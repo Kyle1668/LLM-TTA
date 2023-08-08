@@ -45,14 +45,15 @@
             "request": "launch",
             "program": "train_models_v2.py",
             "console": "integratedTerminal",
-            "justMyCode": true,
+            "justMyCode": false,
             "args": [
-                "--max_examples=1000",
-                "--dataset=boss_sentiment",
-                "--num_labels=3",
+                "--max_examples=200",
+                "--dataset=ag_news",
+                "--num_labels=4",
                 // "--base_model=bert-base-uncased",
                 // "--base_model=t5-large",
-                "--base_model=decapoda-research/llama-7b-hf",
+                "--use_lr_warmup",
+                "--base_model=daryl149/llama-2-7b-hf",
                 // "--use_wandb"
             ],
             "env": {

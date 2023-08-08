@@ -77,7 +77,7 @@ def generate_classification_prompt(input_text, exemplars, template, dataset_name
     #         style_transfer_exemplars = "".join(['- "' + exemplar["text"].strip().replace("\n", "") + '"\n' for exemplar in exemplars])
 
     formatted_exemplars = []
-    max_words_per_exemplar = 1600 // len(exemplars)
+    max_words_per_exemplar = 1600 // len(exemplars) if len(exemplars) > 0 else 0
     for i in range(len(exemplars)):
         if exemplars[i]["text"] == "" or exemplars[i]["text"] == None:
             continue

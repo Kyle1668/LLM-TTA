@@ -97,6 +97,11 @@ def preprocess_logits_for_metrics(logits, labels):
         }
         predictions = []
         for pred in raw_predictions:
+            if pred == "":
+                predictions.append(-1)
+                continue
+
+            pred = pred.split()[0].lower().strip()
             if pred in verbalizers:
                 predictions.append(verbalizers[pred])
             else:
@@ -247,7 +252,7 @@ def get_trainer(args, num_epochs, model_name, experiment_id, project_name, datas
 def get_seq2seq_trainer(args, num_epochs, experiment_id, project_name, tokenizer, model, data_collator, tokenized_datasets):
     training_args = Seq2SeqTrainingArguments(
             output_dir=f"trained_models/{experiment_id}/model",
-            per_device_train_batch_size=4,
+            per_device_train_batch_size=16,
             num_train_epochs=num_epochs,
             weight_decay=0.01,
             learning_rate=get_learning_rate(args.base_model),
@@ -256,10 +261,8 @@ def get_seq2seq_trainer(args, num_epochs, experiment_id, project_name, tokenizer
             evaluation_strategy="epoch",
             save_strategy="epoch",
             load_best_model_at_end=True,
+            warmup_ratio = 0.1,
         )
-
-    if args.use_lr_warmup:
-        training_args.warmup_ratio = 0.1,
 
     if args.use_wandb:
         training_args.wandb_project = project_name
@@ -277,15 +280,16 @@ def get_seq2seq_trainer(args, num_epochs, experiment_id, project_name, tokenizer
             eval_dataset=tokenized_datasets["test"],
             data_collator=data_collator,
             tokenizer=tokenizer,
-
+            preprocess_logits_for_metrics=preprocess_logits_for_metrics,
+            compute_metrics = compute_metrics,
         )
 
-    if not args.skip_computing_metrics:
-        print("Adding metrics to trainer")
-        trainer.preprocess_logits_for_metrics = preprocess_logits_for_metrics,
-        trainer.compute_metrics = compute_metrics
-    else:
-        print("Skipping metrics")
+    # if not args.skip_computing_metrics:
+    #     print("Adding metrics to trainer")
+    #     trainer.preprocess_logits_for_metrics = preprocess_logits_for_metrics,
+    #     trainer.compute_metrics = compute_metrics
+    # else:
+    #     print("Skipping metrics")
 
     return trainer
 
