@@ -11,7 +11,7 @@ import os
 import re
 
 from util_data import generate_evaluation_Report, get_num_labels
-from util_modeling import get_model_objects, is_large_language_model, is_language_model
+from util_modeling import get_model_objects, is_large_language_model, is_language_model, is_openai_model
 from util_icl import generate_prompt, get_prompt_template, get_retriever, get_static_exemplars, get_dynamic_exemplars
 
 
@@ -313,12 +313,13 @@ def wrap_prompt_keywords(prompt, model_name):
 
 def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemplars, trim_exemplars, temperature, transfer_prompt):
     style_input = input_entry["text"].replace("\n", " ")
-    num_example_tokens = adaptive_tokenizer(style_input, return_tensors="pt")["input_ids"].shape[1]
+    is_openai = is_openai_model(adaptive_model.name_or_path)
+    # num_example_tokens = adaptive_tokenizer(style_input, return_tensors="pt")["input_ids"].shape[1] if not is_openai_model(adaptive_model.name_or_path) else len(style_input)
 
     input_prompts = None
     if is_large_language_model(adaptive_model.name_or_path):
         style_transfer_exemplars = None
-        if trim_exemplars:
+        if trim_exemplars and not is_openai:
             style_transfer_exemplars = "".join([f'- "{adaptive_tokenizer.decode(adaptive_tokenizer.encode(exemplar["text"].strip())[:int(1500 / len(exemplars))])}"\n' for exemplar in exemplars])
         else:
             style_transfer_exemplars = "".join(['- "' + exemplar["text"].strip().replace("\n", "") + '"\n' for exemplar in exemplars])
@@ -335,14 +336,14 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
     else:
         input_prompts = style_input
 
-    tokenized_prompt = adaptive_tokenizer.encode(input_prompts, return_tensors="pt").to(adaptive_model.device)
+    tokenized_prompt = input_prompts if is_openai else adaptive_tokenizer.encode(input_prompts, return_tensors="pt").to(adaptive_model.device)
     try:
         with torch.no_grad():
             outputs = adaptive_model.generate(
                 tokenized_prompt,
                 do_sample=temperature != 0.0,
                 temperature=temperature,
-                max_new_tokens=num_example_tokens * 5,
+                # max_new_tokens=num_example_tokens * 5,
                 early_stopping=True,
                 return_dict_in_generate=True,
             )
@@ -352,7 +353,9 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
         return input_prompts, ""
 
     generation = None
-    if is_large_language_model(adaptive_model.name_or_path):
+    if is_openai:
+        generation = outputs["choices"][0]["message"]["content"].replace("\n", " ").replace("</s>", "").replace("```", "").strip()
+    elif is_large_language_model(adaptive_model.name_or_path):
         generation = adaptive_tokenizer.decode(outputs["sequences"][0][len(tokenized_prompt[0]) :]).replace("\n", " ").replace("</s>", "").replace("```", "").strip()
     else:
         generation = adaptive_tokenizer.decode(outputs[0][0], skip_special_tokens=True).replace("\n", " ").strip()

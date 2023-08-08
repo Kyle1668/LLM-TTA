@@ -1,7 +1,7 @@
 import json
 import requests
 import os
-import openai
+import openai_hf
 import time
 import numpy as np
 
@@ -72,8 +72,8 @@ def api_get_tokens(api_name, input_texts):
                                                           zip(response['choices'], length_list)]
 
     if api_name == 'gpt3':
-        openai.api_key = os.getenv("OPENAI_API_KEY")
-        response = openai.Completion.create(
+        openai_hf.api_key = os.getenv("OPENAI_API_KEY")
+        response = openai_hf.Completion.create(
             engine=OPENICL_API_REQUEST_CONFIG['gpt3']['engine'],
             prompt=input_texts,
             temperature=OPENICL_API_REQUEST_CONFIG['gpt3']['temperature'],

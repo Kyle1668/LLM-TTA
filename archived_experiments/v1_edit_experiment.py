@@ -1,7 +1,7 @@
 import os
 import time
 import torch
-import openai
+import openai_hf
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -32,7 +32,7 @@ Label:
     time.sleep(1)
     openai_api_key = os.environ["OPENAI_API_KEY"]
     try:
-        response_object = openai.Completion.create(model=model_name, prompt=prompt, max_tokens=10, api_key=openai_api_key)
+        response_object = openai_hf.Completion.create(model=model_name, prompt=prompt, max_tokens=10, api_key=openai_api_key)
         response_token = response_object["choices"][0]["text"]
         first_token = response_token.strip()[0]
         int_token = int(first_token)

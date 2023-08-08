@@ -1,8 +1,13 @@
 from transformers import AutoConfig, AutoTokenizer, LlamaTokenizer, AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoModelForSequenceClassification, AutoModelForQuestionAnswering
 import torch
 
+from openai_hf.openai_model import OpenAIModel, OpenAIModelConfig
+
 
 def is_large_language_model(model_name):
+    if is_openai_model(model_name):
+        return True
+
     model_config = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
     return model_config.architectures[0].endswith("ForCausalLM")
 
@@ -13,7 +18,14 @@ def is_language_model(model_name):
     return is_seq2seq_lm or is_large_language_model(model_name)
 
 
+def is_openai_model(model_name):
+    return model_name in ["gpt-3.5-turbo", "gpt-4"]
+
+
 def get_model_objects(model_name, num_labels, training=False):
+    if is_openai_model(model_name):
+        return None, OpenAIModel(OpenAIModelConfig(model_name))
+
     model_config = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
     is_seq2seq_lm = model_config.architectures[0].endswith("ForConditionalGeneration")
     is_qa_model = model_config.architectures[0].endswith("ForQuestionAnswering")

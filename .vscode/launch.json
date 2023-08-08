@@ -48,7 +48,7 @@
             "justMyCode": false,
             "args": [
                 "--max_examples=200",
-                "--dataset=ag_news",
+                "--dataset=boss_sentiment",
                 "--num_labels=4",
                 // "--base_model=bert-base-uncased",
                 // "--base_model=t5-large",
@@ -129,6 +129,29 @@
                 "--icl_method=random,topk_nearest",
                 "--num_shots=16",
                 "--temperature=0.3,0.7"
+            ]
+        },
+        {
+            "name": "BOSS Sentiment: GPT-3",
+            "type": "python",
+            "request": "launch",
+            "program": "evaluate_styling.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "1"
+            },
+            "args": [
+                "--max_examples=50",
+                "--model=Kyle1668/boss-sentiment-bert-base-uncased",
+                "--adaptive_model=gpt-3.5-turbo",
+                "--dataset=boss_sentiment",
+                "--baseline=skip",
+                "--skip_style_model_eval",
+                "--splits=sst5",
+                "--icl_method=random,topk_nearest",
+                "--num_shots=16",
+                "--temperature=0.0,0.7"
             ]
         },
         {
