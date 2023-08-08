@@ -134,7 +134,8 @@ def tokenize_t5(example, tokenizer):
 
 def tokenize_llm(example, tokenizer, dataset_name):
     entries = zip(example["text"], example["label"])
-    prompts = [f"{generate_classification_prompt(entry[0], [], None, dataset_name)}{entry[1]}{tokenizer.eos_token}" for entry in entries]
+    exemplars = get_static_exemplars(dataset_name, 8)
+    prompts = [f"{generate_classification_prompt(entry[0], exemplars, None, dataset_name)}{entry[1]}{tokenizer.eos_token}" for entry in entries]
     tokenized_input = tokenizer(prompts)
     tokenized_input["labels"] = tokenized_input["input_ids"].copy()
     return tokenized_input

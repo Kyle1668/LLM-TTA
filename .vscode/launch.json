@@ -57,7 +57,7 @@
                 // "--use_wandb"
             ],
             "env": {
-                "CUDA_VISIBLE_DEVICES": "4"
+                "CUDA_VISIBLE_DEVICES": "3"
                 // "CUDA_VISIBLE_DEVICES": "0"
             },
         },
