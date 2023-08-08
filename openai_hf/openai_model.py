@@ -1,4 +1,5 @@
 import os
+import time
 import torch
 import openai
 from huggingface_hub import hf_hub_download
@@ -37,6 +38,11 @@ class OpenAIModel(PreTrainedModel):
         try:
             messages = self.parse_messages(prompt)
 
+            if self.name_or_path == "gpt-4":
+                time.sleep(5)
+            else:
+                time.sleep(1)
+
             completion = openai.ChatCompletion.create(
                 model=self.name_or_path,
                 messages=messages,
@@ -49,9 +55,19 @@ class OpenAIModel(PreTrainedModel):
             raise error
 
     def parse_messages(self, prompt):
-        system_message = prompt.split("### Input Text ###")[0]
-        user_message = "### Input Text ###" + prompt.split("### Input Text ###")[1]
+        is_rewrite_task = "### Input Text ###" in prompt
+        if is_rewrite_task:
+            system_message = prompt.split("### Input Text ###")[0]
+            user_message = "### Input Text ###" + prompt.split("### Input Text ###")[1]
+            return [
+                    {"role": "system", "content" : system_message},
+                    {"role": "user", "content" : user_message}
+                ]
+
+        delimiter = "What is the label for the following text? You must decide which label the text is."
+        system_message = prompt.split(delimiter)[0]
+        user_message = delimiter + prompt.split(delimiter)[1]
         return [
-                {"role": "system", "content" : system_message},
-                {"role": "user", "content" : user_message}
-            ]
+                    {"role": "system", "content" : system_message},
+                    {"role": "user", "content" : user_message}
+                ]

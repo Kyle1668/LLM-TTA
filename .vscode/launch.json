@@ -132,7 +132,7 @@
             ]
         },
         {
-            "name": "BOSS Sentiment: GPT-3",
+            "name": "BOSS Sentiment: GPT",
             "type": "python",
             "request": "launch",
             "program": "evaluate_styling.py",
@@ -145,9 +145,10 @@
                 "--max_examples=50",
                 "--model=Kyle1668/boss-sentiment-bert-base-uncased",
                 "--adaptive_model=gpt-3.5-turbo",
+                // "--adaptive_model=gpt-4",
                 "--dataset=boss_sentiment",
                 "--baseline=skip",
-                "--skip_style_model_eval",
+                // "--skip_style_model_eval",
                 "--splits=sst5",
                 "--icl_method=random,topk_nearest",
                 "--num_shots=16",

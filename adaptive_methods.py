@@ -41,16 +41,23 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
             return predicted_class, logits
 
     try:
+        generation = None
+        is_openai = is_openai_model(model.name_or_path)
         tokenized_prompt = None
-        if model.config.architectures[0].startswith("T5"):
-            tokenized_prompt = tokenizer.encode(input_entry["text"], return_tensors="pt", max_length=512).to(model.device)
-        else:
-            tokenized_prompt = tokenizer.encode(prompt, return_tensors="pt", max_length=tokenizer.model_max_length).to(model.device)
 
-        with torch.no_grad():
-            outputs = model.generate(tokenized_prompt, max_new_tokens=100, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id)
-            start_decoding_index = len(tokenized_prompt[0]) if is_large_language_model(model.name_or_path) else 0
-            generation = tokenizer.decode(outputs["sequences"][0][start_decoding_index:], skip_special_tokens=True).split("\n")[0].replace("</s>", "").strip()
+        if is_openai:
+            outputs = model.generate(prompt, max_new_tokens=100)
+            generation = outputs["choices"][0]["message"]["content"].replace("\n", " ").replace("</s>", "").replace("```", "").strip()
+        else:
+            if model.config.architectures[0].startswith("T5"):
+                tokenized_prompt = tokenizer.encode(input_entry["text"], return_tensors="pt", max_length=512).to(model.device)
+            else:
+                tokenized_prompt = tokenizer.encode(prompt, return_tensors="pt", max_length=tokenizer.model_max_length).to(model.device)
+
+            with torch.no_grad():
+                outputs = model.generate(tokenized_prompt, max_new_tokens=100, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id)
+                start_decoding_index = len(tokenized_prompt[0]) if is_large_language_model(model.name_or_path) else 0
+                generation = tokenizer.decode(outputs["sequences"][0][start_decoding_index:], skip_special_tokens=True).split("\n")[0].replace("</s>", "").strip()
 
         is_qa_task = dataset_name.startswith("squad")
         if is_qa_task:
