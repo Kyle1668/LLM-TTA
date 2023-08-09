@@ -34,14 +34,13 @@ class OpenAIModel(PreTrainedModel):
         # Dummy arguments
         **kwargs
     ):
+        messages = self.parse_messages(prompt)
+        return self.send_messages(do_sample, temperature, max_new_tokens, messages)
 
+    def send_messages(self, do_sample, temperature, max_new_tokens, messages):
         try:
-            messages = self.parse_messages(prompt)
-
             if self.name_or_path == "gpt-4":
                 time.sleep(5)
-            else:
-                time.sleep(1)
 
             completion = openai.ChatCompletion.create(
                 model=self.name_or_path,
@@ -52,7 +51,8 @@ class OpenAIModel(PreTrainedModel):
             return completion
         except Exception as error:
             print(error)
-            raise error
+            time.sleep(10)
+            return self.send_messages(do_sample, temperature, max_new_tokens, messages)
 
     def parse_messages(self, prompt):
         is_rewrite_task = "### Input Text ###" in prompt

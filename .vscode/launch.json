@@ -104,6 +104,29 @@
             },
         },
         {
+            "name": "BOSS Toxicity ToxiGen",
+            "type": "python",
+            "request": "launch",
+            "program": "evaluate_styling.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "0"
+            },
+            "args": [
+                "--max_examples=50",
+                "--model=selected_models/boss_sentiment/bert",
+                "--adaptive_model=OpenAssistant/oasst-sft-4-pythia-12b-epoch-3.5",
+                "--dataset=boss_toxicity",
+                "--baseline=skip",
+                "--skip_style_model_eval",
+                "--splits=toxigen",
+                "--icl_method=random",
+                "--num_shots=16",
+                "--temperature=0.0"
+            ]
+        },
+        {
             "name": "BOSS Sentiment",
             "type": "python",
             "request": "launch",
@@ -142,13 +165,37 @@
                 "CUDA_VISIBLE_DEVICES": "1"
             },
             "args": [
-                "--max_examples=50",
+                "--max_examples=100",
                 "--model=Kyle1668/boss-sentiment-bert-base-uncased",
                 "--adaptive_model=gpt-3.5-turbo",
                 // "--adaptive_model=gpt-4",
                 "--dataset=boss_sentiment",
                 "--baseline=skip",
-                // "--skip_style_model_eval",
+                "--skip_style_model_eval",
+                "--splits=sst5",
+                "--icl_method=random,topk_nearest",
+                "--num_shots=16",
+                "--temperature=0.0,0.7"
+            ]
+        },
+        {
+            "name": "BOSS Sentiment: GPT+Rewriter",
+            "type": "python",
+            "request": "launch",
+            "program": "evaluate_styling.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "1"
+            },
+            "args": [
+                "--max_examples=100",
+                "--model=gpt-3.5-turbo",
+                "--adaptive_model=trained_models/test_rewriter/best_F1=0.6355934739112854",
+                // "--adaptive_model=gpt-4",
+                "--dataset=boss_sentiment",
+                "--baseline=skip",
+                "--skip_style_model_eval",
                 "--splits=sst5",
                 "--icl_method=random,topk_nearest",
                 "--num_shots=16",

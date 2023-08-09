@@ -321,12 +321,14 @@ def wrap_prompt_keywords(prompt, model_name):
 def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemplars, trim_exemplars, temperature, transfer_prompt):
     style_input = input_entry["text"].replace("\n", " ")
     is_openai = is_openai_model(adaptive_model.name_or_path)
-    # num_example_tokens = adaptive_tokenizer(style_input, return_tensors="pt")["input_ids"].shape[1] if not is_openai_model(adaptive_model.name_or_path) else len(style_input)
+    num_example_tokens = adaptive_tokenizer(style_input, return_tensors="pt")["input_ids"].shape[1] if not is_openai_model(adaptive_model.name_or_path) else len(style_input)
 
     input_prompts = None
     if is_large_language_model(adaptive_model.name_or_path):
         style_transfer_exemplars = None
-        if trim_exemplars and not is_openai:
+        if is_openai:
+            style_transfer_exemplars = "".join(['- "' + exemplar["text"].strip().replace("\n", "")[:500] + '"\n' for exemplar in exemplars])
+        elif trim_exemplars:
             style_transfer_exemplars = "".join([f'- "{adaptive_tokenizer.decode(adaptive_tokenizer.encode(exemplar["text"].strip())[:int(1500 / len(exemplars))])}"\n' for exemplar in exemplars])
         else:
             style_transfer_exemplars = "".join(['- "' + exemplar["text"].strip().replace("\n", "") + '"\n' for exemplar in exemplars])
@@ -350,7 +352,7 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
                 tokenized_prompt,
                 do_sample=temperature != 0.0,
                 temperature=temperature,
-                # max_new_tokens=num_example_tokens * 5,
+                max_new_tokens=num_example_tokens * 5,
                 early_stopping=True,
                 return_dict_in_generate=True,
             )

@@ -44,6 +44,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--icl_method", type=str, default=None)
     parser.add_argument("--temperature", type=str, default=None)
     parser.add_argument("--num_shots", type=str, default=None)
+    parser.add_argument("--trim_exemplars", type=bool, default=True)
     parser.add_argument("--adaptive_model", type=str, default=None)
     parser.add_argument("--max_examples", type=int, default=None)
     parser.add_argument("--use_wandb", action="store_true")
@@ -257,35 +258,34 @@ def main():
                                 for style_icl_method in icl_methods:
                                     for shots in num_shots:
                                         print(f"Evaluating style transfer with {shots} shots")
-                                        for trim_exemplars in [True]:
-                                            for temperature in domain_transfer_temperatures:
-                                                style_inference_log_frame, current_report = evaluate_style_transfer(
-                                                    experiment_id,
-                                                    model_name,
-                                                    model,
-                                                    tokenizer,
-                                                    dataset_name,
-                                                    dataset,
-                                                    style_icl_method,
-                                                    evaluation_set,
-                                                    adaptive_method,
-                                                    shots,
-                                                    trim_exemplars,
-                                                    temperature,
-                                                    args.transfer_prompt,
-                                                )
-                                                reports.append(current_report)
-                                                all_reports = pd.DataFrame(reports).drop_duplicates()
-                                                print(
-                                                    all_reports[
-                                                        ["dataset", "split", "task model", "icl_method", "exemplar count", "trim exemplars", "style transfer model", "dataset size", "accuracy", "avg f1"]
-                                                    ]
-                                                )
-                                                all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
-                                                if wandb_enabled:
-                                                    wandb.log(current_report)
-                                                    wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
-                                                    wandb_run.log({f"{evaluation_set}_{adaptive_method}_{style_icl_method}_style_logs": wandb.Table(dataframe=style_inference_log_frame)})
+                                        for temperature in domain_transfer_temperatures:
+                                            style_inference_log_frame, current_report = evaluate_style_transfer(
+                                                experiment_id,
+                                                model_name,
+                                                model,
+                                                tokenizer,
+                                                dataset_name,
+                                                dataset,
+                                                style_icl_method,
+                                                evaluation_set,
+                                                adaptive_method,
+                                                shots,
+                                                bool(args.trim_exemplars),
+                                                temperature,
+                                                args.transfer_prompt,
+                                            )
+                                            reports.append(current_report)
+                                            all_reports = pd.DataFrame(reports).drop_duplicates()
+                                            print(
+                                                all_reports[
+                                                    ["dataset", "split", "task model", "icl_method", "exemplar count", "trim exemplars", "style transfer model", "dataset size", "accuracy", "avg f1"]
+                                                ]
+                                            )
+                                            all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                                            if wandb_enabled:
+                                                wandb.log(current_report)
+                                                wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
+                                                wandb_run.log({f"{evaluation_set}_{adaptive_method}_{style_icl_method}_style_logs": wandb.Table(dataframe=style_inference_log_frame)})
                     else:
                         if is_llm:
                             for num_shots in num_shots:
