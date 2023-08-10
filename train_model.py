@@ -134,8 +134,12 @@ def tokenize_t5(example, tokenizer):
 
 def tokenize_llm(example, tokenizer, dataset_name):
     entries = zip(example["text"], example["label"])
-    exemplars = get_static_exemplars(dataset_name, 8)
-    prompts = [f"{generate_classification_prompt(entry[0], exemplars, None, dataset_name)}{entry[1]}{tokenizer.eos_token}" for entry in entries]
+    prompts = None
+    if "corruped" in dataset_name:
+        prompts = example["text"]
+    else:
+        exemplars = get_static_exemplars(dataset_name, 8)
+        prompts = [f"{generate_classification_prompt(entry[0], exemplars, None, dataset_name)}{entry[1]}{tokenizer.eos_token}" for entry in entries]
     tokenized_input = tokenizer(prompts)
     tokenized_input["labels"] = tokenized_input["input_ids"].copy()
     return tokenized_input
@@ -281,8 +285,8 @@ def get_seq2seq_trainer(args, num_epochs, experiment_id, project_name, tokenizer
             eval_dataset=tokenized_datasets["test"],
             data_collator=data_collator,
             tokenizer=tokenizer,
-            preprocess_logits_for_metrics=preprocess_logits_for_metrics,
-            compute_metrics = compute_metrics,
+            preprocess_logits_for_metrics=None if args.skip_computing_metrics else preprocess_logits_for_metrics,
+            compute_metrics=None if args.skip_computing_metrics else compute_metrics,
         )
 
     # if not args.skip_computing_metrics:
