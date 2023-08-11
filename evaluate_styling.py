@@ -288,8 +288,8 @@ def main():
                                                 wandb_run.log({f"{evaluation_set}_{adaptive_method}_{style_icl_method}_style_logs": wandb.Table(dataframe=style_inference_log_frame)})
                     else:
                         if is_llm:
-                            for num_shots in num_shots:
-                                current_report = evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, "static", evaluation_set, num_shots=num_shots)
+                            for shots in num_shots:
+                                current_report = evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, "static", evaluation_set, num_shots=shots)
                                 reports.append(current_report)
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
                                 print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1"]])

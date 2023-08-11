@@ -2,6 +2,7 @@
 import os
 import torch
 import argparse
+import pandas as pd
 import torch.nn.functional as F
 import nlpaug.augmenter.word as naw
 from datasets import load_dataset
@@ -38,8 +39,6 @@ def get_augmentation(
     paraphrase_model,
     sentence_tokenizer,
     sentence_model,
-    word_augmenter,
-    random_deleter,
     task_tokenizer,
     task_model,
     current_entry):
@@ -50,13 +49,13 @@ def get_augmentation(
         paraphrase_tokenizer,
         paraphrase_model,
         paraphrase_model.device,
+        num_return_sequences=2,
         temperature=1.0,
         repetition_penalty=100.0,
         diversity_penalty=100.0,
         no_repeat_ngram_size=10)
 
-    corrupted_paraphrases = [word_augmenter.augment(random_deleter.augment(aug)) for aug in paraphrases]
-    corrupted_paraphrases = [aug[0] for aug in corrupted_paraphrases if len(aug) > 0]
+    corrupted_paraphrases = paraphrases
 
     if task_model is None:
         corrupted_cosines = [get_cosine_similarity(sentence_tokenizer, sentence_model, current_text, aug) for aug in corrupted_paraphrases]
@@ -67,10 +66,29 @@ def get_augmentation(
     class_label = current_entry["class"]
     tokenized_paraphrases = task_tokenizer(corrupted_paraphrases, padding=True, truncation=True, max_length=512, return_tensors='pt').to(task_model.device)
     logits = task_model(**tokenized_paraphrases)[0]
-    class_logits = logits[:, class_label]
-    class_probs = F.softmax(class_logits, dim=0)
-    lowest_prob_index = torch.argmin(class_probs).item()
-    return corrupted_paraphrases[lowest_prob_index]
+    probabilities = F.softmax(logits, dim=1)
+    lowest_prob_index = probabilities[:, class_label].argmin().item()
+    lowest_probability = probabilities[:, class_label].min().item()
+    augmentation = corrupted_paraphrases[lowest_prob_index]
+
+    tokenized_agumentation = task_tokenizer(augmentation, padding=True, truncation=True, max_length=512, return_tensors='pt').to(task_model.device)
+    augmentation_prediction = task_model(**tokenized_agumentation)[0].argmax().item()
+
+    tokenized_original = task_tokenizer(current_text, padding=True, truncation=True, max_length=512, return_tensors='pt').to(task_model.device)
+    original_logits = task_model(**tokenized_original)[0]
+    original_probabilities = F.softmax(original_logits[0])
+    original_class_prob = original_probabilities[class_label].item()
+    original_prediction = original_probabilities.argmax().item()
+    class_prob_delta = round(lowest_probability - original_class_prob, 4) * 100
+
+    return {
+        "text": augmentation,
+        "aug prob": round(lowest_probability, 4) * 100,
+        "orig prob": round(original_class_prob, 4) * 100,
+        "prob delta": class_prob_delta,
+        "aug pred": augmentation_prediction,
+        "orig pred": original_prediction
+    }
 
 
 def main():
@@ -86,29 +104,26 @@ def main():
     paraphrase_tokenizer, paraphrase_model = get_model_objects("humarin/chatgpt_paraphraser_on_T5_base", num_labels=-1)
     hf_model_path = "sentence-transformers/all-mpnet-base-v2"
     sentence_tokenizer = AutoTokenizer.from_pretrained(hf_model_path)
-    sentence_model = AutoModel.from_pretrained(hf_model_path)
-    word_replacer = naw.ContextualWordEmbsAug(device="cuda", action="substitute", aug_p=0.10)
     random_deleter = naw.RandomWordAug(action="delete", aug_p=0.10)
     num_labels = get_num_labels(args.dataset)
     task_tokenizer, task_model = get_model_objects(args.model, num_labels=num_labels) if args.model is not None else (None, None)
 
-    formatted_dataset["text"] = formatted_dataset.progress_apply(lambda row: get_augmentation(
-        paraphrase_tokenizer,
+    metadata_rows = []
+    for _, row in formatted_dataset.iterrows():
+        metadata_rows.append(get_augmentation(paraphrase_tokenizer,
         paraphrase_model,
         sentence_tokenizer,
-        sentence_model,
-        word_replacer,
         random_deleter,
         task_tokenizer,
         task_model,
-        row), axis=1)
+        row))
 
+    formatted_dataset = formatted_dataset.join(pd.DataFrame(metadata_rows))[["text", "label", "orig prob", "aug prob", "prob delta", "orig pred", "aug pred", "class"]]
     print(formatted_dataset.head())
     corruped_datasets_path = "./datasets/corruped"
     if not os.path.exists(corruped_datasets_path):
         os.makedirs(corruped_datasets_path)
 
-    formatted_dataset = formatted_dataset[["text", "label", "class"]]
     file_name = f"{args.dataset}{args.max_examples if args.max_examples is not None else ''}"
     if args.model is not None:
         file_name += f"_{args.model.replace('/', '_')}"

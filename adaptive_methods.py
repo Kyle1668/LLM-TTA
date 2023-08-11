@@ -255,7 +255,12 @@ def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset
 def get_baseline_inference_log_frame(experiment_id, model_name, dataset_name, icl_method, eval_set):
     compare_file_name_prefix = None
     if is_large_language_model(model_name):
-        compare_file_name_prefix = f'{model_name.replace("/", "-")}-{dataset_name}-{eval_set}-{icl_method}-No Adaptation'
+        if dataset_name.startswith("boss_"):
+            set_name = dataset_name.split("-")[0]
+            compare_file_name_prefix = f'{model_name.replace("/", "-")}-{set_name}-{eval_set}-{icl_method}-No Adaptation'
+        else:
+            compare_file_name_prefix = f'{model_name.replace("/", "-")}-{dataset_name}-{eval_set}-{icl_method}-No Adaptation'
+
     else:
         if dataset_name.startswith("boss_"):
             set_name = dataset_name.split("-")[0]
@@ -532,8 +537,6 @@ def get_paraphrase_augmentations(
     paraphrase_tokenizer,
     paraphrase_model,
     device,
-    num_beams=5,
-    num_beam_groups=5,
     num_return_sequences=4,
     repetition_penalty=10.0,
     diversity_penalty=3.0,
@@ -555,8 +558,8 @@ def get_paraphrase_augmentations(
         repetition_penalty=repetition_penalty,
         num_return_sequences=num_return_sequences,
         no_repeat_ngram_size=no_repeat_ngram_size,
-        num_beams=num_beams,
-        num_beam_groups=num_beam_groups,
+        num_beams=num_return_sequences,
+        num_beam_groups=num_return_sequences,
         max_length=max_length,
         diversity_penalty=diversity_penalty,
     )
