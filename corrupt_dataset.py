@@ -49,8 +49,8 @@ def get_augmentation(
         paraphrase_tokenizer,
         paraphrase_model,
         paraphrase_model.device,
-        num_return_sequences=2,
-        temperature=1.0,
+        num_return_sequences=5,
+        temperature=0.7,
         repetition_penalty=100.0,
         diversity_penalty=100.0,
         no_repeat_ngram_size=10)
@@ -109,7 +109,7 @@ def main():
     task_tokenizer, task_model = get_model_objects(args.model, num_labels=num_labels) if args.model is not None else (None, None)
 
     metadata_rows = []
-    for _, row in formatted_dataset.iterrows():
+    for _, row in tqdm(formatted_dataset.iterrows(), total=len(formatted_dataset)):
         metadata_rows.append(get_augmentation(paraphrase_tokenizer,
         paraphrase_model,
         sentence_tokenizer,
