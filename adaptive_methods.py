@@ -416,7 +416,8 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
 # TODO: Add support for LLM inference
 def evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, eval_set, icl_method, aug_method):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    paraphrase_tokenizer, paraphrase_model = get_model_objects("humarin/chatgpt_paraphraser_on_T5_base", num_labels=-1)
+    # paraphrase_tokenizer, paraphrase_model = get_model_objects("humarin/chatgpt_paraphraser_on_T5_base", num_labels=-1)
+    paraphrase_tokenizer, paraphrase_model = get_model_objects("/home/mchorse/repos/In-Context-Domain-Transfer-Improves-Out-of-Domain-Robustness/trained_models/training_1692052883_datasets_corruped_boss_sentiment_Kyle1668_boss-sentiment-bert-base-uncased.csv_t5-large/model/checkpoint-12000", num_labels=-1)
     aug = naw.ContextualWordEmbsAug(action="substitute", device="cuda")
     inference_logs = []
 
@@ -439,7 +440,7 @@ def evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer,
         for aug_input in tta_inputs:
             input_entry = entry.copy()
             input_entry["text"] = aug_input
-            aug_judgment, aug_logits = get_judgment(model, tokenizer, input_entry["text"], device, entry, dataset_name)
+            aug_judgment, aug_logits = get_judgment(model, tokenizer, aug_input, device, input_entry, dataset_name)
             logits.append(aug_logits)
             judgments.append(aug_judgment)
 
