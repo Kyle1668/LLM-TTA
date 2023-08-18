@@ -28,10 +28,11 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
     if type(model).__name__.endswith("ForSequenceClassification"):
         is_nli_task = dataset_name.startswith("boss_nli")
         with torch.no_grad():
-            input_sequence = tokenizer(input_entry["text"], return_tensors="pt", truncation=True).to(device)
+            input_sequence = tokenizer(input_entry["text"], return_tensors="pt", truncation=True, padding=True).to(device)
             outputs = model(**input_sequence)
             logits = outputs.logits
-            predicted_class = int(logits.argmax(axis=1))
+            mean_logits = logits.mean(dim=0)
+            predicted_class = int(mean_logits.argmax())
 
             if is_nli_task:
                 nl_judgment = model.config.id2label[predicted_class].lower()
@@ -197,7 +198,6 @@ def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset
 
         if is_adaptive_set:
             entry["original_text"] = entry["text"]
-            # entry["style_prompt"], entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature, transfer_prompt)
             if dataset_name == "boss_nli":
                 entry["text"] = entry["Premise"]
                 entry["style_prompt"], styled_premise = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature, transfer_prompt)
@@ -264,9 +264,9 @@ def get_baseline_inference_log_frame(experiment_id, model_name, dataset_name, ic
     else:
         if dataset_name.startswith("boss_"):
             set_name = dataset_name.split("-")[0]
-            compare_file_name_prefix = f'{model_name.replace("/", "-")}-{set_name}-{eval_set}-static-No Adaptation'
+            compare_file_name_prefix = f'{model_name.replace("/", "-")}-{set_name}-{eval_set}-None-No Adaptation'
         else:
-            compare_file_name_prefix = f'{model_name.replace("/", "-")}-{dataset_name}-{eval_set}-static-No Adaptation'
+            compare_file_name_prefix = f'{model_name.replace("/", "-")}-{dataset_name}-{eval_set}-None-No Adaptation'
 
     no_adapt_logs_filename = [file_name for file_name in os.listdir(f"results/{experiment_id}") if compare_file_name_prefix in file_name][0]
     return pd.read_csv(f"results/{experiment_id}/{no_adapt_logs_filename}")
@@ -360,24 +360,35 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
                 max_new_tokens=num_example_tokens * 5,
                 early_stopping=True,
                 return_dict_in_generate=True,
+                num_return_sequences=4,
             )
     except torch.cuda.OutOfMemoryError as generation_error:
         print(generation_error)
         print(f"Ran out of memory when generating an input for the following prompt: {input_prompts}")
         return input_prompts, ""
 
-    generation = None
+    formatted_generated_sequences = []
     if is_openai:
-        generation = outputs["choices"][0]["message"]["content"].replace("\n", " ").replace("</s>", "").replace("```", "").strip()
-    elif is_large_language_model(adaptive_model.name_or_path):
-        generation = adaptive_tokenizer.decode(outputs["sequences"][0][len(tokenized_prompt[0]) :]).replace("\n", " ").replace("</s>", "").replace("```", "").strip()
-    else:
-        generation = adaptive_tokenizer.decode(outputs[0][0], skip_special_tokens=True).replace("\n", " ").strip()
+        return input_prompts, [outputs["choices"][0]["message"]["content"]]
+
+    for output in outputs[0]:
+        generation = None
+        if is_large_language_model(adaptive_model.name_or_path):
+            generation = adaptive_tokenizer.decode(output[len(tokenized_prompt[0]) :])
+        else:
+            generation = adaptive_tokenizer.decode(output, skip_special_tokens=True)
+
+        parsed_generation = parse_generation(style_input, generation)
+        formatted_generated_sequences.append(parsed_generation)
+
+    return input_prompts, formatted_generated_sequences
+
+
+def parse_generation(style_input, generation):
+    generation = generation.replace("\n", " ").replace("</s>", "").replace("```", "").strip()
 
     if "###" in generation:
         generation = generation.split("###")[0]
-    # if " Text:" in generation:
-    #     generation = generation.split(" Text:")[1].strip()
     if "</s>" in generation:
         generation = generation.split("</s>")[0]
     if "<s>" in generation:
@@ -410,7 +421,8 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
     print(f"Original Input: {style_input}\n\nGenerated input: {generation}")
     if generation.strip() == "":
         print("Generation was empty")
-    return input_prompts, generation
+
+    return generation
 
 
 # TODO: Add support for LLM inference
