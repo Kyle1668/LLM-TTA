@@ -88,11 +88,11 @@
             "justMyCode": true,
             "args": [
                 "--max_examples=100",
-                "--dataset=datasets/corruped/boss_sentiment_Kyle1668_boss-sentiment-bert-base-uncased.csv",
+                "--dataset=boss_sentiment_centroid",
                 "--num_labels=3",
                 // "--base_model=bert-base-uncased",
-                // "--base_model=t5-large",
-                "--base_model=daryl149/llama-2-7b-hf",
+                "--base_model=t5-large",
+                // "--base_model=daryl149/llama-2-7b-hf",
                 // "--use_wandb"
                 "--skip_computing_metrics"
             ],

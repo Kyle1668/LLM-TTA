@@ -29,6 +29,10 @@ def get_dataset(dataset_name, max_examples):
             "train": "datasets/boss_benchmark/SentimentAnalysis/amazon/train.tsv",
             "test": "datasets/boss_benchmark/SentimentAnalysis/amazon/test.tsv",
         },
+        "boss_sentiment_centroid": {
+            "train": "datasets/corruped/boss_sentiment_train.csv",
+            "test": "datasets/corruped/boss_sentiment_test.csv",
+        },
         "boss_toxicity": {
             "train": "datasets/boss_benchmark/ToxicDetection/civil_comments/train.tsv",
             "test": "datasets/boss_benchmark/ToxicDetection/civil_comments/test.tsv",
@@ -36,12 +40,15 @@ def get_dataset(dataset_name, max_examples):
     }
 
     if dataset_name in local_dataset_paths:
-        train_set = pd.read_csv(local_dataset_paths[dataset_name]["train"], sep="\t").dropna()
+        train_file_path = local_dataset_paths[dataset_name]["train"]
+        seperator = "\t" if "tsv" in train_file_path else ","
+        train_set = pd.read_csv(local_dataset_paths[dataset_name]["train"], sep=seperator).dropna()
         train_set.rename(columns={"Text": "text", "Label": "label"}, inplace=True)
         if max_examples is not None:
             train_set = train_set.sample(max_examples)
 
-        test_set = pd.read_csv(local_dataset_paths[dataset_name]["test"], sep="\t").dropna()
+        test_file_path = local_dataset_paths[dataset_name]["train"]
+        test_set = pd.read_csv(local_dataset_paths[dataset_name]["test"], sep=seperator).dropna()
         test_set.rename(columns={"Text": "text", "Label": "label"}, inplace=True)
         if max_examples is not None:
             test_set = test_set.sample(max_examples)
@@ -257,7 +264,7 @@ def get_trainer(args, num_epochs, model_name, experiment_id, project_name, datas
 def get_seq2seq_trainer(args, num_epochs, experiment_id, project_name, tokenizer, model, data_collator, tokenized_datasets):
     training_args = Seq2SeqTrainingArguments(
             output_dir=f"trained_models/{experiment_id}/model",
-            per_device_train_batch_size=8,
+            per_device_train_batch_size=4,
             num_train_epochs=num_epochs,
             weight_decay=0.01,
             learning_rate=get_learning_rate(args.base_model),
