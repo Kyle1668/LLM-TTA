@@ -76,28 +76,33 @@ def generate_classification_prompt(input_text, exemplars, template, dataset_name
     #     else:
     #         style_transfer_exemplars = "".join(['- "' + exemplar["text"].strip().replace("\n", "") + '"\n' for exemplar in exemplars])
 
-    formatted_exemplars = []
-    max_words_per_exemplar = 1600 // len(exemplars) if len(exemplars) > 0 else 0
-    for i in range(len(exemplars)):
-        if exemplars[i]["text"] == "" or exemplars[i]["text"] == None:
-            continue
-        formatted_exemplars.append(
-            {"label": exemplars[i]["label"], "text": (" ".join(exemplars[i]["text"].split()[:max_words_per_exemplar]) if len(exemplars[i]["text"].split()) >= max_words_per_exemplar else exemplars[i]["text"]).replace("\n", " ").lstrip()}
-        )
+    input_text = input_text if isinstance(input_text, list) else [input_text]
+    prompts = []
+    for input in input_text:
+        formatted_exemplars = []
+        max_words_per_exemplar = 1600 // len(exemplars) if len(exemplars) > 0 else 0
+        for i in range(len(exemplars)):
+            if exemplars[i]["text"] == "" or exemplars[i]["text"] == None:
+                continue
+            formatted_exemplars.append(
+                {"label": exemplars[i]["label"], "text": (" ".join(exemplars[i]["text"].split()[:max_words_per_exemplar]) if len(exemplars[i]["text"].split()) >= max_words_per_exemplar else exemplars[i]["text"]).replace("\n", " ").lstrip()}
+            )
 
-    instructions = json.load(open("prompts/instructions.json", encoding="utf-8"))[dataset_name]
-    prompt_lines = [f"Task: {instructions}"]
-    for exemplar in reversed(formatted_exemplars):
-        exemplar_line = f'\n"{exemplar["text"].strip()}" - Label={exemplar["label"]}'
-        prompt_lines.append(exemplar_line)
+        instructions = json.load(open("prompts/instructions.json", encoding="utf-8"))[dataset_name]
+        prompt_lines = [f"Task: {instructions}"]
+        for exemplar in reversed(formatted_exemplars):
+            exemplar_line = f'\n"{exemplar["text"].strip()}" - Label={exemplar["label"]}'
+            prompt_lines.append(exemplar_line)
 
-    # prompt_lines = [formatted_instructions] + ["\n" + template.generate_ice_item(entry, entry["label"]).replace("\n", " ").lstrip() for entry in reversed(formatted_exemplars)]
-    prompt_lines.append('\nWhat is the label for the following text? You must decide which label the text is."')
-    formatted_input_text = " ".join(input_text.split()[:500]) if len(input_text.split()) >= 500 else input_text
+        # prompt_lines = [formatted_instructions] + ["\n" + template.generate_ice_item(entry, entry["label"]).replace("\n", " ").lstrip() for entry in reversed(formatted_exemplars)]
+        prompt_lines.append('\nWhat is the label for the following text? You must decide which label the text is."')
+        formatted_input_text = " ".join(input.split()[:500]) if len(input.split()) >= 500 else input
 
-    prompt_lines.append('\n"' + formatted_input_text.replace("\n", " ").strip() + '" - Label=')
-    prompt = "\n".join(prompt_lines).replace("</s>", " ")
-    return prompt
+        prompt_lines.append('\n"' + formatted_input_text.replace("\n", " ").strip() + '" - Label=')
+        prompt = "\n".join(prompt_lines).replace("</s>", " ")
+        prompts.append(prompt)
+
+    return prompts
 
 
 def generate_prompt(model_name, template, exemplars, input_entry, dataset_name):

@@ -264,9 +264,9 @@ def get_baseline_inference_log_frame(experiment_id, model_name, dataset_name, ic
     else:
         if dataset_name.startswith("boss_"):
             set_name = dataset_name.split("-")[0]
-            compare_file_name_prefix = f'{model_name.replace("/", "-")}-{set_name}-{eval_set}-None-No Adaptation'
+            compare_file_name_prefix = f'{model_name.replace("/", "-")}-{set_name}-{eval_set}-static-No Adaptation'
         else:
-            compare_file_name_prefix = f'{model_name.replace("/", "-")}-{dataset_name}-{eval_set}-None-No Adaptation'
+            compare_file_name_prefix = f'{model_name.replace("/", "-")}-{dataset_name}-{eval_set}-static-No Adaptation'
 
     no_adapt_logs_filename = [file_name for file_name in os.listdir(f"results/{experiment_id}") if compare_file_name_prefix in file_name][0]
     return pd.read_csv(f"results/{experiment_id}/{no_adapt_logs_filename}")
@@ -360,7 +360,7 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
                 max_new_tokens=num_example_tokens * 5,
                 early_stopping=True,
                 return_dict_in_generate=True,
-                num_return_sequences=4,
+                num_return_sequences=1,
             )
     except torch.cuda.OutOfMemoryError as generation_error:
         print(generation_error)

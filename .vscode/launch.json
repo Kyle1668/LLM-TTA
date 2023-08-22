@@ -91,7 +91,7 @@
                 "--dataset=boss_sentiment_centroid",
                 "--num_labels=3",
                 // "--base_model=bert-base-uncased",
-                "--base_model=t5-large",
+                "--base_model=sharad/ParaphraseGPT",
                 // "--base_model=daryl149/llama-2-7b-hf",
                 // "--use_wandb"
                 "--skip_computing_metrics"
@@ -156,12 +156,12 @@
                 "CUDA_VISIBLE_DEVICES": "4"
             },
             "args": [
-                // "--max_examples=20",
+                // "--max_examples=50",
                 "--model=Kyle1668/boss-sentiment-bert-base-uncased",
                 // "--model=stabilityai/StableBeluga2",
                 // "--adaptive_model=TheBloke/vicuna-7B-1.1-HF",
                 // "--adaptive_model=trained_models/boss_sentiment_rewriter",
-                "--adaptive_model=trained_models/training_1692052883_datasets_corruped_boss_sentiment_Kyle1668_boss-sentiment-bert-base-uncased.csv_t5-large/model/checkpoint-60000",
+                "--adaptive_model=trained_models/training_1692421780_boss_sentiment_centroid_humarin_chatgpt_paraphraser_on_T5_base/model/checkpoint-74998",
                 "--dataset=boss_sentiment",
                 // "--report_wandb",
                 "--baseline=skip",
@@ -170,7 +170,7 @@
                 "--splits=sst5",
                 "--icl_method=random",
                 "--num_shots=16",
-                "--temperature=0.7,0.3,0.0"
+                // "--temperature=,0.0,0.7,0.3"
             ]
         },
         {
