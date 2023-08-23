@@ -360,7 +360,7 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
                 max_new_tokens=num_example_tokens * 5,
                 early_stopping=True,
                 return_dict_in_generate=True,
-                num_return_sequences=1,
+                num_return_sequences=4,
             )
     except torch.cuda.OutOfMemoryError as generation_error:
         print(generation_error)

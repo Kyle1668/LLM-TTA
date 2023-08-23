@@ -36,32 +36,33 @@ class RewriteTrainer(Trainer):
     sentence_encoder_model = AutoModel.from_pretrained("princeton-nlp/sup-simcse-roberta-large").to("cuda")
     task_tokenizer = get_model_objects("Kyle1668/boss-sentiment-bert-base-uncased", 3)[0]
     task_model = get_model_objects("Kyle1668/boss-sentiment-bert-base-uncased", 3)[1].to("cuda")
-    id_centroid = torch.load("notebooks/dynasent_analysis/amazon_centroid.pt")
+    id_centroid = torch.load("notebooks/dynasent_analysis/amazon_centroid.pt").to("cuda")
 
     def compute_loss(self, model, inputs, return_outputs=False):
-        # return RewriterLoss(self.tokenizer)(model, inputs, return_outputs)
-
-        # labels = self.tokenizer.batch_decode(inputs["labels"], skip_special_tokens=True)
-        labels = inputs.pop("labels")
-        labels = torch.tensor(np.array(self.tokenizer.batch_decode(labels[:, :3], skip_special_tokens=True), dtype=int))
-        generations = model.generate(**inputs, do_sample=False, max_new_tokens=50)
+        labels_tokens = inputs.pop("labels")
+        labels = torch.tensor(np.array(self.tokenizer.batch_decode(labels_tokens[:, :3], skip_special_tokens=True), dtype=int))
+        generations = model.generate(**inputs, do_sample=False, max_new_tokens=100)
         output_texts = self.tokenizer.batch_decode(generations, skip_special_tokens=True)
         output_probs = self.get_class_probs(output_texts)
         input_texts = self.tokenizer.batch_decode(inputs.input_ids, skip_special_tokens=True)
+        original_embeddings = self.get_embeddings(input_texts)
         rewrite_embeddings = self.get_embeddings(output_texts)
 
-
         losses = []
-        for rewrite, rewrite_embedding, label, probs in zip(output_texts, rewrite_embeddings, labels, output_probs):
+        running_loss = None
+        for original_embedding, rewrite_embedding, label, probs in zip(original_embeddings, rewrite_embeddings, labels, output_probs):
             class_prob = probs[label]
-            id_centroid_sim = torch.cosine_similarity(rewrite_embedding.unsqueeze(0).cpu(), self.id_centroid.unsqueeze(0).cpu()).cpu().item()
-            loss = -(id_centroid_sim + class_prob)
+            id_centroid_sim = torch.cosine_similarity(rewrite_embedding.unsqueeze(0), self.id_centroid.unsqueeze(0))
+            rewrite_original_sim = torch.cosine_similarity(rewrite_embedding.unsqueeze(0), original_embedding.unsqueeze(0))
+
+            # loss = 1 - (id_centroid_sim + class_prob) # Maximize similarity to centroid and label class probability
+            # loss = 1 - ((id_centroid_sim + rewrite_original_sim) / 2) # [0, 1] loss with both similarity and rewrite similarity equal
+            loss = (1 - ((2 * id_centroid_sim + rewrite_original_sim) / 3)).squeeze() # [0, 1] loss with centroid similarity weighted more
+            running_loss = loss if running_loss is None else running_loss + loss
             losses.append(loss)
 
-        # class_probs = self.get_class_probs(output_texts)
-        # correct_label_probs = torch.Tensor([class_probs[i][int(labels[i])] for i in range(len(class_probs))])
-        batch_loss = torch.Tensor(losses).mean().to(model.device)
-        batch_loss.requires_grad = True
+        # batch_loss.requires_grad = True
+        batch_loss = running_loss / len(losses)
         return (batch_loss, generations) if return_outputs else batch_loss
 
 
@@ -213,7 +214,7 @@ def get_learning_rate(model_name):
         return 1e-4
     elif is_language_model(model_name):
         # return 1e-3
-        return 1e-4
+        return 1e-1
     else:
         return 2e-5
 
@@ -329,7 +330,7 @@ def get_seq2seq_trainer(args, num_epochs, experiment_id, project_name, tokenizer
             evaluation_strategy="epoch",
             save_strategy="epoch",
             load_best_model_at_end=True,
-            warmup_ratio = 0.1,
+            # warmup_ratio = 0.1,
         )
 
     if args.use_wandb:
