@@ -1,9 +1,10 @@
-from transformers import DataCollatorWithPadding, DataCollatorForSeq2Seq, Trainer, TrainingArguments, Seq2SeqTrainer, Seq2SeqTrainingArguments, LlamaTokenizer, AutoTokenizer
+from typing import Callable, Dict, List, Optional, Tuple, Union
+from torch import nn
+from transformers import DataCollatorWithPadding, DataCollatorForSeq2Seq, Trainer, TrainingArguments, Seq2SeqTrainer, Seq2SeqTrainingArguments, AutoModel, LlamaTokenizer, AutoTokenizer, pipeline
 from peft import get_peft_config, get_peft_model, prepare_model_for_int8_training, get_peft_model_state_dict, LoraConfig, TaskType
 from sklearn.metrics import classification_report
 from datasets import Dataset, DatasetDict
 from argparse import ArgumentParser
-from torch.utils.data import DataLoader
 from time import time
 from tqdm import tqdm
 import pandas as pd
@@ -12,6 +13,12 @@ import evaluate
 import json
 import os
 import torch
+from transformers.data.data_collator import DataCollator
+from transformers.modeling_utils import PreTrainedModel
+from transformers.tokenization_utils_base import PreTrainedTokenizerBase
+from transformers.trainer_callback import TrainerCallback
+from transformers.trainer_utils import EvalPrediction
+from transformers.training_args import TrainingArguments
 import wandb
 
 from util_modeling import get_model_objects, is_language_model, is_large_language_model
@@ -21,6 +28,54 @@ from adaptive_methods import GenericDataset
 
 # Set global tokenizer for computing metrics
 GLOBAL_TOKENIZER = None
+
+
+class RewriteTrainer(Trainer):
+    tokenizer = None
+    sentence_encoder_tokenizer = AutoTokenizer.from_pretrained("princeton-nlp/sup-simcse-roberta-large")
+    sentence_encoder_model = AutoModel.from_pretrained("princeton-nlp/sup-simcse-roberta-large").to("cuda")
+    task_tokenizer = get_model_objects("Kyle1668/boss-sentiment-bert-base-uncased", 3)[0]
+    task_model = get_model_objects("Kyle1668/boss-sentiment-bert-base-uncased", 3)[1].to("cuda")
+    id_centroid = torch.load("notebooks/dynasent_analysis/amazon_centroid.pt")
+
+    def compute_loss(self, model, inputs, return_outputs=False):
+        # return RewriterLoss(self.tokenizer)(model, inputs, return_outputs)
+
+        # labels = self.tokenizer.batch_decode(inputs["labels"], skip_special_tokens=True)
+        labels = inputs.pop("labels")
+        labels = torch.tensor(np.array(self.tokenizer.batch_decode(labels[:, :3], skip_special_tokens=True), dtype=int))
+        generations = model.generate(**inputs, do_sample=False, max_new_tokens=50)
+        output_texts = self.tokenizer.batch_decode(generations, skip_special_tokens=True)
+        output_probs = self.get_class_probs(output_texts)
+        input_texts = self.tokenizer.batch_decode(inputs.input_ids, skip_special_tokens=True)
+        rewrite_embeddings = self.get_embeddings(output_texts)
+
+
+        losses = []
+        for rewrite, rewrite_embedding, label, probs in zip(output_texts, rewrite_embeddings, labels, output_probs):
+            class_prob = probs[label]
+            id_centroid_sim = torch.cosine_similarity(rewrite_embedding.unsqueeze(0).cpu(), self.id_centroid.unsqueeze(0).cpu()).cpu().item()
+            loss = -(id_centroid_sim + class_prob)
+            losses.append(loss)
+
+        # class_probs = self.get_class_probs(output_texts)
+        # correct_label_probs = torch.Tensor([class_probs[i][int(labels[i])] for i in range(len(class_probs))])
+        batch_loss = torch.Tensor(losses).mean().to(model.device)
+        batch_loss.requires_grad = True
+        return (batch_loss, generations) if return_outputs else batch_loss
+
+
+    def get_embeddings(self, inputs_batch):
+        tokenized_batch = self.sentence_encoder_tokenizer(inputs_batch, return_tensors="pt", padding=True, truncation=True, max_length=512).to("cuda")
+        return self.sentence_encoder_model(**tokenized_batch).pooler_output
+
+
+    def get_class_probs(self, batch_inputs):
+        with torch.no_grad():
+            tokenized_batch = self.task_tokenizer(batch_inputs, return_tensors="pt", padding=True, truncation=True, max_length=512).to("cuda")
+            logits = self.task_model(**tokenized_batch).logits
+            probs = torch.softmax(logits, dim=-1)
+            return probs
 
 
 def get_dataset(dataset_name, max_examples):
@@ -286,7 +341,7 @@ def get_seq2seq_trainer(args, num_epochs, experiment_id, project_name, tokenizer
     if "__index_level_0__" in tokenized_datasets["test"].column_names:
         tokenized_datasets["test"] = tokenized_datasets["test"].remove_columns(["__index_level_0__"])
 
-    trainer = Seq2SeqTrainer(
+    trainer = RewriteTrainer(
             model,
             training_args,
             train_dataset=tokenized_datasets["train"],
@@ -294,8 +349,10 @@ def get_seq2seq_trainer(args, num_epochs, experiment_id, project_name, tokenizer
             data_collator=data_collator,
             tokenizer=tokenizer,
             preprocess_logits_for_metrics=None if args.skip_computing_metrics else preprocess_logits_for_metrics,
-            compute_metrics=None if args.skip_computing_metrics else compute_metrics,
+            compute_metrics=None if args.skip_computing_metrics else compute_metrics
         )
+
+    # trainer.sentence_encoder_pipeline = pipeline("feature-extraction", model="princeton-nlp/sup-simcse-roberta-large", device=model.device)
 
     # if not args.skip_computing_metrics:
     #     print("Adding metrics to trainer")
@@ -311,7 +368,7 @@ def get_cli_args():
     parser = ArgumentParser()
     parser.add_argument("--dataset", type=str, required=True)
     parser.add_argument("--num_labels", type=int, required=True)
-    parser.add_argument("--base_model", type=str, required=False, default="bert-base-uncased")
+    parser.add_argument("--base_model", type=str, required=False, default="Kyle1668/boss-sentiment-bert-base-uncased")
     parser.add_argument("--max_examples", type=int, required=False, default=None)
     parser.add_argument("--use_lr_warmup", action="store_true")
     parser.add_argument("--skip_computing_metrics", action="store_true")

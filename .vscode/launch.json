@@ -87,11 +87,12 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--max_examples=100",
-                "--dataset=boss_sentiment_centroid",
+                // "--max_examples=1000",
+                // "--dataset=boss_sentiment_centroid",
+                "--dataset=boss_sentiment",
                 "--num_labels=3",
                 // "--base_model=bert-base-uncased",
-                "--base_model=sharad/ParaphraseGPT",
+                "--base_model=humarin/chatgpt_paraphraser_on_T5_base",
                 // "--base_model=daryl149/llama-2-7b-hf",
                 // "--use_wandb"
                 "--skip_computing_metrics"
