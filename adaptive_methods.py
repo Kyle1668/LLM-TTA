@@ -360,7 +360,7 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
                 max_new_tokens=num_example_tokens * 5,
                 early_stopping=True,
                 return_dict_in_generate=True,
-                num_return_sequences=4,
+                num_return_sequences=1,
             )
     except torch.cuda.OutOfMemoryError as generation_error:
         print(generation_error)
@@ -428,8 +428,8 @@ def parse_generation(style_input, generation):
 # TODO: Add support for LLM inference
 def evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, eval_set, icl_method, aug_method):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # paraphrase_tokenizer, paraphrase_model = get_model_objects("humarin/chatgpt_paraphraser_on_T5_base", num_labels=-1)
-    paraphrase_tokenizer, paraphrase_model = get_model_objects("/home/mchorse/repos/In-Context-Domain-Transfer-Improves-Out-of-Domain-Robustness/trained_models/training_1692052883_datasets_corruped_boss_sentiment_Kyle1668_boss-sentiment-bert-base-uncased.csv_t5-large/model/checkpoint-12000", num_labels=-1)
+    paraphrase_tokenizer, paraphrase_model = get_model_objects("humarin/chatgpt_paraphraser_on_T5_base", num_labels=-1)
+    # paraphrase_tokenizer, paraphrase_model = get_model_objects("/home/mchorse/repos/In-Context-Domain-Transfer-Improves-Out-of-Domain-Robustness/trained_models/training_1692052883_datasets_corruped_boss_sentiment_Kyle1668_boss-sentiment-bert-base-uncased.csv_t5-large/model/checkpoint-12000", num_labels=-1)
     aug = naw.ContextualWordEmbsAug(action="substitute", device="cuda")
     inference_logs = []
 

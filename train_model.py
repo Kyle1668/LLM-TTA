@@ -63,7 +63,10 @@ class RewriteTrainer(Trainer):
 
         # batch_loss.requires_grad = True
         batch_loss = running_loss / len(losses)
-        return (batch_loss, generations) if return_outputs else batch_loss
+        model_ref = model(**inputs, labels=inputs["input_ids"]).logits.mean()
+        model_ref = 0 * model_ref + batch_loss
+
+        return (model_ref, generations) if return_outputs else model_ref
 
 
     def get_embeddings(self, inputs_batch):
