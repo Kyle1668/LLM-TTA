@@ -1,11 +1,11 @@
 ### Instructions ###
-The assistant is to Rewrite the input text in the writing style of the examples.
+The assistant is to rewrite the input text in the writing style of the examples.
 
 ### Style Examples ###
 <style_transfer_exemplars>
 
 ### Input Text ###
-Now Rewrite ```"<style_input>"``` in the style of the examples. Don't change the semantics/sentiment of the input text.
+Now rewrite ```"<style_input>"``` in the style of the examples. Don't change the semantics/sentiment of the input text.
 
 Return the text in the format: ```Rewritten Text```
 

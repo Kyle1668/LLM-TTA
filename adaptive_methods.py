@@ -39,7 +39,15 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
                 token_label_map = {"entailment": 0, "neutral": 1, "contradiction": 2}
                 return token_label_map[nl_judgment], logits
 
-            return predicted_class, logits
+            # Calculate inference metrics
+            class_probabilities = torch.softmax(mean_logits, dim=0)
+            entropy = -torch.sum(class_probabilities * torch.log(class_probabilities)).detach().item()
+            inference_metadata = {
+                "entropy": entropy,
+                "probs": class_probabilities.detach().cpu()
+            }
+
+            return predicted_class, inference_metadata
 
     try:
         generation = None
@@ -127,14 +135,15 @@ def evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dat
                 exemplars, mean_exemplar_distance = get_dynamic_exemplars(entry["text"], dataset_name, exemplar_retriever, num_shots, distance_goal) if should_retrieve_exemplars else None
 
         prompt = generate_prompt(model_name, template, exemplars, entry, dataset_name) if should_retrieve_exemplars else None
-        judgment = get_judgment(model, tokenizer, prompt, device, entry, dataset_name)
-        judgment = judgment[0] if isinstance(judgment, tuple) else judgment
+        inference = get_judgment(model, tokenizer, prompt, device, entry, dataset_name)
+        inference_metadata = inference[1] if isinstance(inference, tuple) else None
+        judgment = inference[0] if isinstance(inference, tuple) else inference
         original_judgments.append(judgment)
         if judgment == -1:
             num_failed_generations += 1
             print(f"Warning: {model_name} failed to generate a judgment for the following input: {entry['text']}")
 
-        inference_log = {}
+        inference_log = inference_metadata if inference_metadata is not None else {}
         inference_log["latency"] = time.perf_counter() - start_time
         inference_log["input"] = entry["text"]
         if dataset_name.startswith("squad"):
@@ -208,14 +217,16 @@ def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset
                 entry["style_prompt"], entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature, transfer_prompt)
 
         prompt = generate_prompt(model_name, template, exemplars, entry, dataset_name) if should_retrieve_exemplars else None
-        judgment = get_judgment(model, tokenizer, prompt, device, entry, dataset_name)
+        inference = get_judgment(model, tokenizer, prompt, device, entry, dataset_name)
+        inference_metadata = inference[1] if isinstance(inference, tuple) else None
+        judgment = inference[0] if isinstance(inference, tuple) else inference
         judgment = judgment[0] if isinstance(judgment, tuple) else judgment
         original_judgments.append(judgment)
         if judgment == -1:
             num_failed_generations += 1
             print(f"Warning: {model_name} failed to generate a judgment for the following input: {entry['text']}")
 
-        inference_log = {}
+        inference_log = inference_metadata if inference_metadata is not None else {}
         inference_log["latency"] = time.perf_counter() - start_time
         inference_log["input"] = entry["text"]
         if is_adaptive_set:
@@ -361,6 +372,7 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
                 early_stopping=True,
                 return_dict_in_generate=True,
                 num_return_sequences=1,
+                num_beams=1
             )
     except torch.cuda.OutOfMemoryError as generation_error:
         print(generation_error)
@@ -429,7 +441,6 @@ def parse_generation(style_input, generation):
 def evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, eval_set, icl_method, aug_method):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     paraphrase_tokenizer, paraphrase_model = get_model_objects("humarin/chatgpt_paraphraser_on_T5_base", num_labels=-1)
-    # paraphrase_tokenizer, paraphrase_model = get_model_objects("/home/mchorse/repos/In-Context-Domain-Transfer-Improves-Out-of-Domain-Robustness/trained_models/training_1692052883_datasets_corruped_boss_sentiment_Kyle1668_boss-sentiment-bert-base-uncased.csv_t5-large/model/checkpoint-12000", num_labels=-1)
     aug = naw.ContextualWordEmbsAug(action="substitute", device="cuda")
     inference_logs = []
 

@@ -44,14 +44,14 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--icl_method", type=str, default=None)
     parser.add_argument("--temperature", type=str, default=None)
     parser.add_argument("--num_shots", type=str, default=None)
-    parser.add_argument("--trim_exemplars", type=bool, default=True)
+    parser.add_argument("--trim_exemplars", type=bool, default=False)
     parser.add_argument("--adaptive_model", type=str, default=None)
     parser.add_argument("--max_examples", type=int, default=None)
     parser.add_argument("--use_wandb", action="store_true")
     parser.add_argument("--skip_eval_styling", action="store_true")
     parser.add_argument("--skip_style_model_eval", action="store_true")
     parser.add_argument("--evaluate_id_adaptation", action="store_true")
-    parser.add_argument("--transfer_prompt", type=str, default="domain_transfer_no_aug_tasks_v4")
+    parser.add_argument("--transfer_prompt", type=str, default="domain_transfer_no_aug_tasks_v5")
     return parser.parse_args()
 
 
