@@ -33,9 +33,9 @@ GLOBAL_TOKENIZER = None
 class RewriteTrainer(Trainer):
     tokenizer = None
     sentence_encoder_tokenizer = AutoTokenizer.from_pretrained("princeton-nlp/sup-simcse-roberta-large")
-    sentence_encoder_model = AutoModel.from_pretrained("princeton-nlp/sup-simcse-roberta-large").to("cuda")
+    sentence_encoder_model = AutoModel.from_pretrained("princeton-nlp/sup-simcse-roberta-large").to("cuda").eval()
     task_tokenizer = get_model_objects("Kyle1668/boss-sentiment-bert-base-uncased", 3)[0]
-    task_model = get_model_objects("Kyle1668/boss-sentiment-bert-base-uncased", 3)[1].to("cuda")
+    task_model = get_model_objects("Kyle1668/boss-sentiment-bert-base-uncased", 3)[1].to("cuda").eval()
     id_centroid = torch.load("notebooks/dynasent_analysis/amazon_centroid.pt").to("cuda")
 
     def compute_loss(self, model, inputs, return_outputs=False):
@@ -55,9 +55,19 @@ class RewriteTrainer(Trainer):
             id_centroid_sim = torch.cosine_similarity(rewrite_embedding.unsqueeze(0), self.id_centroid.unsqueeze(0))
             rewrite_original_sim = torch.cosine_similarity(rewrite_embedding.unsqueeze(0), original_embedding.unsqueeze(0))
 
-            # loss = 1 - (id_centroid_sim + class_prob) # Maximize similarity to centroid and label class probability
+            # Distances
+            id_centroid_dist = torch.dist(rewrite_embedding.unsqueeze(0), self.id_centroid.unsqueeze(0))
+            rewrite_original_dist = torch.dist(rewrite_embedding.unsqueeze(0), original_embedding.unsqueeze(0))
+            id_centroid_chord_distance = 0.5 * np.linalg.norm((rewrite_embedding.detach().cpu().numpy() - np.mean(rewrite_embedding.detach().cpu().numpy())) - (self.id_centroid.detach().cpu().numpy() - np.mean(self.id_centroid.detach().cpu().numpy()))) ** 2 / (np.linalg.norm(rewrite_embedding.detach().cpu().numpy() - np.mean(rewrite_embedding.detach().cpu().numpy())) ** 2 + np.linalg.norm(self.id_centroid.detach().cpu().numpy() - np.mean(self.id_centroid.detach().cpu().numpy())) ** 2)
+
+
+            # loss = 1 - (id_centroid_sim + class_prob)
+            loss = -class_prob + torch.log(id_centroid_dist)
+            # loss = (1 - ((2 * id_centroid_sim + class_prob) / 3)).squeeze()
             # loss = 1 - ((id_centroid_sim + rewrite_original_sim) / 2) # [0, 1] loss with both similarity and rewrite similarity equal
-            loss = (1 - ((2 * id_centroid_sim + rewrite_original_sim) / 3)).squeeze() # [0, 1] loss with centroid similarity weighted more
+            # loss = (1 - ((2 * id_centroid_sim + rewrite_original_sim) / 3)).squeeze() # [0, 1] loss with centroid similarity weighted more
+            # loss = 2 * id_centroid_dist + rewrite_original_dist # [0, 1] loss with both similarity and rewrite similarity equal
+            # loss = 1 - class_prob
             running_loss = loss if running_loss is None else running_loss + loss
             losses.append(loss)
 
@@ -216,8 +226,9 @@ def get_learning_rate(model_name):
     if is_large_language_model(model_name):
         return 1e-4
     elif is_language_model(model_name):
-        # return 1e-3
-        return 1e-1
+        return 1e-3
+        # return 1e-1
+        # return 2e-5
     else:
         return 2e-5
 
@@ -333,7 +344,7 @@ def get_seq2seq_trainer(args, num_epochs, experiment_id, project_name, tokenizer
             evaluation_strategy="epoch",
             save_strategy="epoch",
             load_best_model_at_end=True,
-            # warmup_ratio = 0.1,
+            warmup_ratio = 0.1,
         )
 
     if args.use_wandb:
