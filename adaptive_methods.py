@@ -2,6 +2,7 @@ from torch.utils.data import DataLoader, Dataset
 from transformers import pipeline
 from openicl import DatasetReader
 from torch.optim import AdamW
+from umap import UMAP
 from tqdm import tqdm
 import nlpaug.augmenter.word as naw
 import plotly.express as px
@@ -10,6 +11,7 @@ import torch
 import time
 import os
 import re
+tqdm.pandas()
 
 from util_data import generate_evaluation_Report, get_num_labels
 from util_modeling import get_model_objects, is_large_language_model, is_language_model, is_openai_model
@@ -279,11 +281,25 @@ def save_baseline_logs(experiment_id, model_name, dataset_name, icl_method, eval
     entropy_change_table = inference_log_frame.value_counts(["outcome", "entropy decreased"])
     entropy_change_table.to_csv(f"{experiment_directory}/{experiment_run_prefix}-style_inference_entropy_change_table.csv")
 
-    # Save plots
+    # Save entropy plots
     entropy_plot = px.scatter(inference_log_frame, y="entropy", color="outcome", title=f"Entropy by Outcome: {experiment_run_prefix}")
     entropy_plot.write_image(f"{experiment_directory}/{experiment_run_prefix}-style_inference_entropy_plot.png")
     entropy_delta_plot = px.scatter(inference_log_frame, y="entropy decrease", color="outcome", title=f"Entropy Decrease by Outcome: {experiment_run_prefix}")
     entropy_delta_plot.write_image(f"{experiment_directory}/{experiment_run_prefix}-style_inference_entropy_delta_plot.png")
+
+    # Save embedding plots
+    # embedding_tokenizer, embedding_model = get_model_objects("princeton-nlp/sup-simcse-roberta-large", num_labels=-1)
+    # def get_embedding(text):
+    #     input_ids = embedding_tokenizer(text, return_tensors="pt", truncation=True, padding=True)["input_ids"].to(embedding_model.device)
+    #     embedding = embedding_model(input_ids).pooler_output[0].cpu().detach().numpy()
+    #     return embedding
+
+    # inference_log_frame["original_embedding"] = inference_log_frame.progress_apply(lambda row: get_embedding(row["original_input"]), axis=1)
+    # inference_log_frame["rewritten_embedding"] = inference_log_frame.progress_apply(lambda row: get_embedding(row["input"]), axis=1)
+    # umap_2d = UMAP(n_components=2, init='random', random_state=0)
+    # all_embedding_projections = umap_2d.fit_transform(pd.concat([inference_log_frame["original_embedding"], inference_log_frame["rewritten_embedding"]]).tolist())
+    # inference_log_frame["original_projection"] = pd.Series(all_embedding_projections[len(inference_log_frame):].tolist())
+    # inference_log_frame["rewritten_projection"] = pd.Series(all_embedding_projections[:len(inference_log_frame)].tolist())
 
     return inference_log_frame
 
@@ -397,8 +413,8 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
                 max_new_tokens=num_example_tokens * 5,
                 early_stopping=True,
                 return_dict_in_generate=True,
-                num_return_sequences=1,
-                num_beams=1
+                num_return_sequences=4,
+                num_beams=4
             )
     except torch.cuda.OutOfMemoryError as generation_error:
         print(generation_error)

@@ -1,4 +1,4 @@
-from transformers import AutoConfig, AutoTokenizer, LlamaTokenizer, AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoModelForSequenceClassification, AutoModelForQuestionAnswering
+from transformers import AutoConfig, AutoTokenizer, LlamaTokenizer, AutoModel, AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoModelForSequenceClassification, AutoModelForQuestionAnswering
 import torch
 
 from openai_hf.openai_model import OpenAIModel, OpenAIModelConfig
@@ -31,6 +31,7 @@ def get_model_objects(model_name, num_labels, training=False):
     is_qa_model = model_config.architectures[0].endswith("ForQuestionAnswering")
     is_llm = model_config.architectures[0].endswith("ForCausalLM")
     is_llama_based_model = is_llm and "llama" in model_name or "vicuna" in model_name
+    is_embedding_model = model_name in ["princeton-nlp/sup-simcse-roberta-large"]
 
     tokenizer = LlamaTokenizer.from_pretrained(model_name) if is_llama_based_model else AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
     if tokenizer.pad_token is None:
@@ -52,6 +53,8 @@ def get_model_objects(model_name, num_labels, training=False):
         model = AutoModelForQuestionAnswering.from_pretrained(model_name, trust_remote_code=True, torch_dtype=numerical_precision).eval().to(device)
     elif is_seq2seq_lm:
         model = AutoModelForSeq2SeqLM.from_pretrained(model_name, trust_remote_code=True, torch_dtype=numerical_precision).eval().to(device)
+    elif is_embedding_model:
+        model = AutoModel.from_pretrained(model_name, trust_remote_code=True, torch_dtype=numerical_precision).eval().to(device)
     else:
         model = AutoModelForSequenceClassification.from_pretrained(model_name, trust_remote_code=True, num_labels=num_labels).eval().to(device)
     return tokenizer, model
