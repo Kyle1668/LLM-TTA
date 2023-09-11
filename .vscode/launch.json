@@ -87,7 +87,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                // "--max_examples=100",
+                "--max_examples=1000",
                 // "--dataset=boss_sentiment_centroid",
                 "--dataset=boss_sentiment",
                 "--num_labels=3",
