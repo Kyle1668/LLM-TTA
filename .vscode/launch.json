@@ -159,7 +159,7 @@
                 "CUDA_VISIBLE_DEVICES": "1"
             },
             "args": [
-                "--max_examples=500",
+                // "--max_examples=50",
                 "--model=Kyle1668/boss-sentiment-bert-base-uncased",
                 // "--model=stabilityai/StableBeluga2",
                 // "--adaptive_model=stabilityai/StableBeluga-7B",

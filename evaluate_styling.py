@@ -259,7 +259,7 @@ def main():
                                     for shots in num_shots:
                                         print(f"Evaluating style transfer with {shots} shots")
                                         for temperature in domain_transfer_temperatures:
-                                            style_inference_log_frame, current_report = evaluate_style_transfer(
+                                            style_inference_log_frame, current_reports = evaluate_style_transfer(
                                                 experiment_id,
                                                 model_name,
                                                 model,
@@ -274,11 +274,14 @@ def main():
                                                 temperature,
                                                 args.transfer_prompt,
                                             )
-                                            reports.append(current_report)
+
+                                            for report in current_reports:
+                                                reports.append(report)
+
                                             all_reports = pd.DataFrame(reports).drop_duplicates()
                                             print(
                                                 all_reports[
-                                                    ["dataset", "split", "task model", "icl_method", "exemplar count", "trim exemplars", "style transfer model", "dataset size", "accuracy", "avg f1"]
+                                                    ["dataset", "split", "task model", "icl_method", "exemplar count", "trim exemplars", "style transfer model", "dataset size", "entropy defferal", "accuracy", "avg f1"]
                                                 ]
                                             )
                                             all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)

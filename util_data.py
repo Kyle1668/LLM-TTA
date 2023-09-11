@@ -38,11 +38,16 @@ def get_split_log_name(eval_set, adaptive_method_name):
         return "OOD w/ Style Transfer"
 
 
-def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, adaptive_method_name, num_shots=None, num_failed_generations=None, trim_exemplars=None, temperature=None):
+def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, adaptive_method_name, num_shots=None, num_failed_generations=None, trim_exemplars=None, temperature=None, entropy_deferal=False):
     if not os.path.exists(f"results/{experiment_id}"):
         os.makedirs(f"results/{experiment_id}")
 
-    original_judgments = [judgment for judgment, logits in inference_log_frame["judgment"]] if isinstance(inference_log_frame["judgment"][0], tuple) else inference_log_frame["judgment"]
+    original_judgments = None
+    if entropy_deferal:
+        original_judgments = inference_log_frame.apply(lambda row: row["judgment"] if row["entropy"] < row["original entropy"] else row["original judgment"], axis=1)
+    else:
+        original_judgments = [judgment for judgment, logits in inference_log_frame["judgment"]] if isinstance(inference_log_frame["judgment"][0], tuple) else inference_log_frame["judgment"]
+
     gold_labels = inference_log_frame["label"]
 
     is_qa_task = dataset_name.startswith("squad")
@@ -54,6 +59,7 @@ def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_meth
         "dataset": dataset_name,
         "split": formatted_split_name,
         "dataset size": len(dataset[eval_set.replace("+adaptive", "")]),
+        "entropy defferal": entropy_deferal,
         "icl_method": icl_method,
         "task model": formatted_model_name,
         "style transfer model": adaptive_method_name if formatted_split_name == "OOD w/ Style Transfer" else None,

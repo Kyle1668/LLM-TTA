@@ -252,9 +252,13 @@ def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset
     # Save new mistakes_lods
     inference_log_frame = save_baseline_logs(experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots, inference_logs)
 
-    return inference_log_frame, generate_evaluation_Report(
-        experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, adaptive_method_name, num_shots, num_failed_generations, trim_exemplars, temperature
-    )
+    eval_reports = []
+    for defer_entropy in [False, True]:
+        eval_reports.append(generate_evaluation_Report(
+            experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, adaptive_method_name, num_shots, num_failed_generations, trim_exemplars, temperature, defer_entropy
+        ))
+
+    return inference_log_frame, eval_reports
 
 def save_baseline_logs(experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots, inference_logs):
     # Save logs frame
@@ -263,16 +267,23 @@ def save_baseline_logs(experiment_id, model_name, dataset_name, icl_method, eval
     no_adapt_logs = get_baseline_inference_log_frame(experiment_id, model_name, dataset_name, icl_method, eval_set)
     inference_log_frame = pd.DataFrame(inference_logs)
     inference_log_frame["original judgment"] = no_adapt_logs["judgment"]
+    inference_log_frame["original entropy"] = no_adapt_logs["entropy"]
+    inference_log_frame["entropy decrease"] =  inference_log_frame["original entropy"] - inference_log_frame["entropy"]
+    inference_log_frame["entropy decreased"] = inference_log_frame["entropy"] < inference_log_frame["original entropy"]
     inference_log_frame["outcome"] = inference_log_frame.apply(lambda row: get_outcome_type(row["original judgment"], row["judgment"], row["label"]), axis=1)
     inference_log_frame.to_csv(f"{experiment_directory}/{experiment_run_prefix}-style_inference_log.csv", index=False)
 
     # Save summary frame
     outcome_summary_frame = inference_log_frame.groupby("outcome").describe()
     outcome_summary_frame.to_csv(f"{experiment_directory}/{experiment_run_prefix}-style_inference_outcome_summary.csv")
+    entropy_change_table = inference_log_frame.value_counts(["outcome", "entropy decreased"])
+    entropy_change_table.to_csv(f"{experiment_directory}/{experiment_run_prefix}-style_inference_entropy_change_table.csv")
 
     # Save plots
     entropy_plot = px.scatter(inference_log_frame, y="entropy", color="outcome", title=f"Entropy by Outcome: {experiment_run_prefix}")
     entropy_plot.write_image(f"{experiment_directory}/{experiment_run_prefix}-style_inference_entropy_plot.png")
+    entropy_delta_plot = px.scatter(inference_log_frame, y="entropy decrease", color="outcome", title=f"Entropy Decrease by Outcome: {experiment_run_prefix}")
+    entropy_delta_plot.write_image(f"{experiment_directory}/{experiment_run_prefix}-style_inference_entropy_delta_plot.png")
 
     return inference_log_frame
 
