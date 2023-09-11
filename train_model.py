@@ -67,11 +67,10 @@ class RewriteTrainer(Trainer):
                 correct_class_probs.append(probs[label])
             mean_class_prob = torch.tensor(correct_class_probs).mean()
 
-        # batch_loss = -(mean_centroid_similarity + 2 * mean_class_prob)
         batch_loss = -(2 * mean_class_prob - torch.log(mean_centroid_distance))
 
         # print(f"Mean centroid similarity: {mean_centroid_similarity} | Mean class prob: {mean_class_prob} | Loss: {batch_loss}")
-        # print(f"Log of mean ID centroid distance: {torch.log(mean_centroid_distance)} | Mean class prob: {mean_class_prob} | Loss: {batch_loss}")
+        print(f"Log of mean ID centroid distance: {torch.log(mean_centroid_distance)} | Mean class prob: {mean_class_prob} | Loss: {batch_loss}")
         return (batch_loss, generations) if return_outputs else batch_loss
 
 
