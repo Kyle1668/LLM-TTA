@@ -22,12 +22,13 @@ from transformers.training_args import TrainingArguments
 import wandb
 
 from util_modeling import get_model_objects, is_language_model, is_large_language_model
-from util_icl import generate_classification_prompt, get_static_exemplars
+from util_icl import generate_classification_prompt, get_static_exemplars, get_dynamic_exemplars
 from util_data import get_formatted_dataset
 from adaptive_methods import GenericDataset
 
 # Set global tokenizer for computing metrics
 GLOBAL_TOKENIZER = None
+
 
 
 class RewriteTrainer(Trainer):
@@ -36,47 +37,89 @@ class RewriteTrainer(Trainer):
     sentence_encoder_model = AutoModel.from_pretrained("princeton-nlp/sup-simcse-roberta-large").to("cuda").eval()
     task_tokenizer = get_model_objects("Kyle1668/boss-sentiment-bert-base-uncased", 3)[0]
     task_model = get_model_objects("Kyle1668/boss-sentiment-bert-base-uncased", 3)[1].to("cuda").eval()
-    id_centroid = torch.load("notebooks/dynasent_analysis/amazon_centroid.pt").to("cuda")
+    id_centroid = torch.load("notebooks/dynasent_analysis/amazon_validation_centroid_humarin-chatgpt_paraphraser_on_T5_base.pt").to("cuda")
+    # id_centroid = torch.load("notebooks/dynasent_analysis/amazon_validation_centroid_stabilityai-StableBeluga-7B.pt").to("cuda")
+
+
+    def parse_class_label(self, inputs):
+        labels_tokens = inputs.pop("labels")
+        is_leading_padding = (labels_tokens[:, :3] == labels_tokens[0][0]).all().item()
+        token_ids = labels_tokens[:, -3:] if is_leading_padding else labels_tokens[:, :3]
+        return torch.tensor(np.array(self.tokenizer.batch_decode(token_ids, skip_special_tokens=True), dtype=int))
+
+    def get_batch_embeddings(self, inputs, model):
+        if is_large_language_model(model.config.name_or_path):
+            return model(**inputs, output_hidden_states=True)["hidden_states"][-1].mean(dim=1)
+        else:
+            return model(**inputs, decoder_input_ids=inputs["input_ids"], output_hidden_states=True)["encoder_last_hidden_state"].mean(dim=1)
 
     def compute_loss(self, model, inputs, return_outputs=False):
-        labels_tokens = inputs.pop("labels")
-        labels = torch.tensor(np.array(self.tokenizer.batch_decode(labels_tokens[:, :3], skip_special_tokens=True), dtype=int))
-        generations = model.generate(**inputs, do_sample=False, max_new_tokens=100)
-        output_texts = self.tokenizer.batch_decode(generations, skip_special_tokens=True)
-        output_probs = self.get_class_probs(output_texts)
-        input_texts = self.tokenizer.batch_decode(inputs.input_ids, skip_special_tokens=True)
-        original_embeddings = self.get_embeddings(input_texts)
-        rewrite_embeddings = self.get_embeddings(output_texts)
+        labels = self.parse_class_label(inputs)
+        batch_embeddings = self.get_batch_embeddings(inputs, model)
+        mean_centroid_similarity = torch.cosine_similarity(batch_embeddings, self.id_centroid).mean()
+        mean_centroid_distance = torch.dist(batch_embeddings, self.id_centroid).mean()
 
-        losses = []
-        running_loss = None
-        for original_embedding, rewrite_embedding, label, probs in zip(original_embeddings, rewrite_embeddings, labels, output_probs):
-            class_prob = probs[label]
-            id_centroid_sim = torch.cosine_similarity(rewrite_embedding.unsqueeze(0), self.id_centroid.unsqueeze(0))
-            rewrite_original_sim = torch.cosine_similarity(rewrite_embedding.unsqueeze(0), original_embedding.unsqueeze(0))
+        with torch.no_grad():
+            sequence_logits = model.generate(**inputs, do_sample=False, max_new_tokens=100)
+            generations = [text.split("### Assistant:")[1].strip() if "### Assistant:" in text else text for text in self.tokenizer.batch_decode(sequence_logits, skip_special_tokens=True)]
+            correct_class_probs = []
+            for probs, label in zip(self.get_class_probs(generations), labels):
+                correct_class_probs.append(probs[label])
+            mean_class_prob = torch.tensor(correct_class_probs).mean()
 
-            # Distances
-            id_centroid_dist = torch.dist(rewrite_embedding.unsqueeze(0), self.id_centroid.unsqueeze(0))
-            rewrite_original_dist = torch.dist(rewrite_embedding.unsqueeze(0), original_embedding.unsqueeze(0))
-            id_centroid_chord_distance = 0.5 * np.linalg.norm((rewrite_embedding.detach().cpu().numpy() - np.mean(rewrite_embedding.detach().cpu().numpy())) - (self.id_centroid.detach().cpu().numpy() - np.mean(self.id_centroid.detach().cpu().numpy()))) ** 2 / (np.linalg.norm(rewrite_embedding.detach().cpu().numpy() - np.mean(rewrite_embedding.detach().cpu().numpy())) ** 2 + np.linalg.norm(self.id_centroid.detach().cpu().numpy() - np.mean(self.id_centroid.detach().cpu().numpy())) ** 2)
+        # batch_loss = -(mean_centroid_similarity + 2 * mean_class_prob)
+        batch_loss = -2 * mean_class_prob + torch.log(mean_centroid_distance)
+
+        # print(f"Mean centroid similarity: {mean_centroid_similarity} | Mean class prob: {mean_class_prob} | Loss: {batch_loss}")
+        # print(f"Log of mean ID centroid distance: {torch.log(mean_centroid_distance)} | Mean class prob: {mean_class_prob} | Loss: {batch_loss}")
+        return (batch_loss, generations) if return_outputs else batch_loss
 
 
-            # loss = 1 - (id_centroid_sim + class_prob)
-            loss = -class_prob + torch.log(id_centroid_dist)
-            # loss = (1 - ((2 * id_centroid_sim + class_prob) / 3)).squeeze()
-            # loss = 1 - ((id_centroid_sim + rewrite_original_sim) / 2) # [0, 1] loss with both similarity and rewrite similarity equal
-            # loss = (1 - ((2 * id_centroid_sim + rewrite_original_sim) / 3)).squeeze() # [0, 1] loss with centroid similarity weighted more
-            # loss = 2 * id_centroid_dist + rewrite_original_dist # [0, 1] loss with both similarity and rewrite similarity equal
-            # loss = 1 - class_prob
-            running_loss = loss if running_loss is None else running_loss + loss
-            losses.append(loss)
+    # def compute_loss(self, model, inputs, return_outputs=False):
+    #     labels_tokens = inputs.pop("labels")
+    #     labels = torch.tensor(np.array(self.tokenizer.batch_decode(labels_tokens[:, :3], skip_special_tokens=True), dtype=int))
+    #     generations = model.generate(**inputs, do_sample=False, max_new_tokens=100)
+    #     output_texts = self.tokenizer.batch_decode(generations, skip_special_tokens=True)
+    #     output_texts = [text.split("### Assistant:")[1].strip() if "### Assistant:" in text else text for text in output_texts]
+    #     output_probs = self.get_class_probs(output_texts)
+    #     input_texts = self.tokenizer.batch_decode(inputs.input_ids, skip_special_tokens=True)
+    #     for i in range(len(input_texts)):
+    #         input_texts[i] = input_texts[i].split("User: ")[1].split("### Assistant")[0].strip() if "User: " in input_texts[i] else input_texts[i]
 
-        # batch_loss.requires_grad = True
-        batch_loss = running_loss / len(losses)
-        model_ref = model(**inputs, labels=inputs["input_ids"]).logits.mean()
-        model_ref = 0 * model_ref + batch_loss
+    #     original_embeddings = self.get_embeddings(input_texts)
+    #     rewrite_embeddings = self.get_embeddings(output_texts)
 
-        return (model_ref, generations) if return_outputs else model_ref
+    #     losses = []
+    #     running_loss = None
+    #     for original_embedding, rewrite_embedding, probs, label in zip(original_embeddings, rewrite_embeddings, output_probs, labels):
+    #         class_prob = probs[label]
+    #         id_centroid_sim = torch.cosine_similarity(rewrite_embedding.unsqueeze(0), self.id_centroid.unsqueeze(0))
+    #         rewrite_original_sim = torch.cosine_similarity(rewrite_embedding.unsqueeze(0), original_embedding.unsqueeze(0))
+
+    #         # Distances
+    #         id_centroid_dist = torch.dist(rewrite_embedding.unsqueeze(0), self.id_centroid.unsqueeze(0))
+    #         rewrite_original_dist = torch.dist(rewrite_embedding.unsqueeze(0), original_embedding.unsqueeze(0))
+    #         id_centroid_chord_distance = 0.5 * np.linalg.norm((rewrite_embedding.detach().cpu().numpy() - np.mean(rewrite_embedding.detach().cpu().numpy())) - (self.id_centroid.detach().cpu().numpy() - np.mean(self.id_centroid.detach().cpu().numpy()))) ** 2 / (np.linalg.norm(rewrite_embedding.detach().cpu().numpy() - np.mean(rewrite_embedding.detach().cpu().numpy())) ** 2 + np.linalg.norm(self.id_centroid.detach().cpu().numpy() - np.mean(self.id_centroid.detach().cpu().numpy())) ** 2)
+
+
+    #         # loss = 1 - (id_centroid_sim + class_prob)
+    #         # loss = -class_prob + torch.log(id_centroid_dist)
+    #         loss = -class_prob
+    #         # loss = -rewrite_original_sim + torch.log(id_centroid_dist)
+    #         # loss = (1 - ((2 * id_centroid_sim + class_prob) / 3)).squeeze()
+    #         # loss = 1 - ((id_centroid_sim + rewrite_original_sim) / 2) # [0, 1] loss with both similarity and rewrite similarity equal
+    #         # loss = (1 - ((2 * id_centroid_sim + rewrite_original_sim) / 3)).squeeze() # [0, 1] loss with centroid similarity weighted more
+    #         # loss = 2 * id_centroid_dist + rewrite_original_dist # [0, 1] loss with both similarity and rewrite similarity equal
+    #         # loss = 1 - class_prob
+    #         running_loss = loss if running_loss is None else running_loss + loss
+    #         losses.append(loss)
+
+    #     # batch_loss.requires_grad = True
+    #     batch_loss = running_loss / len(losses)
+    #     model_ref = model(**inputs, labels=inputs["input_ids"]).logits.mean()
+    #     model_ref = 0 * model_ref + batch_loss
+
+    #     return (model_ref, generations) if return_outputs else model_ref
 
 
     def get_embeddings(self, inputs_batch):
@@ -208,7 +251,7 @@ def tokenize_t5(example, tokenizer):
     return source_encodings
 
 
-def tokenize_llm(example, tokenizer, dataset_name):
+def tokenize_llm(example, tokenizer, dataset_name, model_name):
     entries = zip(example["text"], example["label"])
     prompts = None
     if "corruped" in dataset_name:
@@ -216,10 +259,16 @@ def tokenize_llm(example, tokenizer, dataset_name):
     else:
         # exemplars = get_static_exemplars(dataset_name, 8)
         exemplars = []
-        prompts = [f"{generate_classification_prompt(entry[0], exemplars, None, dataset_name)}{entry[1]}{tokenizer.eos_token}" for entry in entries]
+        # prompts = [f"{generate_classification_prompt(entry[0], exemplars, None, dataset_name)}{entry[1]}{tokenizer.eos_token}" for entry in entries]
+        prompts = [generate_rewriter_prompt(dataset_name, model_name, entry[0]) for entry in entries]
     tokenized_input = tokenizer(prompts)
-    tokenized_input["labels"] = tokenized_input["input_ids"].copy()
+    tokenized_input["labels"] = tokenizer([str(label) for label in example["label"]])["input_ids"]
     return tokenized_input
+
+
+def generate_rewriter_prompt(dataset_name, model_name, input_text):
+    return f"### System:\nParaphrase the following input\n\n### User: {input_text}\n\n### Assistant:"
+
 
 
 def get_learning_rate(model_name):
@@ -259,7 +308,7 @@ def fine_tune_model():
 
     tokenized_datasets = None
     if is_large_language_model(model_name):
-        tokenized_datasets = dataset.map(lambda example: tokenize_llm(example, tokenizer, dataset_name), batched=True)
+        tokenized_datasets = dataset.map(lambda example: tokenize_llm(example, tokenizer, dataset_name, model_name), batched=True)
     elif is_language_model(model_name):
         tokenized_datasets = dataset.map(lambda example: tokenize_t5(example, tokenizer), batched=True, remove_columns=["text", "label"])
     else:

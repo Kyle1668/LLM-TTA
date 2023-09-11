@@ -85,14 +85,15 @@
             "request": "launch",
             "program": "train_model.py",
             "console": "integratedTerminal",
-            "justMyCode": false,
+            "justMyCode": true,
             "args": [
-                "--max_examples=500",
+                // "--max_examples=100",
                 // "--dataset=boss_sentiment_centroid",
                 "--dataset=boss_sentiment",
                 "--num_labels=3",
                 // "--base_model=bert-base-uncased",
                 "--base_model=humarin/chatgpt_paraphraser_on_T5_base",
+                // "--base_model=stabilityai/StableBeluga-7B",
                 // "--base_model=t5-large",
                 // "--base_model=daryl149/llama-2-7b-hf",
                 // "--use_wandb"
