@@ -37,8 +37,8 @@ class RewriteTrainer(Trainer):
     sentence_encoder_model = AutoModel.from_pretrained("princeton-nlp/sup-simcse-roberta-large").to("cuda").eval()
     task_tokenizer = get_model_objects("Kyle1668/boss-sentiment-bert-base-uncased", 3)[0]
     task_model = get_model_objects("Kyle1668/boss-sentiment-bert-base-uncased", 3)[1].to("cuda").eval()
-    id_centroid = torch.load("notebooks/dynasent_analysis/amazon_train_centroid_humarin-chatgpt_paraphraser_on_T5_base.pt").to("cuda")
-    # id_centroid = torch.load("notebooks/dynasent_analysis/amazon_validation_centroid_stabilityai-StableBeluga-7B.pt").to("cuda")
+    # id_centroid = torch.load("notebooks/dynasent_analysis/amazon_train_centroid_humarin-chatgpt_paraphraser_on_T5_base.pt").to("cuda")
+    id_centroid = torch.load("notebooks/dynasent_analysis/amazon_validation_centroid_stabilityai-StableBeluga-7B.pt").to("cuda")
 
 
     def parse_class_label(self, inputs):
@@ -384,7 +384,7 @@ def get_trainer(args, num_epochs, model_name, experiment_id, project_name, datas
 def get_seq2seq_trainer(args, num_epochs, experiment_id, project_name, tokenizer, model, data_collator, tokenized_datasets):
     training_args = Seq2SeqTrainingArguments(
             output_dir=f"trained_models/{experiment_id}/model",
-            per_device_train_batch_size=4,
+            per_device_train_batch_size=1,
             num_train_epochs=num_epochs,
             weight_decay=0.01,
             learning_rate=get_learning_rate(args.base_model),

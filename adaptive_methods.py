@@ -406,15 +406,32 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
     tokenized_prompt = input_prompts if is_openai else adaptive_tokenizer.encode(input_prompts, return_tensors="pt").to(adaptive_model.device)
     try:
         with torch.no_grad():
+            # outputs = adaptive_model.generate(
+            #     tokenized_prompt,
+            #     do_sample=temperature != 0.0,
+            #     temperature=temperature,
+            #     max_new_tokens=num_example_tokens * 5,
+            #     early_stopping=True,
+            #     return_dict_in_generate=True,
+            #     num_return_sequences=4,
+            #     num_beams=4,
+            #     top_p=0.95,
+            #     top_k=0,
+            # )
             outputs = adaptive_model.generate(
                 tokenized_prompt,
-                do_sample=temperature != 0.0,
                 temperature=temperature,
                 max_new_tokens=num_example_tokens * 5,
                 early_stopping=True,
                 return_dict_in_generate=True,
                 num_return_sequences=4,
-                num_beams=4
+                num_beam_groups=4,
+                num_beams=4,
+                top_p=0.95,
+                top_k=0,
+                repetition_penalty=10.0,
+                diversity_penalty=1.0,
+                no_repeat_ngram_size=2,
             )
     except torch.cuda.OutOfMemoryError as generation_error:
         print(generation_error)
@@ -447,6 +464,8 @@ def parse_generation(style_input, generation):
         generation = generation.split("</s>")[0]
     if "<s>" in generation:
         generation = generation.replace("<s>", " ").strip()
+    if "<unk>" in generation:
+        generation = generation.replace("<unk>", " ").strip()
     if generation.startswith('"') and generation.endswith('"'):
         generation = generation[1:-1]
     if "<|endoftext|>" in generation:
