@@ -168,7 +168,7 @@
                 "--max_examples=50",
                 "--model=Kyle1668/boss-sentiment-bert-base-uncased",
                 // "--model=stabilityai/StableBeluga2",
-                // "--adaptive_model=stabilityai/StableBeluga-7B",
+                // "--adaptive_model=stabilityai/StableBeluga-7B,stabilityai/StableBeluga2",
                 // "--adaptive_model=stabilityai/StableBeluga2",
                 // "--adaptive_model=TheBloke/vicuna-7B-1.1-HF",
                 "--adaptive_model=humarin/chatgpt_paraphraser_on_T5_base",

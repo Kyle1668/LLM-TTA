@@ -39,7 +39,7 @@ def get_split_log_name(eval_set, adaptive_method_name):
         return "OOD w/ Style Transfer"
 
 
-def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, adaptive_method_name, num_shots=None, num_failed_generations=None, trim_exemplars=None, temperature=None, inference_method="ensemble"):
+def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, adaptive_method_name, num_shots=None, num_failed_generations=None, trim_exemplars=None, temperature=None, inference_method=None):
     formatted_model_name = model_name.replace("/", "-")
     output_file_name = f"set={dataset_name}_split={eval_set}_method={icl_method}_model={formatted_model_name}"
     experiment_directory = f"results/{experiment_id}"
@@ -48,8 +48,10 @@ def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_meth
 
     original_judgments = None
     rewrite_rate = None
-    if inference_method == "entropy threshold":
+    if inference_method == "entropy threshold best":
         original_judgments, rewrite_rate = calculate_entropy_threshold_jugments(inference_log_frame, output_file_name, experiment_directory)
+    elif inference_method == "entropy threshold median":
+        original_judgments, rewrite_rate = calculate_entropy_threshold_jugments(inference_log_frame, output_file_name, experiment_directory, median=True)
     elif inference_method == "lowest entropy":
         rewrite_rate = 1.0
         original_judgments = inference_log_frame.apply(lambda row: np.array(row["all probs"][np.array(row["all entropies"]).argmin().item()]).argmax().item(), axis=1)
@@ -103,7 +105,7 @@ def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_meth
     return icl_report
 
 
-def calculate_entropy_threshold_jugments(inference_log_frame, output_file_name, experiment_directory):
+def calculate_entropy_threshold_jugments(inference_log_frame, output_file_name, experiment_directory, median=False):
     thresholds = np.arange(0, 1, 0.0005)
     threshold_scores = []
     threshold_rewrite_rates = []
@@ -119,9 +121,14 @@ def calculate_entropy_threshold_jugments(inference_log_frame, output_file_name, 
     threshold_fscore_curve.write_image(f"{experiment_directory}/{output_file_name}-entropy_threshold_fscore_curve.png")
     threshold_fscore_curve.write_html(f"{experiment_directory}/{output_file_name}-entropy_threshold_fscore_curve.html")
 
-    best_threshold_record = thresholds_frame[thresholds_frame["f1"] == thresholds_frame.max()["f1"]].sort_values("rewrite_rate").iloc[-1]
-    rewrite_rate = best_threshold_record["rewrite_rate"] / 100
-    original_judgments = inference_log_frame.apply(lambda row: row["original judgment"] if row["original entropy"] < best_threshold_record["threshold"] else row["judgment"], axis=1)
+    target_threshold = None
+    if median is None:
+        target_threshold = thresholds_frame[thresholds_frame["f1"] == thresholds_frame.max()["f1"]].sort_values("rewrite_rate").iloc[-1]
+    else:
+        target_threshold = thresholds_frame[thresholds_frame["rewrite_rate"] == thresholds_frame["rewrite_rate"].median()].sort_values("f1").iloc[-1]
+
+    rewrite_rate = target_threshold["rewrite_rate"] / 100
+    original_judgments = inference_log_frame.apply(lambda row: row["original judgment"] if row["original entropy"] < target_threshold["threshold"] else row["judgment"], axis=1)
     return original_judgments, rewrite_rate
 
 
