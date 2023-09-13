@@ -262,7 +262,7 @@ def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset
     inference_log_frame = save_baseline_logs(experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots, inference_logs)
 
     eval_reports = []
-    for inference_method in ["ensemble", "lowest entropy", "entropy threshold"]:
+    for inference_method in ["ensemble", "entropy threshold+lowest", "lowest entropy", "entropy threshold"]:
         eval_reports.append(generate_evaluation_Report(
             experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, adaptive_method_name, num_shots, num_failed_generations, trim_exemplars, temperature, inference_method
         ))

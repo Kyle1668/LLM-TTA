@@ -136,13 +136,13 @@
                 "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
-                // "--max_examples=20",
+                "--max_examples=20",
                 "--model=Kyle1668/boss-toxicity-bert-base-uncased",
                 // "--model=stabilityai/StableBeluga2",
-                "--adaptive_model=stabilityai/StableBeluga-7B",
+                // "--adaptive_model=stabilityai/StableBeluga-7B",
                 // "--adaptive_model=stabilityai/StableBeluga2",
                 // "--adaptive_model=TheBloke/vicuna-7B-1.1-HF",
-                // "--adaptive_model=humarin/chatgpt_paraphraser_on_T5_base",
+                "--adaptive_model=humarin/chatgpt_paraphraser_on_T5_base",
                 "--dataset=boss_toxicity",
                 // "--report_wandb",
                 "--baseline=skip",

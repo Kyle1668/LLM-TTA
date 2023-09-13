@@ -53,6 +53,16 @@ def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_meth
     elif inference_method == "lowest entropy":
         rewrite_rate = 1.0
         original_judgments = inference_log_frame.apply(lambda row: np.array(row["all probs"][np.array(row["all entropies"]).argmin().item()]).argmax().item(), axis=1)
+    elif inference_method == "entropy threshold+lowest":
+        threshold_judgments, rewrite_rate = calculate_entropy_threshold_jugments(inference_log_frame, output_file_name, experiment_directory)
+        lowest_entropy_judgments = inference_log_frame.apply(lambda row: np.array(row["all probs"][np.array(row["all entropies"]).argmin().item()]).argmax().item(), axis=1)
+        original_judgments = []
+        for index, row in inference_log_frame.iterrows():
+            if threshold_judgments[index] != row["original judgment"]:
+                original_judgments.append(lowest_entropy_judgments[index])
+            else:
+                original_judgments.append(threshold_judgments[index])
+
     else:
         rewrite_rate = None if adaptive_method_name == "No Adaptation" else 1.0
         original_judgments = [judgment for judgment, logits in inference_log_frame["judgment"]] if isinstance(inference_log_frame["judgment"][0], tuple) else inference_log_frame["judgment"]
