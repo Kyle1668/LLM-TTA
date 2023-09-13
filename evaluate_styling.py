@@ -173,7 +173,7 @@ def main():
                                     )
                                     reports.append(current_report)
                                     all_reports = pd.DataFrame(reports).drop_duplicates()
-                                    print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1"]])
+                                    print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1", "rewrite rate"]])
                                     all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
                                     if wandb_enabled:
                                         wandb.log(current_report)
@@ -189,7 +189,7 @@ def main():
                                 current_report = evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, None)
                                 reports.append(current_report)
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
-                                print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1"]])
+                                print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1", "rewrite rate"]])
                                 all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
                                 if wandb_enabled:
                                     wandb.log(current_report)
@@ -200,7 +200,7 @@ def main():
                                     tta_report = evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, evaluation_set, icl_method, aug_method)
                                     reports.append(tta_report)
                                     all_reports = pd.DataFrame(reports).drop_duplicates()
-                                    print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1"]])
+                                    print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1", "rewrite rate"]])
                                     all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
                                     if wandb_enabled:
                                         wandb.log(tta_report)
@@ -212,7 +212,7 @@ def main():
 
                                     reports.append(memo_report)
                                     all_reports = pd.DataFrame(reports).drop_duplicates()
-                                    print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1"]])
+                                    print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1", "rewrite rate"]])
                                     all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
                                     if wandb_enabled:
                                         wandb.log(memo_report)
@@ -222,7 +222,7 @@ def main():
                                     forgetting_report = evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, "validation")
                                     reports.append(forgetting_report)
                                     all_reports = pd.DataFrame(reports).drop_duplicates()
-                                    print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1"]])
+                                    print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1", "rewrite rate"]])
                                     all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
                                     if wandb_enabled:
                                         wandb.log(forgetting_report)
@@ -235,7 +235,7 @@ def main():
                                 ft_report = evaluate_fine_tuning(experiment_id, model_name, model, tokenizer, dataset_name, dataset, evaluation_set, icl_method)
                                 reports.append(ft_report)
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
-                                print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1"]])
+                                print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1", "rewrite rate"]])
                                 all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
                                 if wandb_enabled:
                                     wandb.log(ft_report)
@@ -245,7 +245,7 @@ def main():
                                 forgetting_report = evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, "validation")
                                 reports.append(forgetting_report)
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
-                                print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1"]])
+                                print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1", "rewrite rate"]])
                                 all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
                                 if wandb_enabled:
                                     wandb.log(forgetting_report)
@@ -281,7 +281,7 @@ def main():
                                             all_reports = pd.DataFrame(reports).drop_duplicates()
                                             print(
                                                 all_reports[
-                                                    ["dataset", "split", "task model", "icl_method", "exemplar count", "trim exemplars", "style transfer model", "dataset size", "entropy defferal", "accuracy", "avg f1"]
+                                                    ["dataset", "split", "task model", "icl_method", "exemplar count", "trim exemplars", "style transfer model", "dataset size", "entropy defferal", "accuracy", "avg f1", "rewrite rate"]
                                                 ]
                                             )
                                             all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
@@ -295,7 +295,7 @@ def main():
                                 current_report = evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, "static", evaluation_set, num_shots=shots)
                                 reports.append(current_report)
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
-                                print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1"]])
+                                print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1", "rewrite rate"]])
                                 all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
                                 if wandb_enabled:
                                     wandb.log(current_report)
@@ -304,7 +304,7 @@ def main():
                             current_report = evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, "static", evaluation_set)
                             reports.append(current_report)
                             all_reports = pd.DataFrame(reports).drop_duplicates()
-                            print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1"]])
+                            print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1", "rewrite rate"]])
                             all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
                             if wandb_enabled:
                                 wandb.log(current_report)

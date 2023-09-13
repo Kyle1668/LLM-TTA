@@ -1,3 +1,4 @@
+from sklearn.metrics import classification_report
 from torch.utils.data import DataLoader, Dataset
 from transformers import pipeline
 from openicl import DatasetReader
@@ -7,6 +8,7 @@ from tqdm import tqdm
 import nlpaug.augmenter.word as naw
 import plotly.express as px
 import pandas as pd
+import numpy as np
 import torch
 import time
 import os
@@ -31,7 +33,8 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
     if type(model).__name__.endswith("ForSequenceClassification"):
         is_nli_task = dataset_name.startswith("boss_nli")
         with torch.no_grad():
-            input_sequence = tokenizer(input_entry["text"], return_tensors="pt", truncation=True, padding=True).to(device)
+            input_texts = input_entry["text"] + [input_entry["original_text"]] if "original_text" in input_entry else input_entry["text"]
+            input_sequence = tokenizer(input_texts, return_tensors="pt", truncation=True, padding=True).to(model.device)
             outputs = model(**input_sequence)
             logits = outputs.logits
             mean_logits = logits.mean(dim=0)
@@ -45,9 +48,13 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
             # Calculate inference metrics
             class_probabilities = torch.softmax(mean_logits, dim=0)
             entropy = -torch.sum(class_probabilities * torch.log(class_probabilities)).detach().item()
+            all_probs = torch.softmax(logits, dim=1)
+            all_entropies = [-torch.sum(prob_dist * torch.log(prob_dist)).detach().item() for prob_dist in all_probs]
             inference_metadata = {
                 "entropy": entropy,
-                "probs": class_probabilities.detach().cpu()
+                "mean probs": class_probabilities.detach().cpu().tolist(),
+                "all probs": all_probs.detach().cpu().tolist(),
+                "all entropies": all_entropies,
             }
 
             return predicted_class, inference_metadata
@@ -284,8 +291,10 @@ def save_baseline_logs(experiment_id, model_name, dataset_name, icl_method, eval
     # Save entropy plots
     entropy_plot = px.scatter(inference_log_frame, y="entropy", color="outcome", title=f"Entropy by Outcome: {experiment_run_prefix}")
     entropy_plot.write_image(f"{experiment_directory}/{experiment_run_prefix}-style_inference_entropy_plot.png")
+    entropy_plot.write_html(f"{experiment_directory}/{experiment_run_prefix}-style_inference_entropy_plot.html")
     entropy_delta_plot = px.scatter(inference_log_frame, y="entropy decrease", color="outcome", title=f"Entropy Decrease by Outcome: {experiment_run_prefix}")
     entropy_delta_plot.write_image(f"{experiment_directory}/{experiment_run_prefix}-style_inference_entropy_delta_plot.png")
+    entropy_delta_plot.write_html(f"{experiment_directory}/{experiment_run_prefix}-style_inference_entropy_delta_plot.html")
 
     # Save embedding plots
     # embedding_tokenizer, embedding_model = get_model_objects("princeton-nlp/sup-simcse-roberta-large", num_labels=-1)
@@ -302,7 +311,6 @@ def save_baseline_logs(experiment_id, model_name, dataset_name, icl_method, eval
     # inference_log_frame["rewritten_projection"] = pd.Series(all_embedding_projections[:len(inference_log_frame)].tolist())
 
     return inference_log_frame
-
 
 
 def get_baseline_inference_log_frame(experiment_id, model_name, dataset_name, icl_method, eval_set):

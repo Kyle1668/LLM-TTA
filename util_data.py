@@ -4,6 +4,7 @@ from util_metrics import SquadMetrics
 from datasets import load_dataset
 from wilds import get_dataset
 from tqdm import tqdm
+import plotly.express as px
 import pandas as pd
 import numpy as np
 import json
@@ -39,19 +40,39 @@ def get_split_log_name(eval_set, adaptive_method_name):
 
 
 def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, adaptive_method_name, num_shots=None, num_failed_generations=None, trim_exemplars=None, temperature=None, entropy_deferal=False):
-    if not os.path.exists(f"results/{experiment_id}"):
-        os.makedirs(f"results/{experiment_id}")
+    formatted_model_name = model_name.replace("/", "-")
+    output_file_name = f"set={dataset_name}_split={eval_set}_method={icl_method}_model={formatted_model_name}"
+    experiment_directory = f"results/{experiment_id}"
+    if not os.path.exists(experiment_directory):
+        os.makedirs(experiment_directory)
 
     original_judgments = None
+    rewrite_rate = None
     if entropy_deferal:
-        original_judgments = inference_log_frame.apply(lambda row: row["judgment"] if row["entropy"] < row["original entropy"] else row["original judgment"], axis=1)
+        thresholds = np.arange(0, 1, 0.0005)
+        threshold_scores = []
+        threshold_rewrite_rates = []
+
+        for t in tqdm(thresholds, desc="Calculating entropy threshold scores"):
+            t_perf, t_rate = get_threshold_f1(t, inference_log_frame)
+            threshold_scores.append(t_perf)
+            threshold_rewrite_rates.append(t_rate)
+
+        thresholds_frame = pd.DataFrame({"threshold": thresholds, "f1": threshold_scores, "rewrite_rate": threshold_rewrite_rates})
+        thresholds_frame.to_csv(f"{experiment_directory}/{output_file_name}-entropy-f1-thresholds.csv", index=False)
+        threshold_fscore_curve = px.line(thresholds_frame, x="rewrite_rate", y="f1", title="IMDB --> Rotten Tomatoes Rewrite-Rate-F1 Curve")
+        threshold_fscore_curve.write_image(f"{experiment_directory}/{output_file_name}-entropy_threshold_fscore_curve.png")
+        threshold_fscore_curve.write_html(f"{experiment_directory}/{output_file_name}-entropy_threshold_fscore_curve.html")
+
+        best_threshold_record = thresholds_frame[thresholds_frame["f1"] == thresholds_frame.max()["f1"]].sort_values("rewrite_rate").iloc[-1]
+        rewrite_rate = best_threshold_record["rewrite_rate"] / 100
+        original_judgments = inference_log_frame.apply(lambda row: row["original judgment"] if row["original entropy"] < best_threshold_record["threshold"] else row["judgment"], axis=1)
     else:
+        rewrite_rate = None if adaptive_method_name == "No Adaptation" else 1.0
         original_judgments = [judgment for judgment, logits in inference_log_frame["judgment"]] if isinstance(inference_log_frame["judgment"][0], tuple) else inference_log_frame["judgment"]
 
     gold_labels = inference_log_frame["label"]
-
     is_qa_task = dataset_name.startswith("squad")
-    formatted_model_name = model_name.replace("/", "-")
     report_dict = qa_report(original_judgments, gold_labels) if is_qa_task else classification_report(gold_labels, original_judgments, output_dict=True)
     formatted_split_name = get_split_log_name(eval_set, adaptive_method_name)
 
@@ -70,11 +91,11 @@ def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_meth
         "avg precision": report_dict["macro avg"]["precision"] if not is_qa_task else None,
         "avg recall": report_dict["macro avg"]["recall"] if not is_qa_task else None,
         "avg f1": report_dict["macro avg"]["f1-score"] if not is_qa_task else report_dict["f1-score"],
+        "rewrite rate": rewrite_rate,
         "avg latency": round(inference_log_frame["latency"].mean(), 3),
         "num failed generations": num_failed_generations,
         "exact match rate": report_dict["exact match rate"] if is_qa_task else None,
     }
-    output_file_name = f"set={dataset_name}_split={eval_set}_method={icl_method}_model={formatted_model_name}"
 
     if eval_set == "prod":
         json.dump(icl_report, open(f"results/{experiment_id}/{output_file_name}_report.json", "w+"), indent=4)
@@ -84,6 +105,14 @@ def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_meth
         confusion_matrix_fig.figure_.savefig(f"results/{experiment_id}/{output_file_name}_confusion_matrix.png")
 
     return icl_report
+
+
+def get_threshold_f1(threshold, inference_logs_frame):
+    threshold_judgments = inference_logs_frame.apply(lambda row: row["original judgment"] if row["original entropy"] < threshold else row["judgment"], axis=1)
+    report = classification_report(inference_logs_frame["label"], threshold_judgments, digits=4, output_dict=True)
+    llm_call_count = (inference_logs_frame["original entropy"] >= threshold).sum()
+    llm_call_rate = 100 * llm_call_count / len(inference_logs_frame)
+    return 100 * report["macro avg"]["f1-score"], llm_call_rate
 
 
 def get_num_labels(dataset_name):

@@ -162,16 +162,16 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "env": {
-                "CUDA_VISIBLE_DEVICES": "1"
+                "CUDA_VISIBLE_DEVICES": "0,1"
             },
             "args": [
-                // "--max_examples=20",
+                "--max_examples=50",
                 "--model=Kyle1668/boss-sentiment-bert-base-uncased",
                 // "--model=stabilityai/StableBeluga2",
-                "--adaptive_model=stabilityai/StableBeluga-7B",
+                // "--adaptive_model=stabilityai/StableBeluga-7B",
                 // "--adaptive_model=stabilityai/StableBeluga2",
                 // "--adaptive_model=TheBloke/vicuna-7B-1.1-HF",
-                // "--adaptive_model=humarin/chatgpt_paraphraser_on_T5_base",
+                "--adaptive_model=humarin/chatgpt_paraphraser_on_T5_base",
                 "--dataset=boss_sentiment",
                 // "--report_wandb",
                 "--baseline=skip",
@@ -179,7 +179,7 @@
                 "--skip_style_model_eval",
                 "--splits=sst5",
                 "--icl_method=random",
-                "--num_shots=32",
+                "--num_shots=16",
                 "--temperature=0.7"
             ]
         },
