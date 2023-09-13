@@ -281,7 +281,7 @@ def main():
                                             all_reports = pd.DataFrame(reports).drop_duplicates()
                                             print(
                                                 all_reports[
-                                                    ["dataset", "split", "task model", "icl_method", "exemplar count", "trim exemplars", "style transfer model", "dataset size", "entropy defferal", "accuracy", "avg f1", "rewrite rate"]
+                                                    ["dataset", "split", "task model", "icl_method", "exemplar count", "trim exemplars", "style transfer model", "dataset size", "inference method", "accuracy", "avg f1", "rewrite rate"]
                                                 ]
                                             )
                                             all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)

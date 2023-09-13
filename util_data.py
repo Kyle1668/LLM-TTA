@@ -39,7 +39,7 @@ def get_split_log_name(eval_set, adaptive_method_name):
         return "OOD w/ Style Transfer"
 
 
-def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, adaptive_method_name, num_shots=None, num_failed_generations=None, trim_exemplars=None, temperature=None, entropy_deferal=False):
+def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, adaptive_method_name, num_shots=None, num_failed_generations=None, trim_exemplars=None, temperature=None, inference_method="ensemble"):
     formatted_model_name = model_name.replace("/", "-")
     output_file_name = f"set={dataset_name}_split={eval_set}_method={icl_method}_model={formatted_model_name}"
     experiment_directory = f"results/{experiment_id}"
@@ -48,25 +48,11 @@ def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_meth
 
     original_judgments = None
     rewrite_rate = None
-    if entropy_deferal:
-        thresholds = np.arange(0, 1, 0.0005)
-        threshold_scores = []
-        threshold_rewrite_rates = []
-
-        for t in tqdm(thresholds, desc="Calculating entropy threshold scores"):
-            t_perf, t_rate = get_threshold_f1(t, inference_log_frame)
-            threshold_scores.append(t_perf)
-            threshold_rewrite_rates.append(t_rate)
-
-        thresholds_frame = pd.DataFrame({"threshold": thresholds, "f1": threshold_scores, "rewrite_rate": threshold_rewrite_rates})
-        thresholds_frame.to_csv(f"{experiment_directory}/{output_file_name}-entropy-f1-thresholds.csv", index=False)
-        threshold_fscore_curve = px.line(thresholds_frame, x="rewrite_rate", y="f1", title="IMDB --> Rotten Tomatoes Rewrite-Rate-F1 Curve")
-        threshold_fscore_curve.write_image(f"{experiment_directory}/{output_file_name}-entropy_threshold_fscore_curve.png")
-        threshold_fscore_curve.write_html(f"{experiment_directory}/{output_file_name}-entropy_threshold_fscore_curve.html")
-
-        best_threshold_record = thresholds_frame[thresholds_frame["f1"] == thresholds_frame.max()["f1"]].sort_values("rewrite_rate").iloc[-1]
-        rewrite_rate = best_threshold_record["rewrite_rate"] / 100
-        original_judgments = inference_log_frame.apply(lambda row: row["original judgment"] if row["original entropy"] < best_threshold_record["threshold"] else row["judgment"], axis=1)
+    if inference_method == "entropy threshold":
+        original_judgments, rewrite_rate = calculate_entropy_threshold_jugments(inference_log_frame, output_file_name, experiment_directory)
+    elif inference_method == "lowest entropy":
+        rewrite_rate = 1.0
+        original_judgments = inference_log_frame.apply(lambda row: np.array(row["all probs"][np.array(row["all entropies"]).argmin().item()]).argmax().item(), axis=1)
     else:
         rewrite_rate = None if adaptive_method_name == "No Adaptation" else 1.0
         original_judgments = [judgment for judgment, logits in inference_log_frame["judgment"]] if isinstance(inference_log_frame["judgment"][0], tuple) else inference_log_frame["judgment"]
@@ -80,7 +66,7 @@ def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_meth
         "dataset": dataset_name,
         "split": formatted_split_name,
         "dataset size": len(dataset[eval_set.replace("+adaptive", "")]),
-        "entropy defferal": entropy_deferal,
+        "inference method": inference_method,
         "icl_method": icl_method,
         "task model": formatted_model_name,
         "style transfer model": adaptive_method_name if formatted_split_name == "OOD w/ Style Transfer" else None,
@@ -105,6 +91,28 @@ def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_meth
         confusion_matrix_fig.figure_.savefig(f"results/{experiment_id}/{output_file_name}_confusion_matrix.png")
 
     return icl_report
+
+
+def calculate_entropy_threshold_jugments(inference_log_frame, output_file_name, experiment_directory):
+    thresholds = np.arange(0, 1, 0.0005)
+    threshold_scores = []
+    threshold_rewrite_rates = []
+
+    for t in tqdm(thresholds, desc="Calculating entropy threshold scores"):
+        t_perf, t_rate = get_threshold_f1(t, inference_log_frame)
+        threshold_scores.append(t_perf)
+        threshold_rewrite_rates.append(t_rate)
+
+    thresholds_frame = pd.DataFrame({"threshold": thresholds, "f1": threshold_scores, "rewrite_rate": threshold_rewrite_rates})
+    thresholds_frame.to_csv(f"{experiment_directory}/{output_file_name}-entropy-f1-thresholds.csv", index=False)
+    threshold_fscore_curve = px.line(thresholds_frame, x="rewrite_rate", y="f1", title="IMDB --> Rotten Tomatoes Rewrite-Rate-F1 Curve")
+    threshold_fscore_curve.write_image(f"{experiment_directory}/{output_file_name}-entropy_threshold_fscore_curve.png")
+    threshold_fscore_curve.write_html(f"{experiment_directory}/{output_file_name}-entropy_threshold_fscore_curve.html")
+
+    best_threshold_record = thresholds_frame[thresholds_frame["f1"] == thresholds_frame.max()["f1"]].sort_values("rewrite_rate").iloc[-1]
+    rewrite_rate = best_threshold_record["rewrite_rate"] / 100
+    original_judgments = inference_log_frame.apply(lambda row: row["original judgment"] if row["original entropy"] < best_threshold_record["threshold"] else row["judgment"], axis=1)
+    return original_judgments, rewrite_rate
 
 
 def get_threshold_f1(threshold, inference_logs_frame):
