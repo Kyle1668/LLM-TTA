@@ -71,7 +71,8 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
             if model.config.architectures[0].startswith("T5"):
                 tokenized_prompt = tokenizer.encode(input_entry["text"], return_tensors="pt", max_length=512).to(model.device)
             else:
-                tokenized_prompt = tokenizer.encode(prompt, return_tensors="pt", max_length=tokenizer.model_max_length).to(model.device)
+                formatted_prompt = wrap_classification_prompt_keywords(prompt[0], model.name_or_path)
+                tokenized_prompt = tokenizer.encode(formatted_prompt, return_tensors="pt", max_length=tokenizer.model_max_length).to(model.device)
 
             with torch.no_grad():
                 outputs = model.generate(tokenized_prompt, max_new_tokens=100, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id)
@@ -375,7 +376,7 @@ def save_inference_log(inference_logs, experiment_id, model_name, dataset_name, 
     combined_inference_log.to_csv(f"results/{experiment_id}/{combined_inference_log_file_name}")
 
 
-def wrap_prompt_keywords(prompt, model_name):
+def wrap_rewrite_prompt_keywords(prompt, model_name):
     if "vicuna" in model_name:
         return f"User: {prompt} Assistant:"
     elif "xgen-7b-8k-inst" in model_name:
@@ -385,10 +386,21 @@ def wrap_prompt_keywords(prompt, model_name):
     elif "StableBeluga" in model_name:
         system_message = prompt.split("### Input Text ###")[0]
         user_message = "### Input Text ###" + prompt.split("### Input Text ###")[1]
-        return f"### System:\n{system_message}### User: {user_message}\n\n### Assistant:\n"
+        return f"### System:\n{system_message}### User:\n{user_message}\n\n### Assistant:\n"
     else:
         return prompt
 
+
+def wrap_classification_prompt_keywords(prompt, model_name):
+    user_message = prompt.split("\n")[-1]
+    system_message = prompt.split(user_message)[0]
+
+    if "vicuna" in model_name:
+        return f"User: {prompt} Assistant:"
+    elif "StableBeluga" in model_name:
+        return f"### System:\n{system_message}### User:\n{user_message}\n\n### Assistant:\n"
+    else:
+        return prompt
 
 def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemplars, trim_exemplars, temperature, transfer_prompt):
     style_input = input_entry["text"].replace("\n", " ")
@@ -413,7 +425,7 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
             prompt_template = prompt_template.replace("<s>", "")
             task_prompt = prompt_template
 
-        input_prompts = wrap_prompt_keywords(task_prompt, adaptive_model.config.name_or_path)
+        input_prompts = wrap_rewrite_prompt_keywords(task_prompt, adaptive_model.config.name_or_path)
     else:
         input_prompts = style_input
 
@@ -465,7 +477,6 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
 
         parsed_generation = parse_generation(style_input, generation)
         formatted_generated_sequences.append(parsed_generation)
-
 
     return input_prompts, formatted_generated_sequences
 
