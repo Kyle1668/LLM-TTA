@@ -262,7 +262,7 @@ def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset
     inference_log_frame = save_baseline_logs(experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots, inference_logs)
 
     eval_reports = []
-    for inference_method in ["ensemble", "entropy threshold median", "entropy threshold best", "entropy threshold+lowest", "lowest entropy", ]:
+    for inference_method in ["ensemble", "entropy threshold half", "entropy threshold best", "entropy threshold+lowest", "lowest entropy", ]:
         eval_reports.append(generate_evaluation_Report(
             experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, adaptive_method_name, num_shots, num_failed_generations, trim_exemplars, temperature, inference_method
         ))
@@ -292,9 +292,15 @@ def save_baseline_logs(experiment_id, model_name, dataset_name, icl_method, eval
     entropy_plot = px.scatter(inference_log_frame, y="entropy", color="outcome", title=f"Entropy by Outcome: {experiment_run_prefix}")
     entropy_plot.write_image(f"{experiment_directory}/{experiment_run_prefix}-style_inference_entropy_plot.png")
     entropy_plot.write_html(f"{experiment_directory}/{experiment_run_prefix}-style_inference_entropy_plot.html")
+    entropy_plot_log = px.scatter(inference_log_frame, y="entropy", color="outcome", title=f"Entropy by Outcome: {experiment_run_prefix}", log_y=True)
+    entropy_plot_log.write_image(f"{experiment_directory}/{experiment_run_prefix}-style_inference_entropy_plot_log.png")
+    entropy_plot_log.write_html(f"{experiment_directory}/{experiment_run_prefix}-style_inference_entropy_plot_log.html")
     entropy_delta_plot = px.scatter(inference_log_frame, y="entropy decrease", color="outcome", title=f"Entropy Decrease by Outcome: {experiment_run_prefix}")
     entropy_delta_plot.write_image(f"{experiment_directory}/{experiment_run_prefix}-style_inference_entropy_delta_plot.png")
     entropy_delta_plot.write_html(f"{experiment_directory}/{experiment_run_prefix}-style_inference_entropy_delta_plot.html")
+    entropy_delta_plot_log = px.scatter(inference_log_frame, y="entropy decrease", color="outcome", title=f"Entropy Decrease by Outcome: {experiment_run_prefix}", log_y=True)
+    entropy_delta_plot_log.write_image(f"{experiment_directory}/{experiment_run_prefix}-style_inference_entropy_delta_plot_log.png")
+    entropy_delta_plot_log.write_html(f"{experiment_directory}/{experiment_run_prefix}-style_inference_eentropy_delta_plot_log.html")
 
     # Save embedding plots
     # embedding_tokenizer, embedding_model = get_model_objects("princeton-nlp/sup-simcse-roberta-large", num_labels=-1)

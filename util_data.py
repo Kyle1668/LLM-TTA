@@ -50,8 +50,8 @@ def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_meth
     rewrite_rate = None
     if inference_method == "entropy threshold best":
         original_judgments, rewrite_rate = calculate_entropy_threshold_jugments(inference_log_frame, output_file_name, experiment_directory)
-    elif inference_method == "entropy threshold median":
-        original_judgments, rewrite_rate = calculate_entropy_threshold_jugments(inference_log_frame, output_file_name, experiment_directory, median=True)
+    elif inference_method == "entropy threshold half":
+        original_judgments, rewrite_rate = calculate_entropy_threshold_jugments(inference_log_frame, output_file_name, experiment_directory, half=True)
     elif inference_method == "lowest entropy":
         rewrite_rate = 1.0
         original_judgments = inference_log_frame.apply(lambda row: np.array(row["all probs"][np.array(row["all entropies"]).argmin().item()]).argmax().item(), axis=1)
@@ -105,7 +105,7 @@ def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_meth
     return icl_report
 
 
-def calculate_entropy_threshold_jugments(inference_log_frame, output_file_name, experiment_directory, median=False):
+def calculate_entropy_threshold_jugments(inference_log_frame, output_file_name, experiment_directory, half=False):
     thresholds = np.arange(0, 1, 0.0005)
     threshold_scores = []
     threshold_rewrite_rates = []
@@ -122,10 +122,14 @@ def calculate_entropy_threshold_jugments(inference_log_frame, output_file_name, 
     threshold_fscore_curve.write_html(f"{experiment_directory}/{output_file_name}-entropy_threshold_fscore_curve.html")
 
     target_threshold = None
-    if median is None:
+    if half is False:
         target_threshold = thresholds_frame[thresholds_frame["f1"] == thresholds_frame.max()["f1"]].sort_values("rewrite_rate").iloc[-1]
     else:
-        target_threshold = thresholds_frame[thresholds_frame["rewrite_rate"] == thresholds_frame["rewrite_rate"].median()].sort_values("f1").iloc[-1]
+        thresholds_deltas_list = abs(thresholds_frame["rewrite_rate"] - 50).tolist()
+        closest_half_delta = min(thresholds_deltas_list)
+        closest_threshold_index = thresholds_deltas_list.index(closest_half_delta)
+        target_threshold = thresholds_frame.iloc[closest_threshold_index]
+        # target_threshold = thresholds_frame[thresholds_frame["rewrite_rate"] == thresholds_frame["rewrite_rate"].median()].sort_values("f1").iloc[-1]
 
     rewrite_rate = target_threshold["rewrite_rate"] / 100
     original_judgments = inference_log_frame.apply(lambda row: row["original judgment"] if row["original entropy"] < target_threshold["threshold"] else row["judgment"], axis=1)
@@ -300,9 +304,9 @@ def load_boss_sentiment_task():
         {
             "train": Dataset.from_pandas(amazon_train),
             "validation": Dataset.from_pandas(amazon_eval),
-            "dynasent": Dataset.from_pandas(dynasent),
             "sst5": Dataset.from_pandas(sst5),
             "semval": Dataset.from_pandas(semeval),
+            "dynasent": Dataset.from_pandas(dynasent),
         }
     )
 
