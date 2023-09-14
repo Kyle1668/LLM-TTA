@@ -466,6 +466,7 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
         parsed_generation = parse_generation(style_input, generation)
         formatted_generated_sequences.append(parsed_generation)
 
+
     return input_prompts, formatted_generated_sequences
 
 
