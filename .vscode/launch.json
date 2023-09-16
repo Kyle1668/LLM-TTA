@@ -165,8 +165,9 @@
                 "CUDA_VISIBLE_DEVICES": "6"
             },
             "args": [
-                // "--max_examples=50",
-                "--model=Kyle1668/boss-sentiment-bert-base-uncased",
+                "--max_examples=50",
+                // "--model=Kyle1668/boss-sentiment-bert-base-uncased",
+                "--model=EleutherAI/pythia-12b",
                 // "--model=stabilityai/StableBeluga2",
                 "--adaptive_model=stabilityai/StableBeluga-7B",
                 // "--adaptive_model=stabilityai/StableBeluga2",
@@ -176,7 +177,7 @@
                 // "--report_wandb",
                 "--baseline=skip",
                 // "--baseline=test_time_augmentation",
-                // "--skip_style_model_eval",
+                "--skip_style_model_eval",
                 "--splits=sst5",
                 "--icl_method=random",
                 "--num_shots=16",

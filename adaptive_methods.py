@@ -72,7 +72,8 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
                 tokenized_prompt = tokenizer.encode(input_entry["text"], return_tensors="pt", max_length=512).to(model.device)
             else:
                 formatted_prompt = wrap_classification_prompt_keywords(prompt[0], model.name_or_path)
-                tokenized_prompt = tokenizer.encode(formatted_prompt, return_tensors="pt", max_length=tokenizer.model_max_length).to(model.device)
+                truncation_length = tokenizer.model_max_length if tokenizer.model_max_length <= 10000 else 10000
+                tokenized_prompt = tokenizer.encode(formatted_prompt, return_tensors="pt", max_length=truncation_length).to(model.device)
 
             with torch.no_grad():
                 outputs = model.generate(tokenized_prompt, max_new_tokens=100, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id)
