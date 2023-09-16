@@ -51,7 +51,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--skip_eval_styling", action="store_true")
     parser.add_argument("--skip_style_model_eval", action="store_true")
     parser.add_argument("--evaluate_id_adaptation", action="store_true")
-    parser.add_argument("--transfer_prompt", type=str, default="domain_transfer_no_aug_tasks_v6")
+    parser.add_argument("--transfer_prompt", type=str, default="domain_transfer_no_aug_tasks_v5")
     return parser.parse_args()
 
 
