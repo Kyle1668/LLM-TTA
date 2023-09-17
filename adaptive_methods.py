@@ -3,6 +3,7 @@ from torch.utils.data import DataLoader, Dataset
 from transformers import pipeline
 from openicl import DatasetReader
 from torch.optim import AdamW
+from itertools import chain
 from umap import UMAP
 from tqdm import tqdm
 import nlpaug.augmenter.word as naw
@@ -18,6 +19,10 @@ tqdm.pandas()
 from util_data import generate_evaluation_Report, get_num_labels
 from util_modeling import get_model_objects, is_large_language_model, is_language_model, is_openai_model
 from util_icl import generate_prompt, get_prompt_template, get_retriever, get_static_exemplars, get_dynamic_exemplars
+
+# Distributed inference
+from torch.utils.data.distributed import DistributedSampler
+import torch.distributed as dist
 
 
 # TODO: Return logits for LLMs and QA
@@ -127,7 +132,7 @@ def should_get_exemplars(model, is_adaptive_set):
     return model.config.architectures[0].endswith("ForCausalLM") or is_adaptive_set
 
 
-def evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, num_shots=None):
+def evaluate_without_adaptation(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, num_shots=None):
     should_retrieve_exemplars = should_get_exemplars(model, eval_set)
     icl_method = icl_method if should_retrieve_exemplars else None
     template = get_prompt_template(dataset_name) if should_retrieve_exemplars else None
@@ -138,8 +143,12 @@ def evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dat
     num_failed_generations = 0
     exemplar_retriever = get_retriever(icl_method, data_reader, dataset_name) if should_retrieve_exemplars else None
 
-    description = f"Evaluating {dataset_name}-{eval_set} with {model_name} using {icl_method}"
-    for entry in tqdm(dataset[eval_set.replace("+adaptive", "")]):
+    data_loader = DataLoader(dataset[eval_set.replace("+adaptive", "")], sampler = DistributedSampler(dataset[eval_set.replace("+adaptive", "")]))
+    if rank == 0:
+        description = f"Evaluating {dataset_name}-{eval_set} with {model_name} using {icl_method}"
+        data_loader = tqdm(data_loader, desc=description)
+
+    for entry in data_loader:
         start_time = time.perf_counter()
         exemplars = mean_exemplar_distance = None
         if should_retrieve_exemplars:
@@ -167,16 +176,25 @@ def evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dat
         if should_retrieve_exemplars:
             inference_log["prompt"] = prompt
 
-        inference_log["label"] = entry["label"]
+        inference_log["label"] = entry["label"].item() if isinstance(entry["label"], torch.Tensor) else entry["label"]
         inference_logs.append(inference_log)
 
-    if not os.path.exists(f"results/{experiment_id}"):
+    if rank == 0 and not os.path.exists(f"results/{experiment_id}"):
         os.makedirs(f"results/{experiment_id}")
 
-    save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, "No Adaptation", num_shots)
-    dataset_name = f"{dataset_name}-{eval_set}" if dataset_name.startswith("boss_") else dataset_name
-    inference_log_frame = pd.DataFrame(inference_logs)
-    return generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, "No Adaptation", num_shots, num_failed_generations)
+    all_inference_logs = None
+    if rank == 0:
+        all_inference_logs = [[] for i in range(world_size)]
+
+    dist.gather_object(inference_logs, all_inference_logs)
+
+    if rank == 0:
+        all_inference_logs = list(chain(*all_inference_logs))
+
+        save_inference_log(all_inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, "No Adaptation", num_shots)
+        dataset_name = f"{dataset_name}-{eval_set}" if dataset_name.startswith("boss_") else dataset_name
+        inference_log_frame = pd.DataFrame(all_inference_logs)
+        return generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, "No Adaptation", num_shots, num_failed_generations)
 
 
 def get_outcome_type(original_judgment, styled_jdugment, label):
@@ -191,7 +209,8 @@ def get_outcome_type(original_judgment, styled_jdugment, label):
     return "NA"
 
 
-def evaluate_style_transfer(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, adaptive_method_name=None, num_shots=None, trim_exemplars=False, temperature=0, transfer_prompt=None):
+def evaluate_style_transfer(experiment_id, model_name, dataset_name, dataset, icl_method, eval_set, adaptive_method_name=None, num_shots=None, trim_exemplars=False, temperature=0, transfer_prompt=None):
+    tokenizer, model = get_model_objects(model_name, get_num_labels(dataset_name))
     is_adaptive_set = adaptive_method_name is not None and adaptive_method_name != "No Adaptation"
     should_retrieve_exemplars = should_get_exemplars(model, evaluate_style_transfer)
     icl_method = icl_method if should_retrieve_exemplars else None

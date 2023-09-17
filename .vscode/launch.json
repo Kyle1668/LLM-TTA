@@ -165,7 +165,7 @@
                 "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
-                "--max_examples=20",
+                // "--max_examples=20",
                 "--model=Kyle1668/boss-sentiment-bert-base-uncased",
                 // "--model=EleutherAI/pythia-12b",
                 // "--model=stabilityai/StableBeluga2",
@@ -181,8 +181,72 @@
                 "--splits=sst5",
                 // "--icl_method=random",
                 "--icl_method=random,topk_nearest",
-                "--num_shots=0,32",
-                "--temperature=0.7,0.3"
+                "--num_shots=16",
+                "--temperature=0.7"
+            ]
+        },
+        {
+            "name": "BOSS Sentiment Distributed",
+            "type": "python",
+            "request": "launch",
+            "module": "torch.distributed.run",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "0,3"
+            },
+            "args": [
+                "--nproc-per-node=gpu",
+                "evaluate_styling.py",
+                // "--max_examples=20",
+                "--model=Kyle1668/boss-sentiment-bert-base-uncased",
+                // "--model=EleutherAI/pythia-12b",
+                // "--model=stabilityai/StableBeluga2",
+                // "--adaptive_model=stabilityai/StableBeluga-7B",
+                // "--adaptive_model=stabilityai/StableBeluga2",
+                // "--adaptive_model=TheBloke/vicuna-7B-1.1-HF",
+                "--adaptive_model=humarin/chatgpt_paraphraser_on_T5_base",
+                "--dataset=boss_sentiment",
+                // "--report_wandb",
+                "--baseline=skip",
+                // "--baseline=test_time_augmentation",
+                "--skip_style_model_eval",
+                "--splits=sst5",
+                // "--icl_method=random",
+                "--icl_method=random,topk_nearest",
+                "--num_shots=16",
+                "--temperature=0.7"
+            ]
+        },
+        {
+            "name": "BOSS Sentiment LLM Eval",
+            "type": "python",
+            "request": "launch",
+            "program": "evaluate_styling.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "3"
+            },
+            "args": [
+                "--max_examples=20",
+                "--model=Kyle1668/boss-sentiment-bert-base-uncased",
+                // "--model=EleutherAI/pythia-12b",
+                // "--model=stabilityai/StableBeluga2",
+                "--adaptive_model=stabilityai/StableBeluga-7B",
+                // "--adaptive_model=stabilityai/StableBeluga2",
+                // "--adaptive_model=TheBloke/vicuna-7B-1.1-HF",
+                // "--adaptive_model=humarin/chatgpt_paraphraser_on_T5_base",
+                "--dataset=boss_sentiment",
+                // "--report_wandb",
+                "--baseline=skip",
+                // "--baseline=test_time_augmentation",
+                // "--skip_style_model_eval",
+                // "--splits=sst5",
+                // "--icl_method=random",
+                "--icl_method=random",
+                "--num_shots=16",
+                "--temperature=0.7"
             ]
         },
         {

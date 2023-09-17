@@ -1,4 +1,5 @@
 from datetime import datetime
+import torch.distributed as dist
 import pandas as pd
 import argparse
 import random
@@ -55,8 +56,23 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def init_distributed(rank: int, world_size: int):
+    """Initializes torch distributed group
+
+    Args:
+        rank (int): Rank of current process
+        world size (int): Total number of processes
+    """
+    print(f"Initializing distributed group with rank {rank} and world size {world_size}")
+    dist.init_process_group(backend = "nccl", rank = rank, world_size = world_size)
+    torch.cuda.set_device(rank)
+
+
 def main():
     args = parse_arguments()
+    rank = int(os.environ["RANK"])
+    world_size = int(os.environ["WORLD_SIZE"])
+    init_distributed(rank, world_size)
 
     # Set random seeds
     random.seed(args.seed)
@@ -66,10 +82,12 @@ def main():
     # Create expeirment directory
     experiment_id = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{args.dataset}_{args.model.replace('/', '-')}"
     time.sleep(5)
-    if not os.path.exists("results"):
-        os.mkdir("results")
-    os.mkdir(f"results/{experiment_id}")
-    json.dump(vars(args), open(f"results/{experiment_id}/args.json", "w", encoding="utf-8"), indent=4)
+    if rank == 0:
+        if not os.path.exists("results"):
+            os.mkdir("results")
+        if not os.path.exists(f"results/{experiment_id}"):
+            os.mkdir(f"results/{experiment_id}")
+            json.dump(vars(args), open(f"results/{experiment_id}/args.json", "w", encoding="utf-8"), indent=4)
 
     dataset_names = (
         args.dataset.split(",")
@@ -165,11 +183,11 @@ def main():
                         for adaptive_model_name in adaptive_model_names:
                             for style_icl_method in icl_methods:
                                 for shots in num_shots:
-                                    if adaptive_model is None:
-                                        adaptive_tokenizer, adaptive_model = get_model_objects(adaptive_model_name, num_labels)
+                                    # if adaptive_model is None:
+                                    #     adaptive_tokenizer, adaptive_model = get_model_objects(adaptive_model_name, num_labels)
 
                                     current_report = evaluate_without_adaptation(
-                                        experiment_id, adaptive_model_name, adaptive_model, adaptive_tokenizer, dataset_name, dataset, style_icl_method, evaluation_set, shots
+                                        rank, world_size, experiment_id, adaptive_model_name, adaptive_model, adaptive_tokenizer, dataset_name, dataset, style_icl_method, evaluation_set, shots
                                     )
                                     reports.append(current_report)
                                     all_reports = pd.DataFrame(reports).drop_duplicates()
@@ -184,16 +202,18 @@ def main():
 
                     if args.evaluate_id_adaptation or evaluation_set not in ["validation"]:
                         for adaptive_method in adaptive_methods:
+                            dist.barrier()
                             if adaptive_method == "No Adaptation":
                                 # Evaluate the task model
-                                current_report = evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, None)
-                                reports.append(current_report)
-                                all_reports = pd.DataFrame(reports).drop_duplicates()
-                                print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1", "rewrite rate"]])
-                                all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
-                                if wandb_enabled:
-                                    wandb.log(current_report)
-                                    wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
+                                current_report = evaluate_without_adaptation(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, None)
+                                if rank == 0:
+                                    reports.append(current_report)
+                                    all_reports = pd.DataFrame(reports).drop_duplicates()
+                                    print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1", "rewrite rate"]])
+                                    all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                                    if wandb_enabled:
+                                        wandb.log(current_report)
+                                        wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
 
                             elif adaptive_method == "test_time_augmentation":
                                 for aug_method in ["paraphrase", "replace"]:
@@ -219,7 +239,7 @@ def main():
                                         wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
 
                                     # Now evaluate on the in-distribution set to assess potential catastrophic forgetting
-                                    forgetting_report = evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, "validation")
+                                    forgetting_report = evaluate_without_adaptation(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, "validation")
                                     reports.append(forgetting_report)
                                     all_reports = pd.DataFrame(reports).drop_duplicates()
                                     print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1", "rewrite rate"]])
@@ -242,7 +262,7 @@ def main():
                                     wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
 
                                 # Now evaluate on the in-distribution set to assess potential catastrophic forgetting
-                                forgetting_report = evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, "validation")
+                                forgetting_report = evaluate_without_adaptation(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, "validation")
                                 reports.append(forgetting_report)
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
                                 print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1", "rewrite rate"]])
@@ -275,8 +295,8 @@ def main():
                                             style_inference_log_frame, current_reports = evaluate_style_transfer(
                                                 experiment_id,
                                                 model_name,
-                                                model,
-                                                tokenizer,
+                                                # model,
+                                                # tokenizer,
                                                 dataset_name,
                                                 dataset,
                                                 style_icl_method,
@@ -305,7 +325,7 @@ def main():
                     else:
                         if is_llm:
                             for shots in num_shots:
-                                current_report = evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, "static", evaluation_set, num_shots=shots)
+                                current_report = evaluate_without_adaptation(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, "static", evaluation_set, num_shots=shots)
                                 reports.append(current_report)
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
                                 print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1", "rewrite rate"]])
@@ -314,7 +334,7 @@ def main():
                                     wandb.log(current_report)
                                     wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
                         else:
-                            current_report = evaluate_without_adaptation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, "static", evaluation_set)
+                            current_report = evaluate_without_adaptation(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, "static", evaluation_set)
                             reports.append(current_report)
                             all_reports = pd.DataFrame(reports).drop_duplicates()
                             print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1", "rewrite rate"]])
