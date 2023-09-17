@@ -202,7 +202,6 @@ def main():
 
                     if args.evaluate_id_adaptation or evaluation_set not in ["validation"]:
                         for adaptive_method in adaptive_methods:
-                            dist.barrier()
                             if adaptive_method == "No Adaptation":
                                 # Evaluate the task model
                                 current_report = evaluate_without_adaptation(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, None)
@@ -292,11 +291,13 @@ def main():
                                                 transfer_prompt = "baseline_zero_shot"
                                                 style_icl_method = "static"
 
-                                            style_inference_log_frame, current_reports = evaluate_style_transfer(
+                                            rewriting_report = evaluate_style_transfer(
+                                                rank,
+                                                world_size,
                                                 experiment_id,
                                                 model_name,
-                                                # model,
-                                                # tokenizer,
+                                                model,
+                                                tokenizer,
                                                 dataset_name,
                                                 dataset,
                                                 style_icl_method,
@@ -308,20 +309,23 @@ def main():
                                                 transfer_prompt,
                                             )
 
-                                            for report in current_reports:
-                                                reports.append(report)
+                                            if rank == 0:
+                                                style_inference_log_frame, current_reports = rewriting_report
 
-                                            all_reports = pd.DataFrame(reports).drop_duplicates()
-                                            print(
-                                                all_reports[
-                                                    ["dataset", "split", "task model", "icl_method", "exemplar count", "trim exemplars", "style transfer model", "dataset size", "inference method", "accuracy", "avg f1", "rewrite rate"]
-                                                ]
-                                            )
-                                            all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
-                                            if wandb_enabled:
-                                                wandb.log(current_report)
-                                                wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
-                                                wandb_run.log({f"{evaluation_set}_{adaptive_method}_{style_icl_method}_style_logs": wandb.Table(dataframe=style_inference_log_frame)})
+                                                for report in current_reports:
+                                                    reports.append(report)
+
+                                                all_reports = pd.DataFrame(reports).drop_duplicates()
+                                                print(
+                                                    all_reports[
+                                                        ["dataset", "split", "task model", "icl_method", "exemplar count", "trim exemplars", "style transfer model", "dataset size", "inference method", "accuracy", "avg f1", "rewrite rate"]
+                                                    ]
+                                                )
+                                                all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                                                if wandb_enabled:
+                                                    wandb.log(current_report)
+                                                    wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
+                                                    wandb_run.log({f"{evaluation_set}_{adaptive_method}_{style_icl_method}_style_logs": wandb.Table(dataframe=style_inference_log_frame)})
                     else:
                         if is_llm:
                             for shots in num_shots:

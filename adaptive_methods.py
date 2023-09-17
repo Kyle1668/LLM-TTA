@@ -209,8 +209,8 @@ def get_outcome_type(original_judgment, styled_jdugment, label):
     return "NA"
 
 
-def evaluate_style_transfer(experiment_id, model_name, dataset_name, dataset, icl_method, eval_set, adaptive_method_name=None, num_shots=None, trim_exemplars=False, temperature=0, transfer_prompt=None):
-    tokenizer, model = get_model_objects(model_name, get_num_labels(dataset_name))
+def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, adaptive_method_name=None, num_shots=None, trim_exemplars=False, temperature=0, transfer_prompt=None):
+    dist.barrier()
     is_adaptive_set = adaptive_method_name is not None and adaptive_method_name != "No Adaptation"
     should_retrieve_exemplars = should_get_exemplars(model, evaluate_style_transfer)
     icl_method = icl_method if should_retrieve_exemplars else None
@@ -227,9 +227,16 @@ def evaluate_style_transfer(experiment_id, model_name, dataset_name, dataset, ic
     if is_adaptive_set:
         adaptive_tokenizer, adaptive_model = get_model_objects(adaptive_method_name, -1)
 
-    description = f"Evaluating {dataset_name}-{eval_set} with {model_name} using {icl_method}"
-    print(f"{description} and {adaptive_method_name} for style transfer" if is_adaptive_set else description)
-    for entry in tqdm(dataset[eval_set.replace("+adaptive", "")]):
+    data_loader = DataLoader(dataset[eval_set.replace("+adaptive", "")], sampler = DistributedSampler(dataset[eval_set.replace("+adaptive", "")]))
+    progress_bar = None
+    if rank == 0:
+        description = f"Evaluating {dataset_name}-{eval_set} with {model_name} using {icl_method}"
+        print(f"{description} and {adaptive_method_name} for style transfer" if is_adaptive_set else description)
+        progress_bar = tqdm(total=len(dataset[eval_set.replace("+adaptive", "")]))
+
+    for entry in data_loader:
+        entry["text"] = entry["text"][0] if isinstance(entry["text"], list) else entry["text"]
+        entry["label"] = entry["label"].item() if isinstance(entry["label"], torch.Tensor) else entry["label"]
         start_time = time.perf_counter()
         exemplars = mean_exemplar_distance = None
         if should_retrieve_exemplars:
@@ -276,22 +283,51 @@ def evaluate_style_transfer(experiment_id, model_name, dataset_name, dataset, ic
         inference_log["label"] = entry["label"]
         inference_logs.append(inference_log)
 
-    if not os.path.exists(f"results/{experiment_id}"):
-        os.makedirs(f"results/{experiment_id}")
+        # Update progress bar across all processes
+        dist.barrier()
+        if rank == 0:
+            progress_bar.update(world_size)
 
-    dataset_name = f"{dataset_name}-{eval_set}" if dataset_name.startswith("boss_") else dataset_name
-    save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots, trim_exemplars)
+    all_inference_logs = None
+    if rank == 0:
+        all_inference_logs = [[] for i in range(world_size)]
 
-    # Save new mistakes_lods
-    inference_log_frame = save_baseline_logs(experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots, inference_logs)
+    dist.gather_object(inference_logs, all_inference_logs)
+    if rank == 0:
+        if not os.path.exists(f"results/{experiment_id}"):
+            os.makedirs(f"results/{experiment_id}")
 
-    eval_reports = []
-    for inference_method in ["ensemble", "entropy threshold half", "entropy threshold best", "entropy threshold+lowest", "lowest entropy", ]:
-        eval_reports.append(generate_evaluation_Report(
-            experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, adaptive_method_name, num_shots, num_failed_generations, trim_exemplars, temperature, inference_method
-        ))
+        all_inference_logs = list(chain(*all_inference_logs))
+        dataset_name = f"{dataset_name}-{eval_set}" if dataset_name.startswith("boss_") else dataset_name
+        save_inference_log(all_inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots, trim_exemplars)
 
-    return inference_log_frame, eval_reports
+        # Save new mistakes_lods
+        inference_log_frame = save_baseline_logs(experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots, all_inference_logs)
+
+        eval_reports = []
+        for inference_method in ["single rewrite", "ensemble", "entropy threshold half", "entropy threshold best", "entropy threshold+lowest", "lowest entropy"]:
+            eval_reports.append(generate_evaluation_Report(
+                experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, adaptive_method_name, num_shots, num_failed_generations, trim_exemplars, temperature, inference_method
+            ))
+
+        return inference_log_frame, eval_reports
+
+
+    # --------------
+
+    # all_inference_logs = None
+    # if rank == 0:
+    #     all_inference_logs = [[] for i in range(world_size)]
+
+    # dist.gather_object(inference_logs, all_inference_logs)
+
+    # if rank == 0:
+    #     all_inference_logs = list(chain(*all_inference_logs))
+
+    #     save_inference_log(all_inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, "No Adaptation", num_shots)
+    #     dataset_name = f"{dataset_name}-{eval_set}" if dataset_name.startswith("boss_") else dataset_name
+    #     inference_log_frame = pd.DataFrame(all_inference_logs)
+    #     return generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, "No Adaptation", num_shots, num_failed_generations)
 
 def save_baseline_logs(experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots, inference_logs):
     # Save logs frame

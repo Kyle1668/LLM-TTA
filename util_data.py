@@ -64,7 +64,8 @@ def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_meth
                 original_judgments.append(lowest_entropy_judgments[index])
             else:
                 original_judgments.append(threshold_judgments[index])
-
+    elif inference_method == "single rewrite":
+        original_judgments = inference_log_frame.apply(lambda row: np.array(row["all probs"][0]).argmax().item(), axis=1)
     else:
         rewrite_rate = None if adaptive_method_name == "No Adaptation" else 1.0
         original_judgments = [judgment for judgment, logits in inference_log_frame["judgment"]] if isinstance(inference_log_frame["judgment"][0], tuple) else inference_log_frame["judgment"]
