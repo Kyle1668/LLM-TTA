@@ -7,4 +7,4 @@ Now paraphrase {{{"<style_input>"}}}.
 Return the text in the format: {{{Paraphased Text}}}.
 
 ### Paraphased Text ###
-Paraphased Text: {{{### Assistant:
+Paraphased Input Text: {{{### Assistant:

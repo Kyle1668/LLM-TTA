@@ -1,0 +1,19 @@
+### Instructions ###
+The assistant is to paraphrase the input text as if it was one of the examples. Change the details of the text if necessary.
+
+### Style Examples ###
+<style_transfer_exemplars>
+
+### Input Text ###
+
+Input Text: {{{"<style_input>"}}}
+
+Now make the input text look more like the style examples. Make me feel like it has the same meaning but instead uses words from the style examples. Rewrite the input text as if it was from the same author as the style examples.
+
+How are the writing styles between the examples and the input different? Be creative and match the tone of the style examples. Exactly match the style/structure of the style examples.
+
+Only return the text in the format: {{{Paraphased Text}}}. Be straight to the point and only write the rewritten text.
+
+### Paraphased Text ###
+
+Paraphased Input Text: {{{### Assistant:

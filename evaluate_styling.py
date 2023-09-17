@@ -51,7 +51,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--skip_eval_styling", action="store_true")
     parser.add_argument("--skip_style_model_eval", action="store_true")
     parser.add_argument("--evaluate_id_adaptation", action="store_true")
-    parser.add_argument("--transfer_prompt", type=str, default="domain_transfer_no_aug_tasks_v5")
+    parser.add_argument("--transfer_prompt", type=str, default="domain_transfer_no_aug_tasks_v7")
     return parser.parse_args()
 
 
@@ -87,8 +87,8 @@ def main():
         ]
     )
     icl_methods = args.icl_method.split(",") if args.icl_method is not None else ["random", "topk_nearest"]
-    domain_transfer_temperatures = [float(char) for char in args.temperature.split(",")] if args.temperature is not None else [0.0, 0.7]
-    num_shots = [int(char) for char in args.num_shots.split(",")] if args.num_shots is not None else [32, 16, 8]
+    domain_transfer_temperatures = [float(char) for char in args.temperature.split(",")] if args.temperature is not None else [0.7]
+    num_shots = [int(char) for char in args.num_shots.split(",")] if args.num_shots is not None else [32, 0]
     splits = args.splits.split(",") if args.splits is not None else None
     adaptive_model_names = (
         args.adaptive_model.split(",")
@@ -257,9 +257,21 @@ def main():
                             else:
                                 for style_icl_method in icl_methods:
                                     for shots in num_shots:
+                                        is_zero_shot = shots == 0
+                                        is_first_icl_run = style_icl_method == icl_methods[0]
+                                        if is_zero_shot and not is_first_icl_run:
+                                            continue
+
                                         print(f"Evaluating style transfer with {shots} shots")
+
                                         for temperature in domain_transfer_temperatures:
-                                            transfer_prompt = "baseline_zero_shot" if shots == 0 else args.transfer_prompt
+                                            transfer_prompt = args.transfer_prompt
+                                            if is_zero_shot:
+                                                if temperature != domain_transfer_temperatures[0]:
+                                                    continue
+                                                transfer_prompt = "baseline_zero_shot"
+                                                style_icl_method = "static"
+
                                             style_inference_log_frame, current_reports = evaluate_style_transfer(
                                                 experiment_id,
                                                 model_name,

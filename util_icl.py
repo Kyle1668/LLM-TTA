@@ -70,6 +70,8 @@ def generate_qa_prompt(exemplars, input_entry):
 
 
 def generate_classification_prompt(input_text, exemplars, template, dataset_name):
+    if input_text is None:
+        return None
     # style_transfer_exemplars = None
     #     if trim_exemplars:
     #         style_transfer_exemplars = "".join([f'- "{adaptive_tokenizer.decode(adaptive_tokenizer.encode(exemplar["text"].strip())[:int(1500 / len(exemplars))])}"\n' for exemplar in exemplars])

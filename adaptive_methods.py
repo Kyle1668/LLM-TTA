@@ -22,6 +22,9 @@ from util_icl import generate_prompt, get_prompt_template, get_retriever, get_st
 
 # TODO: Return logits for LLMs and QA
 def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
+    if input_entry["text"] == None:
+        return -1, None
+
     if model.config.architectures[0].endswith("ForQuestionAnswering"):
         with torch.no_grad():
             question = input_entry["question"]
@@ -463,7 +466,7 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
     except torch.cuda.OutOfMemoryError as generation_error:
         print(generation_error)
         print(f"Ran out of memory when generating an input for the following prompt: {input_prompts}")
-        return input_prompts, ""
+        return input_prompts, None
 
     formatted_generated_sequences = []
     if is_openai:
