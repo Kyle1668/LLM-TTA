@@ -133,6 +133,7 @@ def should_get_exemplars(model, is_adaptive_set):
 
 
 def evaluate_without_adaptation(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, num_shots=None):
+    dist.barrier()
     should_retrieve_exemplars = should_get_exemplars(model, eval_set)
     icl_method = icl_method if should_retrieve_exemplars else None
     template = get_prompt_template(dataset_name) if should_retrieve_exemplars else None
@@ -149,6 +150,8 @@ def evaluate_without_adaptation(rank, world_size, experiment_id, model_name, mod
         data_loader = tqdm(data_loader, desc=description)
 
     for entry in data_loader:
+        entry["text"] = entry["text"][0] if isinstance(entry["text"], list) else entry["text"]
+        entry["label"] = entry["label"].item() if isinstance(entry["label"], torch.Tensor) else entry["label"]
         start_time = time.perf_counter()
         exemplars = mean_exemplar_distance = None
         if should_retrieve_exemplars:
@@ -176,7 +179,7 @@ def evaluate_without_adaptation(rank, world_size, experiment_id, model_name, mod
         if should_retrieve_exemplars:
             inference_log["prompt"] = prompt
 
-        inference_log["label"] = entry["label"].item() if isinstance(entry["label"], torch.Tensor) else entry["label"]
+        inference_log["label"] = entry["label"]
         inference_logs.append(inference_log)
 
     if rank == 0 and not os.path.exists(f"results/{experiment_id}"):
@@ -235,6 +238,8 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
         progress_bar = tqdm(total=len(dataset[eval_set.replace("+adaptive", "")]))
 
     for entry in data_loader:
+        print(f"\nRank: {rank} | {len(inference_logs) + 1}/{len(data_loader)}")
+
         entry["text"] = entry["text"][0] if isinstance(entry["text"], list) else entry["text"]
         entry["label"] = entry["label"].item() if isinstance(entry["label"], torch.Tensor) else entry["label"]
         start_time = time.perf_counter()
@@ -283,10 +288,15 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
         inference_log["label"] = entry["label"]
         inference_logs.append(inference_log)
 
-        # Update progress bar across all processes
-        dist.barrier()
-        if rank == 0:
-            progress_bar.update(world_size)
+        # # Update progress bar across all processes
+        # if len(inference_logs) % 20 == 0:
+        #     all_incomplete_inference_logs = [[] for i in range(world_size)] if rank == 0 else None
+        #     dist.gather_object(inference_logs, all_incomplete_inference_logs)
+        #     if rank == 0:
+        #         global_count = len(list(chain(*all_incomplete_inference_logs)))
+        #         previous_count = progress_bar.n
+        #         increment = global_count - previous_count
+        #         progress_bar.update(increment)
 
     all_inference_logs = None
     if rank == 0:
@@ -305,7 +315,7 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
         inference_log_frame = save_baseline_logs(experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots, all_inference_logs)
 
         eval_reports = []
-        for inference_method in ["single rewrite", "ensemble", "entropy threshold half", "entropy threshold best", "entropy threshold+lowest", "lowest entropy"]:
+        for inference_method in ["ensemble", "entropy threshold half", "entropy threshold best", "entropy threshold+lowest", "lowest entropy", "single rewrite"]:
             eval_reports.append(generate_evaluation_Report(
                 experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, adaptive_method_name, num_shots, num_failed_generations, trim_exemplars, temperature, inference_method
             ))

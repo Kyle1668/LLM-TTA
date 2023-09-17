@@ -52,7 +52,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--skip_eval_styling", action="store_true")
     parser.add_argument("--skip_style_model_eval", action="store_true")
     parser.add_argument("--evaluate_id_adaptation", action="store_true")
-    parser.add_argument("--transfer_prompt", type=str, default="domain_transfer_no_aug_tasks_v7")
+    parser.add_argument("--transfer_prompt", type=str, default="domain_transfer_no_aug_tasks_v5")
     return parser.parse_args()
 
 
@@ -70,8 +70,8 @@ def init_distributed(rank: int, world_size: int):
 
 def main():
     args = parse_arguments()
-    rank = int(os.environ["RANK"])
-    world_size = int(os.environ["WORLD_SIZE"])
+    rank = int(os.environ.get("RANK", "0"))
+    world_size = int(os.environ.get("WORLD_SIZE", "1"))
     init_distributed(rank, world_size)
 
     # Set random seeds
@@ -148,20 +148,21 @@ def main():
     print(args)
     print("--------------------------------------------------\n")
 
-    wandb_enabled = args.use_wandb
     wandb_run = None
-    if wandb_enabled:
-        wandb_config = {
-            "dataset_names": dataset_names,
-            "icl_methods": icl_methods,
-            "task_model_names": model_names,
-            "style_model_names": adaptive_model_names,
-            "max_examples": args.max_examples,
-            "baslines": baselines,
-            "adaptive_methods": adaptive_methods,
-        }
-        project_name = "In-Context Domain Transfer Improves Out-of-Domain Robustness"
-        wandb_run = wandb.init(project=project_name, name=experiment_id, config=wandb_config)
+    if rank == 0:
+        wandb_enabled = args.use_wandb
+        if wandb_enabled:
+            wandb_config = {
+                "dataset_names": dataset_names,
+                "icl_methods": icl_methods,
+                "task_model_names": model_names,
+                "style_model_names": adaptive_model_names,
+                "max_examples": args.max_examples,
+                "baslines": baselines,
+                "adaptive_methods": adaptive_methods,
+            }
+            project_name = "In-Context Domain Transfer Improves Out-of-Domain Robustness"
+            wandb_run = wandb.init(project=project_name, name=experiment_id, config=wandb_config)
 
     reports = []
     for dataset_name in dataset_names:
@@ -183,22 +184,23 @@ def main():
                         for adaptive_model_name in adaptive_model_names:
                             for style_icl_method in icl_methods:
                                 for shots in num_shots:
-                                    # if adaptive_model is None:
-                                    #     adaptive_tokenizer, adaptive_model = get_model_objects(adaptive_model_name, num_labels)
+                                    if adaptive_model is None:
+                                        adaptive_tokenizer, adaptive_model = get_model_objects(adaptive_model_name, num_labels)
 
                                     current_report = evaluate_without_adaptation(
                                         rank, world_size, experiment_id, adaptive_model_name, adaptive_model, adaptive_tokenizer, dataset_name, dataset, style_icl_method, evaluation_set, shots
                                     )
-                                    reports.append(current_report)
-                                    all_reports = pd.DataFrame(reports).drop_duplicates()
-                                    print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1", "rewrite rate"]])
-                                    all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
-                                    if wandb_enabled:
-                                        wandb.log(current_report)
-                                        wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
+                                    if rank == 0:
+                                        reports.append(current_report)
+                                        all_reports = pd.DataFrame(reports).drop_duplicates()
+                                        print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1", "rewrite rate"]])
+                                        all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                                        if wandb_enabled:
+                                            wandb.log(current_report)
+                                            wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
 
-                                    adaptive_tokenizer = None
-                                    adaptive_model = None
+                                        adaptive_tokenizer = None
+                                        adaptive_model = None
 
                     if args.evaluate_id_adaptation or evaluation_set not in ["validation"]:
                         for adaptive_method in adaptive_methods:
@@ -330,13 +332,14 @@ def main():
                         if is_llm:
                             for shots in num_shots:
                                 current_report = evaluate_without_adaptation(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, "static", evaluation_set, num_shots=shots)
-                                reports.append(current_report)
-                                all_reports = pd.DataFrame(reports).drop_duplicates()
-                                print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1", "rewrite rate"]])
-                                all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
-                                if wandb_enabled:
-                                    wandb.log(current_report)
-                                    wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
+                                if rank == 0:
+                                    reports.append(current_report)
+                                    all_reports = pd.DataFrame(reports).drop_duplicates()
+                                    print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1", "rewrite rate"]])
+                                    all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                                    if wandb_enabled:
+                                        wandb.log(current_report)
+                                        wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
                         else:
                             current_report = evaluate_without_adaptation(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, "static", evaluation_set)
                             reports.append(current_report)
