@@ -259,6 +259,7 @@ def main():
                                     for shots in num_shots:
                                         print(f"Evaluating style transfer with {shots} shots")
                                         for temperature in domain_transfer_temperatures:
+                                            transfer_prompt = "baseline_zero_shot" if shots == 0 else args.transfer_prompt
                                             style_inference_log_frame, current_reports = evaluate_style_transfer(
                                                 experiment_id,
                                                 model_name,
@@ -272,7 +273,7 @@ def main():
                                                 shots,
                                                 bool(args.trim_exemplars),
                                                 temperature,
-                                                args.transfer_prompt,
+                                                transfer_prompt,
                                             )
 
                                             for report in current_reports:

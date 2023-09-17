@@ -5,11 +5,9 @@ The assistant is to paraphrase the input text as if it was one of the examples. 
 <style_transfer_exemplars>
 
 ### Input Text ###
-Now paraphrase ```"it 's a charming and often affecting journey . "``` as if it was one of the examples. Change the details of the text if necessary.
+Now paraphrase ```"<style_input>"``` as if it was one of the examples. Change the details of the text if necessary.
 
 Return the text in the format: ```Paraphased Text```
 
 ### Paraphased Text ###
 Paraphased Text:
-
-### Assistant:

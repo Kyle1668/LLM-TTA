@@ -479,6 +479,8 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
         parsed_generation = parse_generation(style_input, generation)
         formatted_generated_sequences.append(parsed_generation)
 
+    print(f"\nOriginal Input: {input_entry['text']}")
+    print("Rewrites:\n- " + "\n- ".join(formatted_generated_sequences))
     return input_prompts, formatted_generated_sequences
 
 
@@ -518,7 +520,6 @@ def parse_generation(style_input, generation):
     if generation.startswith('"'):
         generation = generation.split('"')[1]
 
-    print(f"Original Input: {style_input}\n\nGenerated input: {generation}")
     if generation.strip() == "":
         print("Generation was empty")
 
