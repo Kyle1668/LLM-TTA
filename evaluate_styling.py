@@ -342,13 +342,14 @@ def main():
                                         wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
                         else:
                             current_report = evaluate_without_adaptation(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, "static", evaluation_set)
-                            reports.append(current_report)
-                            all_reports = pd.DataFrame(reports).drop_duplicates()
-                            print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1", "rewrite rate"]])
-                            all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
-                            if wandb_enabled:
-                                wandb.log(current_report)
-                                wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
+                            if rank == 0:
+                                reports.append(current_report)
+                                all_reports = pd.DataFrame(reports).drop_duplicates()
+                                print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1", "rewrite rate"]])
+                                all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                                if wandb_enabled:
+                                    wandb.log(current_report)
+                                    wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
 
 
 if __name__ == "__main__":

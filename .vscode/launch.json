@@ -749,6 +749,39 @@
             ]
         },
         {
+            "name": "Boss Toxicity Distributed",
+            "type": "python",
+            "request": "launch",
+            "module": "torch.distributed.run",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "0,3,4,5"
+            },
+            "args": [
+                "--nproc-per-node=gpu",
+                "evaluate_styling.py",
+                // "--max_examples=100",
+                "--model=Kyle1668/boss-toxicity-bert-base-uncased",
+                // "--model=EleutherAI/pythia-12b",
+                // "--model=stabilityai/StableBeluga2",
+                "--adaptive_model=stabilityai/StableBeluga-7B",
+                // "--adaptive_model=stabilityai/StableBeluga2",
+                // "--adaptive_model=TheBloke/vicuna-7B-1.1-HF",
+                // "--adaptive_model=humarin/chatgpt_paraphraser_on_T5_base",
+                "--dataset=boss_toxicity",
+                // "--report_wandb",
+                "--baseline=skip",
+                // "--baseline=test_time_augmentation",
+                "--skip_style_model_eval",
+                "--splits=adv_civil,toxigen",
+                // "--icl_method=random",
+                "--icl_method=random",
+                "--num_shots=16",
+                "--temperature=0.7"
+            ]
+        },
+        {
             "name": "WILDS Amazon",
             "type": "python",
             "request": "launch",
