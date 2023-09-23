@@ -45,10 +45,10 @@ def get_model_objects(model_name, num_labels, training=False):
         large_models = ["stabilityai/StableBeluga2"]
         load_in_8bit = (len(num_billions) > 0 and num_billions[0] > 13) or training or model_name in large_models
         if load_in_8bit:
-            print("Loading in 8-bit mode since the model has more than 7B parameters or we are training.")
+            print("Loading in 8-bit mode since the model has more than 3B parameters or we are training.")
             model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, load_in_8bit=True, llm_int8_threshold=0, device_map="auto").eval()
         else:
-            model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, torch_dtype=numerical_precision).eval().to(device)
+            model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, torch_dtype=numerical_precision, device_map="auto").eval().to(device)
     elif is_qa_model:
         model = AutoModelForQuestionAnswering.from_pretrained(model_name, trust_remote_code=True, torch_dtype=numerical_precision).eval().to(device)
     elif is_seq2seq_lm:

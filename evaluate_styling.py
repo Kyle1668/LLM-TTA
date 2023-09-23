@@ -71,8 +71,11 @@ def init_distributed(rank: int, world_size: int):
 def main():
     args = parse_arguments()
     rank = int(os.environ.get("RANK", "0"))
-    world_size = int(os.environ.get("WORLD_SIZE", "1"))
-    init_distributed(rank, world_size)
+    world_size = int(os.environ.get("WORLD_SIZE", "-1"))
+    if world_size == -1:
+        print("Running without distributed inference")
+    else:
+        init_distributed(rank, world_size)
 
     # Set random seeds
     random.seed(args.seed)

@@ -133,7 +133,9 @@ def should_get_exemplars(model, is_adaptive_set):
 
 
 def evaluate_without_adaptation(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, num_shots=None):
-    dist.barrier()
+    if dist.is_initialized():
+        dist.barrier()
+
     should_retrieve_exemplars = should_get_exemplars(model, eval_set)
     icl_method = icl_method if should_retrieve_exemplars else None
     template = get_prompt_template(dataset_name) if should_retrieve_exemplars else None
@@ -144,7 +146,8 @@ def evaluate_without_adaptation(rank, world_size, experiment_id, model_name, mod
     num_failed_generations = 0
     exemplar_retriever = get_retriever(icl_method, data_reader, dataset_name) if should_retrieve_exemplars else None
 
-    data_loader = DataLoader(dataset[eval_set.replace("+adaptive", "")], sampler = DistributedSampler(dataset[eval_set.replace("+adaptive", "")]))
+    sampler = DistributedSampler(dataset[eval_set.replace("+adaptive", "")]) if dist.is_initialized() else None
+    data_loader = DataLoader(dataset[eval_set.replace("+adaptive", "")], sampler=sampler)
     if rank == 0:
         description = f"Evaluating {dataset_name}-{eval_set} with {model_name} using {icl_method}"
         data_loader = tqdm(data_loader, desc=description)
@@ -185,18 +188,18 @@ def evaluate_without_adaptation(rank, world_size, experiment_id, model_name, mod
     if rank == 0 and not os.path.exists(f"results/{experiment_id}"):
         os.makedirs(f"results/{experiment_id}")
 
-    all_inference_logs = None
+    distributed_inference_logs = None
     if rank == 0:
-        all_inference_logs = [[] for i in range(world_size)]
+        distributed_inference_logs = [[] for i in range(world_size)]
 
-    dist.gather_object(inference_logs, all_inference_logs)
+    if dist.is_initialized():
+        dist.gather_object(inference_logs, distributed_inference_logs)
 
     if rank == 0:
-        all_inference_logs = list(chain(*all_inference_logs))
-
-        save_inference_log(all_inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, "No Adaptation", num_shots)
+        eval_inference_logs = list(chain(*distributed_inference_logs)) if dist.is_initialized() else inference_logs
+        save_inference_log(eval_inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, "No Adaptation", num_shots)
         dataset_name = f"{dataset_name}-{eval_set}" if dataset_name.startswith("boss_") else dataset_name
-        inference_log_frame = pd.DataFrame(all_inference_logs)
+        inference_log_frame = pd.DataFrame(eval_inference_logs)
         return generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, "No Adaptation", num_shots, num_failed_generations)
 
 
@@ -213,7 +216,9 @@ def get_outcome_type(original_judgment, styled_jdugment, label):
 
 
 def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, adaptive_method_name=None, num_shots=None, trim_exemplars=False, temperature=0, transfer_prompt=None):
-    dist.barrier()
+    if dist.is_initialized():
+        dist.barrier()
+
     is_adaptive_set = adaptive_method_name is not None and adaptive_method_name != "No Adaptation"
     should_retrieve_exemplars = should_get_exemplars(model, evaluate_style_transfer)
     icl_method = icl_method if should_retrieve_exemplars else None
@@ -230,7 +235,8 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
     if is_adaptive_set:
         adaptive_tokenizer, adaptive_model = get_model_objects(adaptive_method_name, -1)
 
-    data_loader = DataLoader(dataset[eval_set.replace("+adaptive", "")], sampler = DistributedSampler(dataset[eval_set.replace("+adaptive", "")]))
+    sampler = DistributedSampler(dataset[eval_set.replace("+adaptive", "")]) if dist.is_initialized() else None
+    data_loader = DataLoader(dataset[eval_set.replace("+adaptive", "")], sampler=sampler)
     progress_bar = None
     if rank == 0:
         description = f"Evaluating {dataset_name}-{eval_set} with {model_name} using {icl_method}"
@@ -288,31 +294,23 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
         inference_log["label"] = entry["label"]
         inference_logs.append(inference_log)
 
-        # # Update progress bar across all processes
-        # if len(inference_logs) % 20 == 0:
-        #     all_incomplete_inference_logs = [[] for i in range(world_size)] if rank == 0 else None
-        #     dist.gather_object(inference_logs, all_incomplete_inference_logs)
-        #     if rank == 0:
-        #         global_count = len(list(chain(*all_incomplete_inference_logs)))
-        #         previous_count = progress_bar.n
-        #         increment = global_count - previous_count
-        #         progress_bar.update(increment)
 
-    all_inference_logs = None
+    distributed_inference_logs = None
     if rank == 0:
-        all_inference_logs = [[] for i in range(world_size)]
+        distributed_inference_logs = [[] for i in range(world_size)]
 
-    dist.gather_object(inference_logs, all_inference_logs)
+    if dist.is_initialized():
+        dist.gather_object(inference_logs, distributed_inference_logs)
     if rank == 0:
         if not os.path.exists(f"results/{experiment_id}"):
             os.makedirs(f"results/{experiment_id}")
 
-        all_inference_logs = list(chain(*all_inference_logs))
+        eval_inference_logs = list(chain(*distributed_inference_logs)) if dist.is_initialized() else inference_logs
         dataset_name = f"{dataset_name}-{eval_set}" if dataset_name.startswith("boss_") else dataset_name
-        save_inference_log(all_inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots, trim_exemplars)
+        save_inference_log(eval_inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots, trim_exemplars)
 
         # Save new mistakes_lods
-        inference_log_frame = save_baseline_logs(experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots, all_inference_logs)
+        inference_log_frame = save_baseline_logs(experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots, eval_inference_logs)
 
         eval_reports = []
         for inference_method in ["ensemble", "entropy threshold half", "entropy threshold best", "entropy threshold+lowest", "lowest entropy", "single rewrite"]:
@@ -325,18 +323,18 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
 
     # --------------
 
-    # all_inference_logs = None
+    # distributed_inference_logs = None
     # if rank == 0:
-    #     all_inference_logs = [[] for i in range(world_size)]
+    #     distributed_inference_logs = [[] for i in range(world_size)]
 
-    # dist.gather_object(inference_logs, all_inference_logs)
+    # dist.gather_object(inference_logs, distributed_inference_logs)
 
     # if rank == 0:
-    #     all_inference_logs = list(chain(*all_inference_logs))
+    #     distributed_inference_logs = list(chain(*distributed_inference_logs))
 
-    #     save_inference_log(all_inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, "No Adaptation", num_shots)
+    #     save_inference_log(distributed_inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, "No Adaptation", num_shots)
     #     dataset_name = f"{dataset_name}-{eval_set}" if dataset_name.startswith("boss_") else dataset_name
-    #     inference_log_frame = pd.DataFrame(all_inference_logs)
+    #     inference_log_frame = pd.DataFrame(distributed_inference_logs)
     #     return generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, "No Adaptation", num_shots, num_failed_generations)
 
 def save_baseline_logs(experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots, inference_logs):
