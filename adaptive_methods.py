@@ -215,6 +215,32 @@ def get_outcome_type(original_judgment, styled_jdugment, label):
     return "NA"
 
 
+def get_cached_rewrites(dataset_name, eval_set, adaptive_method_name, icl_method, num_shots, temperature, entry):
+    formatted_model_name = adaptive_method_name.replace("/", "_")
+    cache_key = f"{dataset_name}_{eval_set}_{icl_method}_{num_shots}_{formatted_model_name}_{temperature}.csv"
+    cache_files = os.listdir("cached_rewrites")
+    cache_frame = None
+    for file_name in cache_files:
+        if file_name == cache_key:
+            cache_frame = pd.read_csv(f"cached_rewrites/{file_name}")
+            break
+
+    if cache_frame is None:
+        return None
+
+    input_example = entry["text"]
+    matching_record = cache_frame[cache_frame["original_input"] == input_example]
+    if len(matching_record) == 0:
+        return None
+
+    rewrites = matching_record["input"].values[0].split("###EOR###")
+    style_prompt = matching_record["style prompt"]
+
+    print(f"\nOriginal Input: {input_example}")
+    print("Rewrites:\n- " + "\n- ".join(rewrites))
+    return style_prompt, rewrites
+
+
 def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, adaptive_method_name=None, num_shots=None, trim_exemplars=False, temperature=0, transfer_prompt=None):
     if dist.is_initialized():
         dist.barrier()
@@ -237,14 +263,15 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
 
     sampler = DistributedSampler(dataset[eval_set.replace("+adaptive", "")]) if dist.is_initialized() else None
     data_loader = DataLoader(dataset[eval_set.replace("+adaptive", "")], sampler=sampler)
-    progress_bar = None
     if rank == 0:
         description = f"Evaluating {dataset_name}-{eval_set} with {model_name} using {icl_method}"
         print(f"{description} and {adaptive_method_name} for style transfer" if is_adaptive_set else description)
-        progress_bar = tqdm(total=len(dataset[eval_set.replace("+adaptive", "")]))
+        if not dist.is_initialized():
+            data_loader = tqdm(data_loader, desc=description)
 
     for entry in data_loader:
-        print(f"\nRank: {rank} | {len(inference_logs) + 1}/{len(data_loader)}")
+        if dist.is_initialized():
+            print(f"\nRank: {rank} | {len(inference_logs) + 1}/{len(data_loader)}")
 
         entry["text"] = entry["text"][0] if isinstance(entry["text"], list) else entry["text"]
         entry["label"] = entry["label"].item() if isinstance(entry["label"], torch.Tensor) else entry["label"]
@@ -266,7 +293,12 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
                 entry["style_prompt"], styled_hypothesis = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature, transfer_prompt)
                 entry["text"] = f"{styled_premise} / {styled_hypothesis}"
             else:
-                entry["style_prompt"], entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature, transfer_prompt)
+                # cached_rewrites = get_cached_rewrites(dataset_name, eval_set, adaptive_method_name, icl_method, num_shots, temperature, entry)
+                cached_rewrites = None
+                if cached_rewrites == None:
+                    entry["style_prompt"], entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature, transfer_prompt)
+                else:
+                    entry["style_prompt"], entry["text"] = cached_rewrites
 
         prompt = generate_prompt(model_name, template, exemplars, entry, dataset_name) if should_retrieve_exemplars else None
         inference = get_judgment(model, tokenizer, prompt, device, entry, dataset_name)
@@ -499,18 +531,6 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
     tokenized_prompt = input_prompts if is_openai else adaptive_tokenizer.encode(input_prompts, return_tensors="pt").to(adaptive_model.device)
     try:
         with torch.no_grad():
-            # outputs = adaptive_model.generate(
-            #     tokenized_prompt,
-            #     do_sample=temperature != 0.0,
-            #     temperature=temperature,
-            #     max_new_tokens=num_example_tokens * 5,
-            #     early_stopping=True,
-            #     return_dict_in_generate=True,
-            #     num_return_sequences=4,
-            #     num_beams=4,
-            #     top_p=0.95,
-            #     top_k=0,
-            # )
             outputs = adaptive_model.generate(
                 tokenized_prompt,
                 temperature=temperature,
@@ -545,7 +565,7 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
         parsed_generation = parse_generation(style_input, generation)
         formatted_generated_sequences.append(parsed_generation)
 
-    print(f"\nOriginal Input: {input_entry['text']}")
+    print(f"\n\nOriginal Input: {input_entry['text']}")
     print("Rewrites:\n- " + "\n- ".join(formatted_generated_sequences))
     return input_prompts, formatted_generated_sequences
 

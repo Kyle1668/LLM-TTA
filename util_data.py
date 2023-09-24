@@ -266,13 +266,6 @@ def get_formatted_dataset(set_name, max_examples=None):
             new_frame = new_frame.drop(columns=["__index_level_0__"]) if "__index_level_0__" in new_frame.columns else new_frame
             hf_dataset[split] = Dataset.from_pandas(new_frame)
 
-    # Split the test set into a production traffic set from which edits will be made, and a holdout set
-    if enable_edits := False:
-        original_test_set = hf_dataset["test"].to_pandas().drop(columns=["__index_level_0__"])
-        edit_set = original_test_set.sample(frac=0.5)
-        test_set = original_test_set.drop(edit_set.index)
-        hf_dataset["test"] = Dataset.from_pandas(test_set)
-        hf_dataset["prod"] = Dataset.from_pandas(edit_set)
 
     return hf_dataset
 
@@ -365,9 +358,8 @@ def load_boss_nli_task():
 
 def load_ag_news_twitter():
     ag_news = load_dataset("ag_news")
-    tweets = pd.read_csv("datasets/ag_news_twitter/ag_news_twitter.csv")
-    formatted_tweets = Dataset.from_pandas(tweets.rename(columns={"generated_summary": "text"}))
-    return DatasetDict({"train": ag_news["train"], "validation": ag_news["test"], "test": formatted_tweets})
+    tweets = load_dataset("Kyle1668/AG-Tweets", use_auth_token=True)["test"].rename_column("tweet summary", "text")
+    return DatasetDict({"train": ag_news["train"], "validation": ag_news["test"], "test": tweets})
 
 
 def load_civil_comments_and_toxigen_dataset() -> DatasetDict:
