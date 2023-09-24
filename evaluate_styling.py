@@ -209,15 +209,16 @@ def main():
                         for adaptive_method in adaptive_methods:
                             if adaptive_method == "No Adaptation":
                                 # Evaluate the task model
-                                current_report = evaluate_without_adaptation(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, None)
-                                if rank == 0:
-                                    reports.append(current_report)
-                                    all_reports = pd.DataFrame(reports).drop_duplicates()
-                                    print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1", "rewrite rate"]])
-                                    all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
-                                    if wandb_enabled:
-                                        wandb.log(current_report)
-                                        wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
+                                for shot_count in num_shots if is_llm else [0]:
+                                    current_report = evaluate_without_adaptation(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, shot_count)
+                                    if rank == 0:
+                                        reports.append(current_report)
+                                        all_reports = pd.DataFrame(reports).drop_duplicates()
+                                        print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy", "avg f1", "rewrite rate"]])
+                                        all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                                        if wandb_enabled:
+                                            wandb.log(current_report)
+                                            wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
 
                             elif adaptive_method == "test_time_augmentation":
                                 for aug_method in ["paraphrase", "replace"]:
