@@ -2,6 +2,8 @@ import os
 import time
 import torch
 import openai
+import hashlib
+import pandas as pd
 from huggingface_hub import hf_hub_download
 from transformers import (
     PretrainedConfig,
@@ -34,8 +36,32 @@ class OpenAIModel(PreTrainedModel):
         # Dummy arguments
         **kwargs
     ):
+        cache_frame = None
+        cache_path = f"cached_rewrites/{self.name_or_path.replace('.', '_')}.csv"
+        hashed_prompt = hashlib.sha256(prompt.encode()).hexdigest()
+        if os.path.exists(cache_path):
+            cache_frame = pd.read_csv(cache_path)
+            cached_inference = cache_frame[cache_frame["prompt_hash"] == hashed_prompt]
+            if len(cached_inference) > 0:
+                return str(cached_inference.iloc[0]["generation"])
+
         messages = self.parse_messages(prompt)
-        return self.send_messages(do_sample, temperature, max_new_tokens, messages)
+        api_response = self.send_messages(do_sample, temperature, max_new_tokens, messages)
+        generation = api_response["choices"][0]["message"]["content"].replace("\n", " ").replace("</s>", "").replace("```", "").strip()
+        cache_miss_frame = pd.DataFrame({
+                "prompt_hash": [hashed_prompt],
+                "prompt": [prompt],
+                "generation": [generation],
+                "response": [str(api_response)]
+                })
+
+        if cache_frame is None:
+            cache_frame = cache_miss_frame
+        else:
+            cache_frame = pd.concat([cache_frame, cache_miss_frame])
+
+        cache_frame.to_csv(cache_path, index=False)
+        return generation
 
     def send_messages(self, do_sample, temperature, max_new_tokens, messages):
         try:

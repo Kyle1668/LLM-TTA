@@ -68,13 +68,13 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
             return predicted_class, inference_metadata
 
     try:
-        generation = None
+        generations = None
+        inference_metadata = {}
         is_openai = is_openai_model(model.name_or_path)
         tokenized_prompt = None
 
         if is_openai:
-            outputs = model.generate(prompt, max_new_tokens=100)
-            generation = outputs["choices"][0]["message"]["content"].replace("\n", " ").replace("</s>", "").replace("```", "").strip()
+            generations = [model.generate(model_input_prompt, max_new_tokens=100) for model_input_prompt in prompt]
         else:
             if model.config.architectures[0].startswith("T5"):
                 tokenized_prompt = tokenizer.encode(input_entry["text"], return_tensors="pt", max_length=512).to(model.device)
@@ -88,44 +88,55 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
                 start_decoding_index = len(tokenized_prompt[0]) if is_large_language_model(model.name_or_path) else 0
                 generation = tokenizer.decode(outputs["sequences"][0][start_decoding_index:], skip_special_tokens=True).split("\n")[0].replace("</s>", "").strip()
 
-        is_qa_task = dataset_name.startswith("squad")
-        if is_qa_task:
-            return generation
+        predicted_classes = []
+        for generation in generations:
+            predicted_classes.append(parse_generation_to_label(dataset_name, generation))
 
-        leading_token = generation.strip()[0]
-        final_tokens = generation.replace("</s>", "").replace("<s>", "")[-2:]
-        if leading_token == "{" and final_tokens == "}":
-            generation = generation.replace("{", "").replace("}", "").strip()
-
-        possible_int_labels = [str(label) for label in range(get_num_labels(dataset_name))]
-        if leading_token in possible_int_labels:
-            return int(leading_token)
-
-        if final_tokens[1] in possible_int_labels or final_tokens[1] in possible_int_labels:
-            return int(final_tokens[1])
-        elif final_tokens[0] == "0" or final_tokens[0] == "1":
-            return int(final_tokens[0])
-
-        split_tokens = [word.replace(".", "") for word in generation.split()]
-        verbalizers = {
-            "negative": 0,
-            "positive": 1,
-            "neutral": 2,
-        }
-        if split_tokens[0].lower() in verbalizers:
-            return verbalizers[split_tokens[0].lower()]
-        if split_tokens[-1].lower() in verbalizers:
-            return verbalizers[split_tokens[0].lower()]
-
-        extracted_integer = re.findall(r"\d+", generation)
-        if len(extracted_integer) == 1:
-            return int(extracted_integer[0])
-
-        print(f"WARNING: Could not extract judgment from: {generation}")
-        return -1
+        inference_metadata["generations"] = generations
+        inference_metadata["predicted_classes"] = predicted_classes
+        majority_class = max(set(predicted_classes), key=predicted_classes.count)
+        return majority_class, inference_metadata
     except Exception as e:
         print(f"Error for input {input_entry['text']} ---- Error: {e}")
         return -1
+
+
+def parse_generation_to_label(dataset_name, generation):
+    is_qa_task = dataset_name.startswith("squad")
+    if is_qa_task:
+        return generation
+
+    leading_token = generation.strip()[0]
+    final_tokens = generation.replace("</s>", "").replace("<s>", "")[-2:]
+    if leading_token == "{" and final_tokens == "}":
+        generation = generation.replace("{", "").replace("}", "").strip()
+
+    possible_int_labels = [str(label) for label in range(get_num_labels(dataset_name))]
+    if leading_token in possible_int_labels:
+        return int(leading_token)
+
+    if final_tokens[1] in possible_int_labels or final_tokens[1] in possible_int_labels:
+        return int(final_tokens[1])
+    elif final_tokens[0] == "0" or final_tokens[0] == "1":
+        return int(final_tokens[0])
+
+    split_tokens = [word.replace(".", "") for word in generation.split()]
+    verbalizers = {
+        "negative": 0,
+        "positive": 1,
+        "neutral": 2,
+    }
+    if split_tokens[0].lower() in verbalizers:
+        return verbalizers[split_tokens[0].lower()]
+    if split_tokens[-1].lower() in verbalizers:
+        return verbalizers[split_tokens[0].lower()]
+
+    extracted_integer = re.findall(r"\d+", generation)
+    if len(extracted_integer) == 1:
+        return int(extracted_integer[0])
+
+    print(f"WARNING: Could not extract judgment from: {generation}")
+    return -1
 
 
 def should_get_exemplars(model, is_adaptive_set):

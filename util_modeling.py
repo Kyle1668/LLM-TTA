@@ -1,7 +1,6 @@
 from transformers import AutoConfig, AutoTokenizer, LlamaTokenizer, AutoModel, AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoModelForSequenceClassification, AutoModelForQuestionAnswering
 from accelerate import infer_auto_device_map
 import torch
-
 from openai_hf.openai_model import OpenAIModel, OpenAIModelConfig
 
 
