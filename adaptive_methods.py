@@ -357,6 +357,10 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
 
         eval_reports = []
         for inference_method in ["ensemble", "entropy threshold half", "entropy threshold best", "entropy threshold+lowest", "lowest entropy", "single rewrite"]:
+            if "entropy" not in inference_log_frame.columns and "entropy" in inference_method:
+                print(f"Skipping {inference_method} because entropy was not calculated")
+                continue
+
             eval_reports.append(generate_evaluation_Report(
                 experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, adaptive_method_name, num_shots, num_failed_generations, trim_exemplars, temperature, inference_method
             ))
@@ -387,11 +391,15 @@ def save_baseline_logs(experiment_id, model_name, dataset_name, icl_method, eval
     no_adapt_logs = get_baseline_inference_log_frame(experiment_id, model_name, dataset_name, icl_method, eval_set)
     inference_log_frame = pd.DataFrame(inference_logs)
     inference_log_frame["original judgment"] = no_adapt_logs["judgment"]
-    inference_log_frame["original entropy"] = no_adapt_logs["entropy"]
-    inference_log_frame["entropy decrease"] =  inference_log_frame["original entropy"] - inference_log_frame["entropy"]
-    inference_log_frame["entropy decreased"] = inference_log_frame["entropy"] < inference_log_frame["original entropy"]
+    if "entropy" in inference_log_frame.columns:
+        inference_log_frame["original entropy"] = no_adapt_logs["entropy"]
+        inference_log_frame["entropy decrease"] =  inference_log_frame["original entropy"] - inference_log_frame["entropy"]
+        inference_log_frame["entropy decreased"] = inference_log_frame["entropy"] < inference_log_frame["original entropy"]
     inference_log_frame["outcome"] = inference_log_frame.apply(lambda row: get_outcome_type(row["original judgment"], row["judgment"], row["label"]), axis=1)
     inference_log_frame.to_csv(f"{experiment_directory}/{experiment_run_prefix}-style_inference_log.csv", index=False)
+
+    if "entropy" not in inference_log_frame.columns:
+        return inference_log_frame
 
     # Save summary frame
     outcome_summary_frame = inference_log_frame.groupby("outcome").describe()
