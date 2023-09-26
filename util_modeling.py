@@ -2,9 +2,13 @@ from transformers import AutoConfig, AutoTokenizer, LlamaTokenizer, AutoModel, A
 from accelerate import infer_auto_device_map
 import torch
 from openai_hf.openai_model import OpenAIModel, OpenAIModelConfig
+from augmenters_hf.augmenter import AugmenterModel, AugmenterConfig
 
 
 def is_large_language_model(model_name):
+    if model_name.startswith("aug"):
+        return False
+
     if is_openai_model(model_name):
         return True
 
@@ -13,6 +17,12 @@ def is_large_language_model(model_name):
 
 
 def is_language_model(model_name):
+    if model_name.startswith("aug"):
+        return False
+
+    if is_openai_model(model_name):
+        return True
+
     model_config = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
     is_seq2seq_lm = model_config.architectures[0].endswith("ForConditionalGeneration")
     return is_seq2seq_lm or is_large_language_model(model_name)
@@ -23,6 +33,9 @@ def is_openai_model(model_name):
 
 
 def get_model_objects(model_name, num_labels, training=False):
+    if model_name.startswith("aug"):
+        action = model_name.split("_")[1]
+        return None, AugmenterModel(AugmenterConfig(model_name, action))
     if is_openai_model(model_name):
         return None, OpenAIModel(OpenAIModelConfig(model_name))
 

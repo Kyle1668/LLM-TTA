@@ -282,27 +282,19 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "env": {
-                "CUDA_VISIBLE_DEVICES": "4"
+                // "CUDA_VISIBLE_DEVICES": "4"
             },
             "args": [
-                "--max_examples=100",
+                // "--max_examples=100",
                 "--model=Kyle1668/boss-sentiment-bert-base-uncased",
-                // "--model=stabilityai/StableBeluga2",
-                // "--model=TheBloke/vicuna-7B-1.1-HF",
-                // "--model=trained_models/edit_experiment_2023-06-10_19-48-53/boss_sentiment/bert-base-uncased_1",
-                // "--model=trained_models/training_1690988897_boss_sentiment_t5-large/best_F1=0.42180456414752293",
-                "--adaptive_model=trained_models/training_1694397068_boss_sentiment_humarin_chatgpt_paraphraser_on_T5_base/model/checkpoint-7500",
-                // "--adaptive_model=trained_models/training_1692766041_boss_sentiment_humarin_chatgpt_paraphraser_on_T5_base/model/checkpoint-1250",
+                "--adaptive_model=aug_substitute",
                 "--dataset=boss_sentiment",
-                // "--report_wandb",
-                // "--baseline=test_time_augmentation",
-                "--baseline=skip",
                 "--skip_style_model_eval",
-                // "--splits=validation,sst5",
+                "--baseline=skip",
+                "--splits=sst5",
                 "--icl_method=random",
                 "--num_shots=16",
                 "--temperature=0.0",
-                "--split=sst5"
             ]
         },
         {
@@ -340,7 +332,7 @@
                 // "CUDA_VISIBLE_DEVICES": "1"
             },
             "args": [
-                "--max_examples=10",
+                // "--max_examples=10",
                 "--model=gpt-3.5-turbo",
                 "--adaptive_model=stabilityai/StableBeluga-7B",
                 // "--adaptive_model=humarin/chatgpt_paraphraser_on_T5_base",
@@ -348,7 +340,8 @@
                 "--baseline=skip",
                 "--skip_style_model_eval",
                 "--splits=sst5",
-                "--icl_method=topk_nearest",
+                // "--icl_method=topk_nearest",
+                "--icl_method=random",
                 "--num_shots=8",
                 "--temperature=0.7"
             ]

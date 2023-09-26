@@ -548,10 +548,11 @@ def wrap_classification_prompt_keywords(prompt, model_name):
     else:
         return prompt
 
+
 def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemplars, trim_exemplars, temperature, transfer_prompt):
     style_input = input_entry["text"].replace("\n", " ")
     is_openai = is_openai_model(adaptive_model.name_or_path)
-    num_example_tokens = adaptive_tokenizer(style_input, return_tensors="pt")["input_ids"].shape[1] if not is_openai_model(adaptive_model.name_or_path) else len(style_input)
+    num_example_tokens = adaptive_tokenizer(style_input, return_tensors="pt")["input_ids"].shape[1] if adaptive_tokenizer is not None else len(style_input)
 
     input_prompts = None
     if is_large_language_model(adaptive_model.name_or_path):
@@ -580,7 +581,7 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
     if cached_rewrites is not None:
         return input_prompts, cached_rewrites
 
-    tokenized_prompt = input_prompts if is_openai else adaptive_tokenizer.encode(input_prompts, return_tensors="pt").to(adaptive_model.device)
+    tokenized_prompt = input_prompts if adaptive_tokenizer is None else adaptive_tokenizer.encode(input_prompts, return_tensors="pt").to(adaptive_model.device)
     try:
         with torch.no_grad():
             outputs = adaptive_model.generate(
@@ -608,6 +609,10 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
         return input_prompts, [outputs["choices"][0]["message"]["content"]]
 
     for output in outputs[0]:
+        if isinstance(output, str):
+            formatted_generated_sequences.append(output)
+            continue
+
         generation = None
         if is_large_language_model(adaptive_model.name_or_path):
             generation = adaptive_tokenizer.decode(output[len(tokenized_prompt[0]) :])
