@@ -342,13 +342,13 @@
             "args": [
                 "--max_examples=10",
                 "--model=gpt-3.5-turbo",
-                // "--adaptive_model=stabilityai/StableBeluga-7B",
-                "--adaptive_model=humarin/chatgpt_paraphraser_on_T5_base",
+                "--adaptive_model=stabilityai/StableBeluga-7B",
+                // "--adaptive_model=humarin/chatgpt_paraphraser_on_T5_base",
                 "--dataset=boss_sentiment",
                 "--baseline=skip",
                 "--skip_style_model_eval",
                 "--splits=sst5",
-                "--icl_method=random",
+                "--icl_method=topk_nearest",
                 "--num_shots=8",
                 "--temperature=0.7"
             ]

@@ -10,8 +10,10 @@ import nlpaug.augmenter.word as naw
 import plotly.express as px
 import pandas as pd
 import numpy as np
+import hashlib
 import torch
 import time
+import ast
 import os
 import re
 tqdm.pandas()
@@ -226,30 +228,56 @@ def get_outcome_type(original_judgment, styled_jdugment, label):
     return "NA"
 
 
-def get_cached_rewrites(dataset_name, eval_set, adaptive_method_name, icl_method, num_shots, temperature, entry):
-    formatted_model_name = adaptive_method_name.replace("/", "_")
-    cache_key = f"{dataset_name}_{eval_set}_{icl_method}_{num_shots}_{formatted_model_name}_{temperature}.csv"
-    cache_files = os.listdir("cached_rewrites")
-    cache_frame = None
-    for file_name in cache_files:
-        if file_name == cache_key:
-            cache_frame = pd.read_csv(f"cached_rewrites/{file_name}")
-            break
+def get_cached_rewrites(rewrite_model, temperature, input_prompt):
+    cache_path = f"cached_rewrites/{rewrite_model.name_or_path.replace('/', '_')}_temp={temperature}.csv"
+    if os.path.exists(cache_path):
+        cache_frame = pd.read_csv(cache_path)
+        hashed_prompt = hashlib.sha256(input_prompt.encode()).hexdigest()
+        cached_inference = cache_frame[cache_frame["prompt_hash"] == hashed_prompt]
+        if len(cached_inference) > 0:
+            return ast.literal_eval(cached_inference.iloc[0]["rewrites"])
 
-    if cache_frame is None:
-        return None
+    return None
 
-    input_example = entry["text"]
-    matching_record = cache_frame[cache_frame["original_input"] == input_example]
-    if len(matching_record) == 0:
-        return None
 
-    rewrites = matching_record["input"].values[0].split("###EOR###")
-    style_prompt = matching_record["style prompt"]
+def write_cached_rewrites(rewrite_model, temperature, input_prompt, rewrites):
+    cache_path = f"cached_rewrites/{rewrite_model.name_or_path.replace('/', '_')}_temp={temperature}.csv"
+    hashed_prompt = hashlib.sha256(input_prompt.encode()).hexdigest()
+    cache_miss_frame = pd.DataFrame({
+                "prompt_hash": [hashed_prompt],
+                "prompt": [input_prompt],
+                "rewrites": [rewrites],
+    })
 
-    print(f"\nOriginal Input: {input_example}")
-    print("Rewrites:\n- " + "\n- ".join(rewrites))
-    return style_prompt, rewrites
+    cache_frame = pd.read_csv(cache_path) if os.path.exists(cache_path) else None
+    updated_cache_frame = cache_miss_frame if cache_frame is None else pd.concat([cache_frame, cache_miss_frame])
+    updated_cache_frame.to_csv(cache_path, index=False)
+
+
+# def get_cached_rewritess(dataset_name, eval_set, adaptive_method_name, icl_method, num_shots, temperature, entry):
+#     formatted_model_name = adaptive_method_name.replace("/", "_")
+#     cache_key = f"{dataset_name}_{eval_set}_{icl_method}_{num_shots}_{formatted_model_name}_{temperature}.csv"
+#     cache_files = os.listdir("cached_rewrites")
+#     cache_frame = None
+#     for file_name in cache_files:
+#         if file_name == cache_key:
+#             cache_frame = pd.read_csv(f"cached_rewrites/{file_name}")
+#             break
+
+#     if cache_frame is None:
+#         return None
+
+#     input_example = entry["text"]
+#     matching_record = cache_frame[cache_frame["original_input"] == input_example]
+#     if len(matching_record) == 0:
+#         return None
+
+#     rewrites = matching_record["input"].values[0].split("###EOR###")
+#     style_prompt = matching_record["style prompt"]
+
+#     print(f"\nOriginal Input: {input_example}")
+#     print("Rewrites:\n- " + "\n- ".join(rewrites))
+#     return style_prompt, rewrites
 
 
 def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, adaptive_method_name=None, num_shots=None, trim_exemplars=False, temperature=0, transfer_prompt=None):
@@ -304,7 +332,7 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
                 entry["style_prompt"], styled_hypothesis = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature, transfer_prompt)
                 entry["text"] = f"{styled_premise} / {styled_hypothesis}"
             else:
-                # cached_rewrites = get_cached_rewrites(dataset_name, eval_set, adaptive_method_name, icl_method, num_shots, temperature, entry)
+                # cached_rewrites = get_cached_rewritess(dataset_name, eval_set, adaptive_method_name, icl_method, num_shots, temperature, entry)
                 cached_rewrites = None
                 if cached_rewrites == None:
                     entry["style_prompt"], entry["text"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature, transfer_prompt)
@@ -547,6 +575,11 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
     else:
         input_prompts = style_input
 
+    # Try reading from the cache. If the cache doesn't exist, generate a new rewrite
+    cached_rewrites = get_cached_rewrites(adaptive_model, temperature, input_prompts)
+    if cached_rewrites is not None:
+        return input_prompts, cached_rewrites
+
     tokenized_prompt = input_prompts if is_openai else adaptive_tokenizer.encode(input_prompts, return_tensors="pt").to(adaptive_model.device)
     try:
         with torch.no_grad():
@@ -583,6 +616,9 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
 
         parsed_generation = parse_generation(style_input, generation)
         formatted_generated_sequences.append(parsed_generation)
+
+    # Write rewrites to cache
+    write_cached_rewrites(adaptive_model, temperature, input_prompts, formatted_generated_sequences)
 
     print(f"\n\nOriginal Input: {input_entry['text']}")
     print("Rewrites:\n- " + "\n- ".join(formatted_generated_sequences))
