@@ -285,9 +285,9 @@
                 // "CUDA_VISIBLE_DEVICES": "4"
             },
             "args": [
-                // "--max_examples=100",
+                "--max_examples=50",
                 "--model=Kyle1668/boss-sentiment-bert-base-uncased",
-                "--adaptive_model=aug_substitute",
+                "--adaptive_model=aug_back-translate,aug_insert,aug_substitute",
                 "--dataset=boss_sentiment",
                 "--skip_style_model_eval",
                 "--baseline=skip",

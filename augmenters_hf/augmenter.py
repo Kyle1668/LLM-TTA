@@ -12,14 +12,22 @@ class AugmenterConfig(PretrainedConfig):
     def __init__(self, name_or_path, action):
         self.name_or_path = name_or_path
         # self.architectures = ["AutoModelForCausalLM"]
-        self.action = action
+        self.action = action.replace("-", "_")
 
 class AugmenterModel(PreTrainedModel):
     def __init__(self, config: AugmenterConfig):
         super().__init__(config)
         self.name_or_path = config.name_or_path
         self.config = config
-        self.augmenter = naw.ContextualWordEmbsAug(action=config.action, device="cuda")
+
+        if config.action == "back_translate":
+            self.augmenter = naw.BackTranslationAug(
+                from_model_name="facebook/wmt19-en-de",
+                to_model_name="facebook/wmt19-de-en",
+                device="cuda",
+            )
+        else:
+            self.augmenter = naw.ContextualWordEmbsAug(action=config.action, device="cuda")
 
     def generate(
         self,
@@ -32,7 +40,8 @@ class AugmenterModel(PreTrainedModel):
         # Dummy arguments
         **kwargs
     ):
+        num_agumentations = 1 if self.config.action == "back_translate" else 4
         if isinstance(prompt_batch, str):
-            return [self.augmenter.augment(prompt_batch, n=4)]
+            return [self.augmenter.augment(prompt_batch, n=num_agumentations)]
 
-        return [self.augmenter.augment(prompt, n=4) for prompt in prompt_batch]
+        return [self.augmenter.augment(prompt, n=num_agumentations) for prompt in prompt_batch]
