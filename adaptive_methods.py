@@ -231,7 +231,10 @@ def get_outcome_type(original_judgment, styled_jdugment, label):
 
 
 def get_cached_rewrites(rewrite_model, temperature, input_prompt):
-    cache_path = f"cached_rewrites/{rewrite_model.name_or_path.replace('/', '_')}_temp={temperature}.csv"
+    cache_path = f"cached_rewrites/{rewrite_model.name_or_path.replace('/', '_')}.csv"
+    if is_language_model(rewrite_model.name_or_path):
+        cache_path = cache_path.replace(".csv", f"_temp={temperature}.csv")
+
     if os.path.exists(cache_path):
         cache_frame = pd.read_csv(cache_path)
         hashed_prompt = hashlib.sha256(input_prompt.encode()).hexdigest()
@@ -243,7 +246,10 @@ def get_cached_rewrites(rewrite_model, temperature, input_prompt):
 
 
 def write_cached_rewrites(rewrite_model, temperature, input_prompt, rewrites):
-    cache_path = f"cached_rewrites/{rewrite_model.name_or_path.replace('/', '_')}_temp={temperature}.csv"
+    cache_path = f"cached_rewrites/{rewrite_model.name_or_path.replace('/', '_')}.csv"
+    if is_language_model(rewrite_model.name_or_path):
+        cache_path = cache_path.replace(".csv", f"_temp={temperature}.csv")
+
     hashed_prompt = hashlib.sha256(input_prompt.encode()).hexdigest()
     cache_miss_frame = pd.DataFrame({
                 "prompt_hash": [hashed_prompt],
@@ -562,7 +568,7 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
         if is_openai:
             style_transfer_exemplars = "".join(['- "' + exemplar["text"].strip().replace("\n", "")[:500] + '"\n' for exemplar in exemplars])
         elif trim_exemplars:
-            style_transfer_exemplars = "".join([f'- "{adaptive_tokenizer.decode(adaptive_tokenizer.encode(exemplar["text"].strip())[:int(1200 / len(exemplars))])}"\n' for exemplar in exemplars])
+            style_transfer_exemplars = "".join([f'- "{adaptive_tokenizer.decode(adaptive_tokenizer.encode(exemplar["text"].strip())[:int(800 / len(exemplars))])}"\n' for exemplar in exemplars])
         else:
             style_transfer_exemplars = "".join(['- "' + exemplar["text"].strip().replace("\n", "") + '"\n' for exemplar in exemplars])
 

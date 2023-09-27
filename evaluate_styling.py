@@ -41,7 +41,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--dataset", type=str, default=None)
     parser.add_argument("--model", type=str, default=None)
     parser.add_argument("--splits", type=str, default=None)
-    parser.add_argument("--baseline", type=str, default=None)
+    parser.add_argument("--baseline", type=str, default="skip")
     parser.add_argument("--icl_method", type=str, default=None)
     parser.add_argument("--temperature", type=str, default=None)
     parser.add_argument("--num_shots", type=str, default=None)

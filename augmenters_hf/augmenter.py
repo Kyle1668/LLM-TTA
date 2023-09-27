@@ -4,6 +4,7 @@ from transformers import (
     PreTrainedModel,
     PreTrainedTokenizer,
     BatchEncoding,
+    pipeline,
 )
 from transformers.modeling_outputs import CausalLMOutput
 import nlpaug.augmenter.word as naw
@@ -21,11 +22,13 @@ class AugmenterModel(PreTrainedModel):
         self.config = config
 
         if config.action == "back_translate":
-            self.augmenter = naw.BackTranslationAug(
-                from_model_name="facebook/wmt19-en-de",
-                to_model_name="facebook/wmt19-de-en",
-                device="cuda",
-            )
+            # self.augmenter = naw.BackTranslationAug(
+            #     from_model_name="facebook/wmt19-en-de",
+            #     to_model_name="facebook/wmt19-de-en",
+            #     device="cuda",
+            # )
+            self.en_de_translator = pipeline("translation", model="facebook/wmt19-en-de", device="cuda")
+            self.de_en_translator = pipeline("translation", model="facebook/wmt19-de-en", device="cuda")
         else:
             self.augmenter = naw.ContextualWordEmbsAug(action=config.action, device="cuda")
 
@@ -40,8 +43,25 @@ class AugmenterModel(PreTrainedModel):
         # Dummy arguments
         **kwargs
     ):
-        num_agumentations = 1 if self.config.action == "back_translate" else 4
-        if isinstance(prompt_batch, str):
-            return [self.augmenter.augment(prompt_batch, n=num_agumentations)]
+        num_agumentations = 4
+        augmentations = []
+        for prompt in (prompt_batch if isinstance(prompt_batch, list) else [prompt_batch]):
+            if self.config.action == "back_translate":
+                german_version = self.en_de_translator(prompt)[0]["translation_text"]
+                english_versions = self.de_en_translator(
+                    german_version,
+                    num_return_sequences=4,
+                    temperature=0.7,
+                    num_beams=4,
+                    num_beam_groups=4,
+                    top_p=0.95,
+                    top_k=0,
+                    repetition_penalty=10.0,
+                    diversity_penalty=1.0,
+                    no_repeat_ngram_size=2)
 
-        return [self.augmenter.augment(prompt, n=num_agumentations) for prompt in prompt_batch]
+                augmentations.append([translation["translation_text"] for translation in english_versions])
+            else:
+                augmentations.append(self.augmenter.augment(prompt, n=num_agumentations))
+
+        return augmentations
