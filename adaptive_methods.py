@@ -231,61 +231,41 @@ def get_outcome_type(original_judgment, styled_jdugment, label):
 
 
 def get_cached_rewrites(rewrite_model, temperature, input_prompt):
-    cache_path = f"cached_rewrites/{rewrite_model.name_or_path.replace('/', '_')}.csv"
-    if is_language_model(rewrite_model.name_or_path):
-        cache_path = cache_path.replace(".csv", f"_temp={temperature}.csv")
+    try:
+        cache_path = f"cached_rewrites/{rewrite_model.name_or_path.replace('/', '_')}.csv"
+        if is_language_model(rewrite_model.name_or_path):
+            cache_path = cache_path.replace(".csv", f"_temp={temperature}.csv")
 
-    if os.path.exists(cache_path):
-        cache_frame = pd.read_csv(cache_path)
-        hashed_prompt = hashlib.sha256(input_prompt.encode()).hexdigest()
-        cached_inference = cache_frame[cache_frame["prompt_hash"] == hashed_prompt]
-        if len(cached_inference) > 0:
-            return ast.literal_eval(cached_inference.iloc[0]["rewrites"])
+        if os.path.exists(cache_path):
+            cache_frame = pd.read_csv(cache_path)
+            hashed_prompt = hashlib.sha256(input_prompt.encode()).hexdigest()
+            cached_inference = cache_frame[cache_frame["prompt_hash"] == hashed_prompt]
+            if len(cached_inference) > 0:
+                return ast.literal_eval(cached_inference.iloc[0]["rewrites"])
+    except Exception as e:
+        print(f"Error reading cached rewrites: {e}")
 
     return None
 
 
 def write_cached_rewrites(rewrite_model, temperature, input_prompt, rewrites):
-    cache_path = f"cached_rewrites/{rewrite_model.name_or_path.replace('/', '_')}.csv"
-    if is_language_model(rewrite_model.name_or_path):
-        cache_path = cache_path.replace(".csv", f"_temp={temperature}.csv")
+    try:
+        cache_path = f"cached_rewrites/{rewrite_model.name_or_path.replace('/', '_')}.csv"
+        if is_language_model(rewrite_model.name_or_path):
+            cache_path = cache_path.replace(".csv", f"_temp={temperature}.csv")
 
-    hashed_prompt = hashlib.sha256(input_prompt.encode()).hexdigest()
-    cache_miss_frame = pd.DataFrame({
-                "prompt_hash": [hashed_prompt],
-                "prompt": [input_prompt],
-                "rewrites": [rewrites],
-    })
+        hashed_prompt = hashlib.sha256(input_prompt.encode()).hexdigest()
+        cache_miss_frame = pd.DataFrame({
+                    "prompt_hash": [hashed_prompt],
+                    "prompt": [input_prompt],
+                    "rewrites": [rewrites],
+        })
 
-    cache_frame = pd.read_csv(cache_path) if os.path.exists(cache_path) else None
-    updated_cache_frame = cache_miss_frame if cache_frame is None else pd.concat([cache_frame, cache_miss_frame])
-    updated_cache_frame.to_csv(cache_path, index=False)
-
-
-# def get_cached_rewritess(dataset_name, eval_set, adaptive_method_name, icl_method, num_shots, temperature, entry):
-#     formatted_model_name = adaptive_method_name.replace("/", "_")
-#     cache_key = f"{dataset_name}_{eval_set}_{icl_method}_{num_shots}_{formatted_model_name}_{temperature}.csv"
-#     cache_files = os.listdir("cached_rewrites")
-#     cache_frame = None
-#     for file_name in cache_files:
-#         if file_name == cache_key:
-#             cache_frame = pd.read_csv(f"cached_rewrites/{file_name}")
-#             break
-
-#     if cache_frame is None:
-#         return None
-
-#     input_example = entry["text"]
-#     matching_record = cache_frame[cache_frame["original_input"] == input_example]
-#     if len(matching_record) == 0:
-#         return None
-
-#     rewrites = matching_record["input"].values[0].split("###EOR###")
-#     style_prompt = matching_record["style prompt"]
-
-#     print(f"\nOriginal Input: {input_example}")
-#     print("Rewrites:\n- " + "\n- ".join(rewrites))
-#     return style_prompt, rewrites
+        cache_frame = pd.read_csv(cache_path) if os.path.exists(cache_path) else None
+        updated_cache_frame = cache_miss_frame if cache_frame is None else pd.concat([cache_frame, cache_miss_frame])
+        updated_cache_frame.to_csv(cache_path, index=False)
+    except Exception as e:
+        print(f"Error writing cached rewrites: {e}")
 
 
 def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, adaptive_method_name=None, num_shots=None, trim_exemplars=False, temperature=0, transfer_prompt=None):

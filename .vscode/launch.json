@@ -286,17 +286,17 @@
                 // "CUDA_VISIBLE_DEVICES": "4"
             },
             "args": [
-                "--max_examples=20",
-                "--model=Kyle1668/boss-sentiment-bert-base-uncased",
+                "--max_examples=100",
+                "--model=Kyle1668/boss-sentiment-bert-base-uncased,Kyle1668/boss-sentiment-t5-large",
                 // "--model=Kyle1668/boss-sentiment-t5-large",
-                "--adaptive_model=aug_insert,aug_substitute,aug_back-translate",
+                "--adaptive_model=aug_back-translate,aug_insert,aug_substitute",
                 "--dataset=boss_sentiment",
                 "--skip_style_model_eval",
                 "--baseline=skip",
                 "--splits=sst5",
                 "--icl_method=random",
                 "--num_shots=16",
-                "--temperature=0.2",
+                "--temperature=0.7",
             ]
         },
         {
@@ -307,11 +307,11 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "env": {
-                "CUDA_VISIBLE_DEVICES": "1"
+                // "CUDA_VISIBLE_DEVICES": "1"
             },
             "args": [
                 "--max_examples=100",
-                "--model=Kyle1668/boss-sentiment-bert-base-uncased",
+                "--model=https://msasg.visualstudio.com/DefaultCollection/ContentServices/_workitems/edit/5674233/",
                 "--adaptive_model=gpt-3.5-turbo",
                 // "--adaptive_model=gpt-4",
                 "--dataset=boss_sentiment",
