@@ -334,10 +334,11 @@
                 // "CUDA_VISIBLE_DEVICES": "1"
             },
             "args": [
-                // "--max_examples=500",
+                "--max_examples=500",
                 "--model=gpt-3.5-turbo",
-                "--adaptive_model=stabilityai/StableBeluga-7B",
+                // "--adaptive_model=stabilityai/StableBeluga-7B",
                 // "--adaptive_model=humarin/chatgpt_paraphraser_on_T5_base",
+                "--adaptive_model=aug_substitute",
                 "--dataset=boss_sentiment",
                 "--baseline=skip",
                 "--skip_style_model_eval",

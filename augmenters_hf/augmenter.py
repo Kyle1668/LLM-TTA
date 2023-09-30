@@ -12,7 +12,6 @@ import nlpaug.augmenter.word as naw
 class AugmenterConfig(PretrainedConfig):
     def __init__(self, name_or_path, action):
         self.name_or_path = name_or_path
-        # self.architectures = ["AutoModelForCausalLM"]
         self.action = action.replace("-", "_")
 
 class AugmenterModel(PreTrainedModel):
@@ -22,11 +21,6 @@ class AugmenterModel(PreTrainedModel):
         self.config = config
 
         if config.action == "back_translate":
-            # self.augmenter = naw.BackTranslationAug(
-            #     from_model_name="facebook/wmt19-en-de",
-            #     to_model_name="facebook/wmt19-de-en",
-            #     device="cuda",
-            # )
             self.en_de_translator = pipeline("translation", model="facebook/wmt19-en-de", device="cuda")
             self.de_en_translator = pipeline("translation", model="facebook/wmt19-de-en", device="cuda")
         else:
