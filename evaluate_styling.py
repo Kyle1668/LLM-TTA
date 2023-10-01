@@ -335,7 +335,7 @@ def main():
                     else:
                         if is_llm:
                             for shots in num_shots:
-                                current_report = evaluate_without_adaptation(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, "static", evaluation_set, num_shots=shots)
+                                current_report = evaluate_without_adaptation(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, num_shots=shots)
                                 if rank == 0:
                                     reports.append(current_report)
                                     all_reports = pd.DataFrame(reports).drop_duplicates()

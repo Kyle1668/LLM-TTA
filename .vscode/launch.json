@@ -187,6 +187,26 @@
             ]
         },
         {
+            "name": "BOSS Sentiment: GPT + Aug",
+            "type": "python",
+            "request": "launch",
+            "program": "evaluate_styling.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                // "CUDA_VISIBLE_DEVICES": "0"
+            },
+            "args": [
+                "--dataset=boss_sentiment",
+                "--model=gpt-3.5-turbo",
+                "--adaptive_model=aug_back-translate,aug_insert,aug_substitute",
+                "--skip_style_model_eval",
+                "--icl_method=topk_nearest",
+                "--num_shots=16",
+                "--temperature=0.7",
+            ]
+        },
+        {
             "name": "BOSS Sentiment Distributed",
             "type": "python",
             "request": "launch",
