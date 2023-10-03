@@ -241,6 +241,7 @@ def get_cached_rewrites(rewrite_model, temperature, input_prompt):
             hashed_prompt = hashlib.sha256(input_prompt.encode()).hexdigest()
             cached_inference = cache_frame[cache_frame["prompt_hash"] == hashed_prompt]
             if len(cached_inference) > 0:
+                print(f"Found cached rewrites for {rewrite_model.name_or_path}")
                 return ast.literal_eval(cached_inference.iloc[0]["rewrites"])
     except Exception as e:
         print(f"Error reading cached rewrites: {e}")
