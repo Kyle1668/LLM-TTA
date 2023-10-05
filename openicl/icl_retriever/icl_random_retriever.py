@@ -6,6 +6,7 @@ from openicl.utils.logging import get_logger
 from typing import List, Union, Optional
 from tqdm import trange
 import numpy as np
+import random
 from accelerate import Accelerator
 
 logger = get_logger(__name__)
@@ -29,6 +30,7 @@ class RandomRetriever(BaseRetriever):
         seed (`int`, optional): Seed for the random number generator.
     """
 
+
     def __init__(self,
                  dataset_reader: DatasetReader,
                  ice_separator: Optional[str] = '\n',
@@ -43,15 +45,32 @@ class RandomRetriever(BaseRetriever):
         super().__init__(dataset_reader, ice_separator, ice_eos_token, prompt_eos_token, ice_num, index_split,
                          test_split, accelerator)
         self.seed = seed
+        self.exemplar_indices = None
+
+
+    def _add_index(self, example, idx):
+        example["index"] = idx
+        return example
 
     def get_exemplars(self, text, ice_num, distance_goal="random"):
-        np.random.seed(self.seed)
-        num_idx = len(self.index_ds)
-        rtr_idx_list = []
-        idx_list = np.random.choice(num_idx, ice_num, replace=False).tolist()
-        rtr_idx_list.append(idx_list)
-        return rtr_idx_list
+        if self.exemplar_indices is not None:
+            return self.exemplar_indices
 
+        np.random.seed(self.seed)
+        unique_labels = sorted(list(set(self.index_ds["label"])))
+        exemplar_indices = []
+        for label in unique_labels:
+            all_labels = self.index_ds.map(self._add_index, with_indices=True).filter(lambda row: row["label"] == label)
+            num_label_exemplars = ice_num - len(exemplar_indices) if label == unique_labels[-1] else ice_num // len(unique_labels)
+            subset = all_labels.train_test_split(test_size=num_label_exemplars, seed=self.seed)["test"]
+            label_indices = subset["index"]
+            label_indices = [i - 1 for i in label_indices]
+            exemplar_indices += label_indices
+
+        random.seed(self.seed)
+        random.shuffle(exemplar_indices)
+        self.exemplar_indices = [exemplar_indices]
+        return self.exemplar_indices
 
     def retrieve(self):
         np.random.seed(self.seed)
