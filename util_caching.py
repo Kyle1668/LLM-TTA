@@ -26,7 +26,8 @@ def distributed_cache_write(rank, world_size, model_name, dataset_name, icl_meth
                 print("Skipping cache writes because all entries were cache hits")
                 return
 
-            description = f"Writing cached rewrites for {dataset_name}-{eval_set} with {model_name} using {icl_method}"
+            description = f"Writing {len(writable_entries)} rewrites for {dataset_name}-{eval_set} with {model_name} using {icl_method}"
+            print(description)
             for rank_entry in distributed_rewrites_cache:
                 write_cached_rewrites(adaptive_model, temperature, rank_entry["style_prompt"], rank_entry["text"])
     else:
