@@ -201,9 +201,31 @@
                 "--model=gpt-3.5-turbo",
                 "--adaptive_model=aug_back-translate,aug_insert,aug_substitute",
                 "--skip_style_model_eval",
-                "--icl_method=topk_nearest",
+                "--icl_method=random",
                 "--num_shots=16",
-                "--temperature=0.7",
+                "--temperature=0.0",
+            ]
+        },
+        {
+            "name": "BOSS Sentiment: GPT + Aug Distributed",
+            "type": "python",
+            "request": "launch",
+            "module": "torch.distributed.run",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                // "CUDA_VISIBLE_DEVICES": "0"
+            },
+            "args": [
+                "--nproc-per-node=gpu",
+                "evaluate_styling.py",
+                "--dataset=boss_sentiment",
+                "--model=gpt-3.5-turbo",
+                "--adaptive_model=aug_back-translate,aug_insert,aug_substitute",
+                "--skip_style_model_eval",
+                "--icl_method=random",
+                "--num_shots=16",
+                "--temperature=0.0",
             ]
         },
         {

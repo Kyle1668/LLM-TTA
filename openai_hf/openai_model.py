@@ -12,6 +12,7 @@ from transformers import (
     BatchEncoding,
 )
 from transformers.modeling_outputs import CausalLMOutput
+import torch.distributed as dist
 
 class OpenAIModelConfig(PretrainedConfig):
     def __init__(self, name_or_path):
@@ -55,12 +56,27 @@ class OpenAIModel(PreTrainedModel):
                 "response": [str(api_response)]
                 })
 
-        if cache_frame is None:
-            cache_frame = cache_miss_frame
-        else:
-            cache_frame = pd.concat([cache_frame, cache_miss_frame])
 
-        cache_frame.to_csv(cache_path, index=False)
+        rank = dist.get_rank() if dist.is_initialized() else 0
+        distributed_cache_miss_frames =  [[] for i in range(dist.get_world_size())] if dist.is_initialized() and rank == 0 else None
+        if dist.is_initialized():
+            dist.gather_object(cache_miss_frame, distributed_cache_miss_frames)
+
+        if rank == 0 and dist.is_initialized():
+            for cache_miss_frame in distributed_cache_miss_frames:
+                if cache_frame is None:
+                    cache_frame = cache_miss_frame
+                else:
+                    cache_frame = pd.concat([cache_frame, cache_miss_frame])
+        elif rank == 0:
+            if cache_frame is None:
+                cache_frame = cache_miss_frame
+            else:
+                cache_frame = pd.concat([cache_frame, cache_miss_frame])
+
+        if rank == 0:
+            cache_frame.to_csv(cache_path, index=False)
+
         return generation
 
     def send_messages(self, do_sample, temperature, max_new_tokens, messages):
