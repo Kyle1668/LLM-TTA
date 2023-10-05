@@ -53,6 +53,9 @@ class RandomRetriever(BaseRetriever):
         return example
 
     def get_exemplars(self, text, ice_num, distance_goal="random"):
+        if ice_num == 0:
+            return [[]]
+
         if self.exemplar_indices is not None:
             return self.exemplar_indices
 
