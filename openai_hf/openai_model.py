@@ -41,7 +41,7 @@ class OpenAIModel(PreTrainedModel):
         cache_path = f"cached_rewrites/{self.name_or_path.replace('.', '_')}.csv"
         hashed_prompt = hashlib.sha256(prompt.encode()).hexdigest()
         if os.path.exists(cache_path):
-            cache_frame = pd.read_csv(cache_path)
+            cache_frame = pd.read_csv(cache_path, engine="python", on_bad_lines="skip")
             cached_inference = cache_frame[cache_frame["prompt_hash"] == hashed_prompt]
             if len(cached_inference) > 0:
                 return str(cached_inference.iloc[0]["generation"])
