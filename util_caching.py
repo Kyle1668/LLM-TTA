@@ -18,12 +18,17 @@ def distributed_cache_write(rank, world_size, model_name, dataset_name, icl_meth
 
         if is_cache_write_step := len(inference_logs) % cache_write_steps == 0:
             print(f"Gathering cached rewrites across ranks")
-            dist.gather_object([entry["style_prompt"], entry["text"]], distributed_rewrites_cache)
+            dist.gather_object(entry, distributed_rewrites_cache)
 
         if rank == 0 and is_cache_write_step:
+            writable_entries = [write_entry for write_entry in distributed_rewrites_cache if not write_entry["rewrite_cache_hit"]]
+            if len(writable_entries) == 0:
+                print("Skipping cache writes because all entries were cache hits")
+                return
+
             description = f"Writing cached rewrites for {dataset_name}-{eval_set} with {model_name} using {icl_method}"
-            for style_prompt, rewrites in distributed_rewrites_cache:
-                write_cached_rewrites(adaptive_model, temperature, style_prompt, rewrites)
+            for rank_entry in distributed_rewrites_cache:
+                write_cached_rewrites(adaptive_model, temperature, rank_entry["style_prompt"], rank_entry["text"])
     else:
         write_cached_rewrites(adaptive_model, temperature, entry["style_prompt"], entry["text"])
 
