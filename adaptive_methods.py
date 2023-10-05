@@ -19,6 +19,7 @@ import re
 tqdm.pandas()
 
 from util_data import generate_evaluation_Report, get_num_labels
+from util_caching import distributed_cache_write, get_cached_rewrites
 from util_modeling import get_model_objects, is_large_language_model, is_language_model, is_openai_model
 from util_icl import generate_prompt, get_prompt_template, get_retriever, get_static_exemplars, get_dynamic_exemplars
 
@@ -230,45 +231,6 @@ def get_outcome_type(original_judgment, styled_jdugment, label):
     return "NA"
 
 
-def get_cached_rewrites(rewrite_model, temperature, input_prompt):
-    try:
-        cache_path = f"cached_rewrites/{rewrite_model.name_or_path.replace('/', '_')}.csv"
-        if is_language_model(rewrite_model.name_or_path):
-            cache_path = cache_path.replace(".csv", f"_temp={temperature}.csv")
-
-        if os.path.exists(cache_path):
-            cache_frame = pd.read_csv(cache_path)
-            hashed_prompt = hashlib.sha256(input_prompt.encode()).hexdigest()
-            cached_inference = cache_frame[cache_frame["prompt_hash"] == hashed_prompt]
-            if len(cached_inference) > 0:
-                print(f"Found cached rewrites for {rewrite_model.name_or_path}")
-                return ast.literal_eval(cached_inference.iloc[0]["rewrites"])
-    except Exception as e:
-        print(f"Error reading cached rewrites: {e}")
-
-    return None
-
-
-def write_cached_rewrites(rewrite_model, temperature, input_prompt, rewrites):
-    try:
-        cache_path = f"cached_rewrites/{rewrite_model.name_or_path.replace('/', '_')}.csv"
-        if is_language_model(rewrite_model.name_or_path):
-            cache_path = cache_path.replace(".csv", f"_temp={temperature}.csv")
-
-        hashed_prompt = hashlib.sha256(input_prompt.encode()).hexdigest()
-        cache_miss_frame = pd.DataFrame({
-                    "prompt_hash": [hashed_prompt],
-                    "prompt": [input_prompt],
-                    "rewrites": [rewrites],
-        })
-
-        cache_frame = pd.read_csv(cache_path) if os.path.exists(cache_path) else None
-        updated_cache_frame = cache_miss_frame if cache_frame is None else pd.concat([cache_frame, cache_miss_frame])
-        updated_cache_frame.to_csv(cache_path, index=False)
-    except Exception as e:
-        print(f"Error writing cached rewrites: {e}")
-
-
 def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, adaptive_method_name=None, num_shots=None, trim_exemplars=False, temperature=0, transfer_prompt=None):
     if dist.is_initialized():
         dist.barrier()
@@ -294,8 +256,9 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
     if rank == 0:
         description = f"Evaluating {dataset_name}-{eval_set} with {model_name} using {icl_method}"
         print(f"{description} and {adaptive_method_name} for style transfer" if is_adaptive_set else description)
-        if not dist.is_initialized():
-            data_loader = tqdm(data_loader, desc=description)
+        data_loader = tqdm(data_loader, desc=description)
+        # if not dist.is_initialized():
+        #     data_loader = tqdm(data_loader, desc=description)
 
     for entry in data_loader:
         if dist.is_initialized():
@@ -353,7 +316,7 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
 
         inference_log["label"] = entry["label"]
         inference_logs.append(inference_log)
-
+        distributed_cache_write(rank, world_size, model_name, dataset_name, icl_method, eval_set, temperature, inference_logs, adaptive_model, entry)
 
     distributed_inference_logs = None
     if rank == 0:
@@ -384,22 +347,6 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
 
         return inference_log_frame, eval_reports
 
-
-    # --------------
-
-    # distributed_inference_logs = None
-    # if rank == 0:
-    #     distributed_inference_logs = [[] for i in range(world_size)]
-
-    # dist.gather_object(inference_logs, distributed_inference_logs)
-
-    # if rank == 0:
-    #     distributed_inference_logs = list(chain(*distributed_inference_logs))
-
-    #     save_inference_log(distributed_inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, "No Adaptation", num_shots)
-    #     dataset_name = f"{dataset_name}-{eval_set}" if dataset_name.startswith("boss_") else dataset_name
-    #     inference_log_frame = pd.DataFrame(distributed_inference_logs)
-    #     return generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_method, eval_set, dataset, inference_log_frame, "No Adaptation", num_shots, num_failed_generations)
 
 def save_baseline_logs(experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots, inference_logs):
     # Save logs frame
@@ -610,9 +557,6 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
 
         parsed_generation = parse_generation(style_input, generation)
         formatted_generated_sequences.append(parsed_generation)
-
-    # Write rewrites to cache
-    write_cached_rewrites(adaptive_model, temperature, input_prompts, formatted_generated_sequences)
 
     print(f"\n\nOriginal Input: {input_entry['text']}")
     print("Rewrites:\n- " + "\n- ".join(formatted_generated_sequences))

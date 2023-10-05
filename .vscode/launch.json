@@ -214,7 +214,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "env": {
-                "CUDA_VISIBLE_DEVICES": "0,3,5"
+                // "CUDA_VISIBLE_DEVICES": "0,3,5"
             },
             "args": [
                 "--nproc-per-node=gpu",
