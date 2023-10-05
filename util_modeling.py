@@ -1,6 +1,7 @@
 from transformers import AutoConfig, AutoTokenizer, LlamaTokenizer, AutoModel, AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoModelForSequenceClassification, AutoModelForQuestionAnswering
 from accelerate import infer_auto_device_map
 import torch
+import torch.distributed as dist
 from openai_hf.openai_model import OpenAIModel, OpenAIModelConfig
 from augmenters_hf.augmenter import AugmenterModel, AugmenterConfig
 
@@ -56,14 +57,14 @@ def get_model_objects(model_name, num_labels, training=False):
     if is_llm:
         num_billions = [float(entry[:-1]) for entry in model_name.split("-") if entry[0].isdigit() and entry.lower().endswith("b")]
         large_models = ["stabilityai/StableBeluga2"]
-        load_in_8bit = (len(num_billions) > 0 and num_billions[0] > 13) or training or model_name in large_models
+        load_in_8bit = (len(num_billions) > 0 and num_billions[0] >= 13) or training or model_name in large_models
         if load_in_8bit:
-            print("Loading in 8-bit mode since the model has more than 3B parameters or we are training.")
+            print("Loading in 8-bit mode since the model has more than 13B parameters or we are training.")
             model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, load_in_8bit=True, llm_int8_threshold=0, device_map="auto").eval()
-
-        else:
-            # model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, torch_dtype=numerical_precision).eval().to(device)
+        elif dist.is_initialized():
             model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, torch_dtype=numerical_precision).eval().to(device)
+        else:
+            model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, torch_dtype=numerical_precision, device_map="balanced_low_0").eval()
 
     elif is_qa_model:
         model = AutoModelForQuestionAnswering.from_pretrained(model_name, trust_remote_code=True, torch_dtype=numerical_precision).eval().to(device)
@@ -73,4 +74,5 @@ def get_model_objects(model_name, num_labels, training=False):
         model = AutoModel.from_pretrained(model_name, trust_remote_code=True, torch_dtype=numerical_precision).eval().to(device)
     else:
         model = AutoModelForSequenceClassification.from_pretrained(model_name, trust_remote_code=True, num_labels=num_labels).eval().to(device)
+
     return tokenizer, model
