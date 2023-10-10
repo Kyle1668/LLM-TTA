@@ -357,6 +357,7 @@ def save_baseline_logs(experiment_id, model_name, dataset_name, icl_method, eval
     no_adapt_logs = get_baseline_inference_log_frame(experiment_id, model_name, dataset_name, icl_method, eval_set)
     inference_log_frame = pd.DataFrame(inference_logs)
     inference_log_frame["original judgment"] = no_adapt_logs["judgment"]
+    inference_log_frame["input"] = inference_log_frame["input"].apply(lambda inputs: [f"<aug>{input}</aug>" for input in inputs]).values
     if "entropy" in inference_log_frame.columns:
         inference_log_frame["original entropy"] = no_adapt_logs["entropy"]
         inference_log_frame["entropy decrease"] =  inference_log_frame["original entropy"] - inference_log_frame["entropy"]
