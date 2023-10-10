@@ -100,6 +100,8 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
         inference_metadata["generations"] = generations
         inference_metadata["predicted_classes"] = predicted_classes
         majority_class = max(set(predicted_classes), key=predicted_classes.count)
+
+        # print(f"Pred: {majority_class} - Label: {input_entry['label']}")
         return majority_class, inference_metadata
     except Exception as e:
         print(f"Error for input {input_entry['text']} ---- Error: {e}")

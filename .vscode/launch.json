@@ -164,7 +164,7 @@
             "args": [
                 "--nproc-per-node=gpu",
                 "evaluate_styling.py",
-                // "--max_examples=100",
+                "--max_examples=100",
                 "--model=Kyle1668/boss-sentiment-bert-base-uncased",
                 // "--model=EleutherAI/pythia-12b",
                 // "--model=stabilityai/StableBeluga2",
@@ -179,9 +179,9 @@
                 "--skip_style_model_eval",
                 "--splits=sst5",
                 // "--icl_method=random",
-                "--icl_method=random,topk_nearest",
+                "--icl_method=random",
                 "--num_shots=16",
-                "--temperature=0.7"
+                "--temperature=0.0"
             ]
         },
         {
@@ -790,6 +790,35 @@
                 "--num_shots=16",
                 "--temperature=0.7"
             ]
-        }
+        },
+        {
+            "name": "AGT Pythia",
+            "type": "python",
+            "request": "launch",
+            "program": "evaluate_styling.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                // "CUDA_VISIBLE_DEVICES": "0"
+            },
+            "args": [
+                // "--max_examples=50",
+                // "--model=EleutherAI/pythia-6.9b",
+                "--model=tiiuae/falcon-7b-instruct",
+                // "--adaptive_model=stabilityai/StableBeluga-7B",
+                "--adaptive_model=back_translate",
+                "--dataset=ag_news_twitter",
+                // "--report_wandb",
+                "--baseline=skip",
+                // "--baseline=test_time_augmentation",
+                // "--skip_style_model_eval",
+                // "--splits=sst5",
+                // "--icl_method=random",
+                "--icl_method=random",
+                "--num_shots=16",
+                "--temperature=0.0",
+                "--skip_style_model_eval"
+            ]
+        },
     ]
 }
