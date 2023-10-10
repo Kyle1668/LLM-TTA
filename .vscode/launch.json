@@ -165,7 +165,7 @@
                 "--nproc-per-node=gpu",
                 "evaluate_styling.py",
                 "--max_examples=100",
-                "--model=Kyle1668/boss-sentiment-bert-base-uncased",
+                "--model=Kyle1668/boss-sentiment-bert-base-uncased,Kyle1668/boss-sentiment-t5-large",
                 // "--model=EleutherAI/pythia-12b",
                 // "--model=stabilityai/StableBeluga2",
                 // "--adaptive_model=stabilityai/StableBeluga-7B",
@@ -181,7 +181,8 @@
                 // "--icl_method=random",
                 "--icl_method=random",
                 "--num_shots=16",
-                "--temperature=0.0"
+                "--temperature=0.0",
+                "--use_wandb"
             ]
         },
         {
