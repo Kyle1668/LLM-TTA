@@ -28,8 +28,9 @@ def distributed_cache_write(rank, world_size, model_name, dataset_name, icl_meth
 
             description = f"Writing {len(writable_entries)} rewrites for {dataset_name}-{eval_set} with {model_name} using {icl_method}"
             print(description)
-            for rank_entry in distributed_rewrites_cache:
-                write_cached_rewrites(adaptive_model, temperature, rank_entry["style_prompt"], rank_entry["text"])
+            cache_style_prompts = [write_entry["style_prompt"] for write_entry in writable_entries]
+            cache_texts = [write_entry["text"] for write_entry in writable_entries]
+            write_cached_rewrites(adaptive_model, temperature, cache_style_prompts, cache_texts)
     else:
         write_cached_rewrites(adaptive_model, temperature, entry["style_prompt"], entry["text"])
 
@@ -59,11 +60,11 @@ def write_cached_rewrites(rewrite_model, temperature, input_prompt, rewrites):
         if is_language_model(rewrite_model.name_or_path):
             cache_path = cache_path.replace(".csv", f"_temp={temperature}.csv")
 
-        hashed_prompt = hashlib.sha256(input_prompt.encode()).hexdigest()
+        input_prompt = input_prompt if isinstance(input_prompt, list) else [input_prompt]
         cache_miss_frame = pd.DataFrame({
-                    "prompt_hash": [hashed_prompt],
-                    "prompt": [input_prompt],
-                    "rewrites": [rewrites],
+                    "prompt_hash": [hashlib.sha256(prompt.encode()).hexdigest() for prompt in input_prompt],
+                    "prompt": input_prompt,
+                    "rewrites": rewrites if isinstance(rewrites[0], list) else [rewrites],
         })
 
         cache_frame = pd.read_csv(cache_path) if os.path.exists(cache_path) else None
