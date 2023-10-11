@@ -281,15 +281,15 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
             entry["original_text"] = entry["text"]
             if dataset_name == "boss_nli":
                 entry["text"] = entry["Premise"]
-                entry["style_prompt"], styled_premise, entry["rewrite_cache_hit"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature, transfer_prompt)
+                entry["style_prompt"], styled_premise, entry["rewrite_cache_hit"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature, transfer_prompt, dataset_name)
                 entry["text"] = entry["Hypothesis"]
-                entry["style_prompt"], styled_hypothesis, entry["rewrite_cache_hit"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature, transfer_prompt)
+                entry["style_prompt"], styled_hypothesis, entry["rewrite_cache_hit"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature, transfer_prompt, dataset_name)
                 entry["text"] = f"{styled_premise} / {styled_hypothesis}"
             else:
                 # cached_rewrites = get_cached_rewritess(dataset_name, eval_set, adaptive_method_name, icl_method, num_shots, temperature, entry)
                 cached_rewrites = None
                 if cached_rewrites == None:
-                    entry["style_prompt"], entry["text"], entry["rewrite_cache_hit"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature, transfer_prompt)
+                    entry["style_prompt"], entry["text"], entry["rewrite_cache_hit"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature, transfer_prompt, dataset_name)
                 else:
                     entry["style_prompt"], entry["text"], entry["rewrite_cache_hit"] = cached_rewrites
 
@@ -488,7 +488,7 @@ def wrap_classification_prompt_keywords(prompt, model_name):
         return prompt
 
 
-def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemplars, trim_exemplars, temperature, transfer_prompt):
+def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemplars, trim_exemplars, temperature, transfer_prompt, dataset_name):
     style_input = input_entry["text"].replace("\n", " ")
     is_openai = is_openai_model(adaptive_model.name_or_path)
     num_example_tokens = adaptive_tokenizer(style_input, return_tensors="pt")["input_ids"].shape[1] if adaptive_tokenizer is not None else len(style_input)
@@ -516,7 +516,7 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
         input_prompts = style_input
 
     # Try reading from the cache. If the cache doesn't exist, generate a new rewrite
-    cached_rewrites = get_cached_rewrites(adaptive_model, temperature, input_prompts)
+    cached_rewrites = get_cached_rewrites(dataset_name, adaptive_model, temperature, input_prompts)
     if cached_rewrites is not None:
         return input_prompts, cached_rewrites, True
 

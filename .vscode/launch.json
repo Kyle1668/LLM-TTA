@@ -88,15 +88,15 @@
                 // "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
-                "--max_examples=500",
+                "--max_examples=100",
                 "--model=Kyle1668/boss-sentiment-bert-base-uncased",
                 // "--model=Kyle1668/boss-sentiment-t5-large",
                 // "--model=EleutherAI/pythia-12b",
                 // "--model=stabilityai/StableBeluga2",
-                "--adaptive_model=stabilityai/StableBeluga-7B",
+                // "--adaptive_model=stabilityai/StableBeluga-7B",
                 // "--adaptive_model=stabilityai/StableBeluga2",
                 // "--adaptive_model=TheBloke/vicuna-7B-1.1-HF",
-                // "--adaptive_model=humarin/chatgpt_paraphraser_on_T5_base",
+                "--adaptive_model=humarin/chatgpt_paraphraser_on_T5_base",
                 "--dataset=boss_sentiment",
                 // "--report_wandb",
                 "--baseline=skip",
