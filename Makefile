@@ -1,6 +1,7 @@
-install_depends:
+create_env:
 	conda create -n eval-aug python=3.10
-	conda activate eval-aug
+
+install_depends:
 	pip install -r requirements.txt
 
 download_boss_benchmark:
