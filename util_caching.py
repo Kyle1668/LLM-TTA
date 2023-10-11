@@ -37,6 +37,9 @@ def distributed_cache_write(rank, world_size, model_name, dataset_name, icl_meth
 
 def get_cached_rewrites(rewrite_model, temperature, input_prompt):
     try:
+        if not os.path.exists("cached_rewrites"):
+            os.mkdir("cached_rewrites")
+
         cache_path = f"cached_rewrites/{rewrite_model.name_or_path.replace('/', '_')}.csv"
         if is_language_model(rewrite_model.name_or_path):
             cache_path = cache_path.replace(".csv", f"_temp={temperature}.csv")
