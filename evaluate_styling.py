@@ -334,7 +334,7 @@ def main():
                                                     wandb_run.log({f"{evaluation_set}_{adaptive_method}_{style_icl_method}_{shots}_{model_name}_style_logs": wandb.Table(dataframe=style_inference_log_frame)})
                     else:
                         if is_llm:
-                            for shots in num_shots:
+                            for shots in [16]:
                                 current_report = evaluate_without_adaptation(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, num_shots=shots)
                                 if rank == 0:
                                     reports.append(current_report)

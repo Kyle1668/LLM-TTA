@@ -272,18 +272,19 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
         exemplars = mean_exemplar_distance = None
         if should_retrieve_exemplars:
             if icl_method == "static":
-                exemplars = get_static_exemplars(dataset_name, num_shots)
+                exemplars = get_static_exemplars(dataset_name, 16)
             else:
                 distance_goal = "NA" if not icl_method.startswith("topk") else icl_method if icl_method == "topk" else icl_method.split("_")[1]
-                exemplars, mean_exemplar_distance = get_dynamic_exemplars(entry["text"], dataset_name, exemplar_retriever, num_shots, distance_goal) if should_retrieve_exemplars else None
+                exemplars, mean_exemplar_distance = get_dynamic_exemplars(entry["text"], dataset_name, exemplar_retriever, 16, distance_goal) if should_retrieve_exemplars else None
 
         if is_adaptive_set:
+            icr_exemplars = [] if num_shots is None or num_shots == 0 else exemplars
             entry["original_text"] = entry["text"]
             if dataset_name == "boss_nli":
                 entry["text"] = entry["Premise"]
-                entry["style_prompt"], styled_premise, entry["rewrite_cache_hit"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature, transfer_prompt, dataset_name)
+                entry["style_prompt"], styled_premise, entry["rewrite_cache_hit"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, icr_exemplars, trim_exemplars, temperature, transfer_prompt, dataset_name)
                 entry["text"] = entry["Hypothesis"]
-                entry["style_prompt"], styled_hypothesis, entry["rewrite_cache_hit"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature, transfer_prompt, dataset_name)
+                entry["style_prompt"], styled_hypothesis, entry["rewrite_cache_hit"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, icr_exemplars, trim_exemplars, temperature, transfer_prompt, dataset_name)
                 entry["text"] = f"{styled_premise} / {styled_hypothesis}"
             else:
                 # cached_rewrites = get_cached_rewritess(dataset_name, eval_set, adaptive_method_name, icl_method, num_shots, temperature, entry)
