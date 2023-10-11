@@ -1,3 +1,12 @@
+install_depends:
+	conda create -n eval-aug python=3.10
+	conda activate eval-aug
+	pip install -r requirements.txt
+
+download_boss_benchmark:
+	mkdir datasets; cd datasets && wget https://huggingface.co/datasets/Kyle1668/BOSS-Robustness-Benchmark/resolve/main/BOSS.zip && unzip BOSS.zip
+	mv datasets/process datasets/boss_benchmark
+
 boss_sentiment:
 	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_sentiment --model=Kyle1668/boss-sentiment-bert-base-uncased,Kyle1668/boss-sentiment-t5-large --adaptive_model=stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=16,0 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
 
