@@ -7,7 +7,7 @@ The assistant is to paraphrase the input text as if it was one of the examples. 
 ### Input Text ###
 Now paraphrase ```"<style_input>"``` as if it was one of the examples. Change the details of the text if necessary.
 
-Return the text in the format: ```Paraphased Text```
+Return the text in the format: ```Paraphrased Text```
 
-### Paraphased Text ###
-Paraphased Text:
+### Paraphrased Text ###
+Paraphrased Text:

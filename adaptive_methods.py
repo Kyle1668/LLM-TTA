@@ -532,11 +532,7 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
                 num_return_sequences=4,
                 num_beam_groups=4,
                 num_beams=4,
-                top_p=0.95,
-                top_k=0,
-                repetition_penalty=10.0,
-                diversity_penalty=1.0,
-                no_repeat_ngram_size=2,
+                diversity_penalty=0.5,
             )
     except torch.cuda.OutOfMemoryError as generation_error:
         print(generation_error)
@@ -560,6 +556,9 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
 
         parsed_generation = parse_generation(style_input, generation)
         formatted_generated_sequences.append(parsed_generation)
+
+    if "Paragrafied" in str(formatted_generated_sequences):
+        print("Paragrafied")
 
     print(f"\n\nOriginal Input: {input_entry['text']}")
     print("Rewrites:\n- " + "\n- ".join(formatted_generated_sequences))
@@ -591,6 +590,8 @@ def parse_generation(style_input, generation):
             generation = generation[1:]
         if generation[-1] == '"':
             generation = generation[:-1]
+    if ":" in generation:
+        generation = generation.split(":")[1].strip()
     if "<end task example>" in generation:
         generation = generation.split("<end task example>")[0].strip()
     if generation.startswith('"') and generation.endswith('"'):
@@ -601,7 +602,8 @@ def parse_generation(style_input, generation):
         generation = generation.split("Paraphrased:")[1].strip()
     if generation.startswith('"'):
         generation = generation.split('"')[1]
-
+    if generation.lower().startswith("now paraphrase"):
+        generation = generation[14:].strip()
     if generation.strip() == "":
         print("Generation was empty")
 

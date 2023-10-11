@@ -1,0 +1,13 @@
+### Instructions ###
+The assistant is to paraphrase the input text as if it was one of the examples. Change the details of the text if necessary.
+
+### Style Examples ###
+<style_transfer_exemplars>
+
+### Input Text ###
+Now paraphrase the following input text as if it was one of the examples. Change the details of the text if necessary.
+
+Be straight to the point and only retruns the paraphrased version of the input text. The response format should be ```paraphrased input text```
+
+Input Text: "<style_input>"
+Paraphased Text: ```
