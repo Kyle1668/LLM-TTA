@@ -88,7 +88,7 @@
                 // "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
-                // "--max_examples=100",
+                "--max_examples=500",
                 "--model=Kyle1668/boss-sentiment-bert-base-uncased",
                 // "--model=Kyle1668/boss-sentiment-t5-large",
                 // "--model=EleutherAI/pythia-12b",
@@ -102,7 +102,7 @@
                 "--baseline=skip",
                 // "--baseline=test_time_augmentation",
                 "--skip_style_model_eval",
-                "--splits=sst5",
+                "--splits=semval",
                 // "--icl_method=random",
                 "--icl_method=random",
                 "--num_shots=16",
