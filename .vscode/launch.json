@@ -167,7 +167,8 @@
                 "--nproc-per-node=gpu",
                 "evaluate_styling.py",
                 "--max_examples=100",
-                "--model=Kyle1668/boss-sentiment-bert-base-uncased,Kyle1668/boss-sentiment-t5-large",
+                "--model=tiiuae/falcon-7b-instruct",
+                // "--model=Kyle1668/boss-sentiment-bert-base-uncased,Kyle1668/boss-sentiment-t5-large",
                 // "--model=EleutherAI/pythia-12b",
                 // "--model=stabilityai/StableBeluga2",
                 // "--adaptive_model=stabilityai/StableBeluga-7B",
@@ -179,12 +180,12 @@
                 "--baseline=skip",
                 // "--baseline=test_time_augmentation",
                 "--skip_style_model_eval",
-                "--splits=sst5",
+                // "--splits=test,sst5",
                 // "--icl_method=random",
                 "--icl_method=random",
                 "--num_shots=16",
                 "--temperature=0.0",
-                "--use_wandb"
+                // "--use_wandb"
             ]
         },
         {

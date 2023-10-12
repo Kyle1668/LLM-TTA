@@ -422,8 +422,12 @@ def get_baseline_inference_log_frame(experiment_id, model_name, dataset_name, ic
         else:
             compare_file_name_prefix = f'{model_name.replace("/", "-")}-{dataset_name}-{eval_set}-static-No Adaptation'
 
-    no_adapt_logs_filename = [file_name for file_name in os.listdir(f"results/{experiment_id}") if compare_file_name_prefix in file_name][0]
-    return pd.read_csv(f"results/{experiment_id}/{no_adapt_logs_filename}")
+    try:
+        no_adapt_logs_filename = [file_name for file_name in os.listdir(f"results/{experiment_id}") if compare_file_name_prefix in file_name][0]
+        return pd.read_csv(f"results/{experiment_id}/{no_adapt_logs_filename}")
+    except Exception as e:
+        print(f"Could not find baseline logs for {compare_file_name_prefix} in {os.listdir(f'results/{experiment_id}')}---- Error: {e}")
+        raise e
 
 
 def save_inference_log(inference_logs, experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots, trim_exemplars="NA"):
@@ -557,9 +561,6 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
 
         parsed_generation = parse_generation(style_input, generation)
         formatted_generated_sequences.append(parsed_generation)
-
-    if "Paragrafied" in str(formatted_generated_sequences):
-        print("Paragrafied")
 
     print(f"\n\nOriginal Input: {input_entry['text']}")
     print("Rewrites:\n- " + "\n- ".join(formatted_generated_sequences))
