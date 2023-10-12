@@ -85,16 +85,17 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "env": {
-                // "CUDA_VISIBLE_DEVICES": "0"
+                "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
-                "--max_examples=100",
+                "--max_examples=50",
                 "--model=tiiuae/falcon-7b-instruct",
                 // "--model=Kyle1668/boss-sentiment-bert-base-uncased",
                 // "--model=Kyle1668/boss-sentiment-t5-large",
                 // "--model=EleutherAI/pythia-12b",
                 // "--model=stabilityai/StableBeluga2",
-                "--adaptive_model=stabilityai/StableBeluga-7B",
+                // "--adaptive_model=stabilityai/StableBeluga-7B",
+                "--adaptive_model=aug_back-translate,aug_insert,aug_substitute",
                 // "--adaptive_model=stabilityai/StableBeluga2",
                 // "--adaptive_model=TheBloke/vicuna-7B-1.1-HF",
                 // "--adaptive_model=humarin/chatgpt_paraphraser_on_T5_base",
@@ -174,7 +175,8 @@
                 // "--adaptive_model=stabilityai/StableBeluga-7B",
                 // "--adaptive_model=stabilityai/StableBeluga2",
                 // "--adaptive_model=TheBloke/vicuna-7B-1.1-HF",
-                "--adaptive_model=humarin/chatgpt_paraphraser_on_T5_base",
+                // "--adaptive_model=humarin/chatgpt_paraphraser_on_T5_base",
+                "--adaptive_model=aug_back-translate,aug_insert,aug_substitute",
                 "--dataset=boss_sentiment",
                 // "--report_wandb",
                 "--baseline=skip",

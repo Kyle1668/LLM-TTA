@@ -6,6 +6,9 @@ install_depends:
 	mkdir datasets; cd datasets && wget https://huggingface.co/datasets/Kyle1668/BOSS-Robustness-Benchmark/resolve/main/BOSS.zip && unzip BOSS.zip
 	mv datasets/process datasets/boss_benchmark
 
+make clear_rewrites_cache:
+	rm -rf cached_rewrites/*
+
 # TODO
 # Evaluate ICR on the OOD sets
 main_icr_results:

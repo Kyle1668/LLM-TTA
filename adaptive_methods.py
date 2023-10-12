@@ -77,9 +77,14 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
 
         generations = []
         if is_openai:
-            generations = [model.generate(model_input_prompt, max_new_tokens=20) for model_input_prompt in prompt]
+            generations = [model.generate(model_input_prompt, max_new_tokens=100) for model_input_prompt in prompt]
         else:
-            for input_text in [input_entry["text"]] if isinstance(input_entry["text"], str) else input_entry["text"]:
+            input_sequences = [input_entry["text"]] if isinstance(input_entry["text"], str) else input_entry["text"]
+            if len(input_sequences) > 1:
+                decription = f"Generating {len(input_sequences)} inferences for {dataset_name}"
+                input_sequences = tqdm(input_sequences, desc=decription)
+
+            for input_text in input_sequences:
                 if model.config.architectures[0].startswith("T5"):
                     tokenized_prompt = tokenizer.encode(input_text, return_tensors="pt", max_length=512).to(model.device)
                 else:
@@ -88,7 +93,7 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
                     tokenized_prompt = tokenizer.encode(formatted_prompt, return_tensors="pt", max_length=truncation_length).to(model.device)
 
                 with torch.no_grad():
-                    outputs = model.generate(tokenized_prompt, max_new_tokens=100, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id)
+                    outputs = model.generate(tokenized_prompt, max_new_tokens=10, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id)
                     start_decoding_index = len(tokenized_prompt[0]) if is_large_language_model(model.name_or_path) else 0
                     generation = tokenizer.decode(outputs["sequences"][0][start_decoding_index:], skip_special_tokens=True).split("\n")[0].replace("</s>", "").strip()
                     generations.append(generation)
