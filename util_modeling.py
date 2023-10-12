@@ -34,6 +34,29 @@ def is_openai_model(model_name):
 
 
 def get_model_objects(model_name, num_labels, training=False):
+    if dist.is_initialized():
+        # Load the model on rank one first. This avoids race conditions if the model must be downloaded
+        # from the HuggingFace model hub at the expense of extra time.
+        if dist.get_rank() == 0:
+            model = get_model(model_name, num_labels, training=training)
+            print(f"{model_name} loaded on rank {dist.get_rank()}.")
+
+        # Other ranks will wait for rank zero to catch up before loading the model.
+        dist.barrier()
+        if dist.get_rank() == 0:
+            print(f"Rank {dist.get_rank()} finished loading {model_name}. Now loading on the remaining {dist.get_world_size() - 1} ranks.")
+
+        # Load the model on the remaining ranks now that rank zero has finished.
+        if dist.get_rank() != 0:
+            model = get_model(model_name, num_labels, training=training)
+            print(f"{model_name} loaded on rank {dist.get_rank()}.")
+
+        return model
+
+    return get_model(model_name, num_labels, training=training)
+
+
+def get_model(model_name, num_labels, training=False):
     if model_name.startswith("aug"):
         action = model_name.split("_")[1]
         return None, AugmenterModel(AugmenterConfig(model_name, action))
