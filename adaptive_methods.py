@@ -80,15 +80,15 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
             generations = [model.generate(model_input_prompt, max_new_tokens=100) for model_input_prompt in prompt]
         else:
             generations = []
-            input_entry["text"] = [input_entry["text"]] if not isinstance(input_entry["text"], list) else input_entry["text"]
-            input_sequence_indices = range(len(input_entry["text"]))
+            input_sequences = [input_entry["text"]] if not isinstance(input_entry["text"], list) else input_entry["text"]
+            input_sequence_indices = range(len(input_sequences))
             show_progress = len(input_sequence_indices) > 1 and not dist.is_initialized()
             if show_progress:
                 input_sequence_indices = tqdm(input_sequence_indices, desc="Processing augmentation batch")
 
             for index in input_sequence_indices:
-                input_sequences = prompt if is_large_language_model(model.name_or_path) else [input_entry["text"]]
-                current_input = input_sequences[index]
+                input_sequences = prompt if is_large_language_model(model.name_or_path) else input_sequences
+                current_input = wrap_classification_prompt_keywords(input_sequences[index], model.name_or_path)
                 truncation_length = 512 if model.config.architectures[0].startswith("T5") else 20000
                 tokenized_prompt = tokenizer.encode(current_input, return_tensors="pt", max_length=truncation_length).to(model.device)
                 outputs = model.generate(tokenized_prompt, max_new_tokens=10, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id)
@@ -119,7 +119,6 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
         inference_metadata["predicted_classes"] = predicted_classes
         majority_class = max(set(predicted_classes), key=predicted_classes.count)
 
-        # print(f"Pred: {majority_class} - Label: {input_entry['label']}")
         return majority_class, inference_metadata
     except Exception as e:
         print(f"Error for input {input_entry['text']} ---- Error: {e}")
@@ -500,12 +499,11 @@ def wrap_rewrite_prompt_keywords(prompt, model_name):
 
 
 def wrap_classification_prompt_keywords(prompt, model_name):
-    user_message = prompt.split("\n")[-1]
-    system_message = prompt.split(user_message)[0]
-
     if "vicuna" in model_name:
         return f"User: {prompt} Assistant:"
     elif "StableBeluga" in model_name:
+        user_message = prompt.split("\n")[-1]
+        system_message = prompt.split(user_message)[0]
         return f"### System:\n{system_message}### User:\n{user_message}\n\n### Assistant:\n"
     else:
         return prompt
