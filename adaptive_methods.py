@@ -259,8 +259,6 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
         description = f"Evaluating {dataset_name}-{eval_set} with {model_name} using {icl_method}"
         print(f"{description} and {adaptive_method_name} for style transfer" if is_adaptive_set else description)
         data_loader = tqdm(data_loader, desc=description)
-        # if not dist.is_initialized():
-        #     data_loader = tqdm(data_loader, desc=description)
 
     for entry in data_loader:
         if dist.is_initialized():
