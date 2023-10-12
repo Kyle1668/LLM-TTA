@@ -77,7 +77,7 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
 
         generations = []
         if is_openai:
-            generations = [model.generate(model_input_prompt, max_new_tokens=100) for model_input_prompt in prompt]
+            generations = [model.generate(model_input_prompt, max_new_tokens=20) for model_input_prompt in prompt]
         else:
             for input_text in [input_entry["text"]] if isinstance(input_entry["text"], str) else input_entry["text"]:
                 if model.config.architectures[0].startswith("T5"):
@@ -275,6 +275,8 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
                 distance_goal = "NA" if not icl_method.startswith("topk") else icl_method if icl_method == "topk" else icl_method.split("_")[1]
                 exemplars, mean_exemplar_distance = get_dynamic_exemplars(entry["text"], dataset_name, exemplar_retriever, 16, distance_goal) if should_retrieve_exemplars else None
 
+        # set millisecond counter
+        aug_latency_counter = time.perf_counter()
         if is_adaptive_set:
             icr_exemplars = [] if num_shots is None or num_shots == 0 else exemplars
             entry["original_text"] = entry["text"]
@@ -291,6 +293,8 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
                     entry["style_prompt"], entry["text"], entry["rewrite_cache_hit"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature, transfer_prompt, dataset_name)
                 else:
                     entry["style_prompt"], entry["text"], entry["rewrite_cache_hit"] = cached_rewrites
+        aug_end_time = aug_latency_counter - time.perf_counter()
+        print(f"Augmentation latency: {aug_end_time}")
 
         prompt = generate_prompt(model_name, template, exemplars, entry, dataset_name) if should_retrieve_exemplars else None
         inference = get_judgment(model, tokenizer, prompt, device, entry, dataset_name)
@@ -304,6 +308,7 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
 
         inference_log = inference_metadata if inference_metadata is not None else {}
         inference_log["latency"] = time.perf_counter() - start_time
+        inference_log["augmentation latency"] = aug_end_time
         inference_log["input"] = entry["text"]
         if is_adaptive_set:
             inference_log["original_input"] = entry["original_text"]

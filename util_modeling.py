@@ -1,4 +1,4 @@
-from transformers import AutoConfig, AutoTokenizer, LlamaTokenizer, AutoModel, AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoModelForSequenceClassification, AutoModelForQuestionAnswering
+from transformers import AutoConfig, AutoTokenizer, LlamaTokenizer, AutoModel, AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoModelForSequenceClassification, AutoModelForQuestionAnswering, FalconForCausalLM, FalconConfig
 from accelerate import infer_auto_device_map
 import torch
 import torch.distributed as dist
@@ -63,14 +63,25 @@ def get_model(model_name, num_labels, training=False):
     if is_openai_model(model_name):
         return None, OpenAIModel(OpenAIModelConfig(model_name))
 
-    model_config = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
+    is_llama_based_model = "llama" in model_name or "vicuna" in model_name
+    is_falcon_based_model = "falcon" in model_name
+    model_config = None
+    if is_falcon_based_model:
+        model_config = FalconConfig.from_pretrained(model_name)
+    else:
+        model_config = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
+
     is_seq2seq_lm = model_config.architectures[0].endswith("ForConditionalGeneration")
     is_qa_model = model_config.architectures[0].endswith("ForQuestionAnswering")
     is_llm = model_config.architectures[0].endswith("ForCausalLM")
-    is_llama_based_model = is_llm and "llama" in model_name or "vicuna" in model_name
     is_embedding_model = model_name in ["princeton-nlp/sup-simcse-roberta-large"]
 
-    tokenizer = LlamaTokenizer.from_pretrained(model_name) if is_llama_based_model else AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+    tokenizer = None
+    if is_llama_based_model:
+        tokenizer = LlamaTokenizer.from_pretrained(model_name)
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+
     if tokenizer.pad_token is None:
         tokenizer.pad_token = "<s>" if tokenizer.pad_token in [None, ""] and str(tokenizer.eos_token) in [None, ""] else tokenizer.eos_token
 
@@ -80,14 +91,31 @@ def get_model(model_name, num_labels, training=False):
     if is_llm:
         num_billions = [float(entry[:-1]) for entry in model_name.split("-") if entry[0].isdigit() and entry.lower().endswith("b")]
         large_models = ["stabilityai/StableBeluga2"]
-        load_in_8bit = (len(num_billions) > 0 and num_billions[0] >= 13) or training or model_name in large_models
-        if load_in_8bit:
+        needs_quantization = (len(num_billions) > 0 and num_billions[0] >= 13) or training or model_name in large_models
+        load_in_8bit = needs_quantization and torch.cuda.get_device_capability()[0] >= 8
+        load_in_4bit = needs_quantization and torch.cuda.get_device_capability()[0] < 8
+        if load_in_4bit:
+            print("Loading in 4-bit mode since the model has more than 7B parameters or we are training.")
+            if is_falcon_based_model:
+                model = FalconForCausalLM.from_pretrained(model_name, load_in_4bit=True).eval()
+            else:
+                model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, load_in_4bit=True).eval()
+        elif load_in_8bit:
             print("Loading in 8-bit mode since the model has more than 13B parameters or we are training.")
-            model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, load_in_8bit=True, llm_int8_threshold=0, device_map="auto").eval()
+            if is_falcon_based_model:
+                model = FalconForCausalLM.from_pretrained(model_name, load_in_8bit=True, llm_int8_threshold=0, device_map="auto").eval()
+            else:
+                model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, load_in_8bit=True, llm_int8_threshold=0, device_map="auto").eval()
         elif dist.is_initialized():
-            model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, torch_dtype=numerical_precision).eval().to(device)
+            if is_falcon_based_model:
+                model = FalconForCausalLM.from_pretrained(model_name, torch_dtype=numerical_precision).eval().to(device)
+            else:
+                model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, torch_dtype=numerical_precision).eval().to(device)
         else:
-            model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, torch_dtype=numerical_precision, device_map="auto").eval()
+            if is_falcon_based_model:
+                model = FalconForCausalLM.from_pretrained(model_name, torch_dtype=numerical_precision, device_map="auto").eval()
+            else:
+                model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, torch_dtype=numerical_precision, device_map="auto").eval()
 
     elif is_qa_model:
         model = AutoModelForQuestionAnswering.from_pretrained(model_name, trust_remote_code=True, torch_dtype=numerical_precision).eval().to(device)
