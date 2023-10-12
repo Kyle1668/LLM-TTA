@@ -79,24 +79,37 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
         if is_openai:
             generations = [model.generate(model_input_prompt, max_new_tokens=100) for model_input_prompt in prompt]
         else:
-            input_sequences = [input_entry["text"]] if isinstance(input_entry["text"], str) else input_entry["text"]
-            if len(input_sequences) > 1:
-                decription = f"Generating {len(input_sequences)} inferences for {dataset_name}"
-                input_sequences = tqdm(input_sequences, desc=decription)
+            generations = []
+            input_entry["text"] = [input_entry["text"]] if not isinstance(input_entry["text"], list) else input_entry["text"]
+            input_sequence_indices = range(len(input_entry["text"]))
+            show_progress = len(input_sequence_indices) > 1 and not dist.is_initialized()
+            if show_progress:
+                input_sequence_indices = tqdm(input_sequence_indices, desc="Processing augmentation batch")
 
-            for input_text in input_sequences:
-                if model.config.architectures[0].startswith("T5"):
-                    tokenized_prompt = tokenizer.encode(input_text, return_tensors="pt", max_length=512).to(model.device)
-                else:
-                    formatted_prompt = wrap_classification_prompt_keywords(prompt[0], model.name_or_path)
-                    truncation_length = tokenizer.model_max_length if tokenizer.model_max_length <= 10000 else 10000
-                    tokenized_prompt = tokenizer.encode(formatted_prompt, return_tensors="pt", max_length=truncation_length).to(model.device)
+            for index in input_sequence_indices:
+                input_sequences = prompt if is_large_language_model(model.name_or_path) else [input_entry["text"]]
+                current_input = input_sequences[index]
+                truncation_length = 512 if model.config.architectures[0].startswith("T5") else 20000
+                tokenized_prompt = tokenizer.encode(current_input, return_tensors="pt", max_length=truncation_length).to(model.device)
+                outputs = model.generate(tokenized_prompt, max_new_tokens=10, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id)
+                start_decoding_index = len(tokenized_prompt[0]) if is_large_language_model(model.name_or_path) else 0
+                generation = tokenizer.decode(outputs["sequences"][0][start_decoding_index:], skip_special_tokens=True).split("\n")[0].replace("</s>", "").strip()
+                generations.append(generation)
 
-                with torch.no_grad():
-                    outputs = model.generate(tokenized_prompt, max_new_tokens=10, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id)
-                    start_decoding_index = len(tokenized_prompt[0]) if is_large_language_model(model.name_or_path) else 0
-                    generation = tokenizer.decode(outputs["sequences"][0][start_decoding_index:], skip_special_tokens=True).split("\n")[0].replace("</s>", "").strip()
-                    generations.append(generation)
+
+            # for input_text in input_sequences:
+            #     if model.config.architectures[0].startswith("T5"):
+            #         tokenized_prompt = tokenizer.encode(input_text, return_tensors="pt", max_length=512).to(model.device)
+            #     else:
+            #         formatted_prompt = wrap_classification_prompt_keywords(prompt[0], model.name_or_path)
+            #         truncation_length = tokenizer.model_max_length if tokenizer.model_max_length <= 10000 else 10000
+            #         tokenized_prompt = tokenizer.encode(formatted_prompt, return_tensors="pt", max_length=truncation_length).to(model.device)
+
+            #     with torch.no_grad():
+            #         outputs = model.generate(tokenized_prompt, max_new_tokens=10, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id)
+            #         start_decoding_index = len(tokenized_prompt[0]) if is_large_language_model(model.name_or_path) else 0
+            #         generation = tokenizer.decode(outputs["sequences"][0][start_decoding_index:], skip_special_tokens=True).split("\n")[0].replace("</s>", "").strip()
+            #         generations.append(generation)
 
         predicted_classes = []
         for generation in generations:
@@ -281,7 +294,6 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
                 exemplars, mean_exemplar_distance = get_dynamic_exemplars(entry["text"], dataset_name, exemplar_retriever, 16, distance_goal) if should_retrieve_exemplars else None
 
         # set millisecond counter
-        aug_latency_counter = time.perf_counter()
         if is_adaptive_set:
             icr_exemplars = [] if num_shots is None or num_shots == 0 else exemplars
             entry["original_text"] = entry["text"]
@@ -298,9 +310,8 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
                     entry["style_prompt"], entry["text"], entry["rewrite_cache_hit"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature, transfer_prompt, dataset_name)
                 else:
                     entry["style_prompt"], entry["text"], entry["rewrite_cache_hit"] = cached_rewrites
-        aug_end_time = aug_latency_counter - time.perf_counter()
-        print(f"Augmentation latency: {aug_end_time}")
 
+        assert entry["text"][-1] == entry["original_text"]
         prompt = generate_prompt(model_name, template, exemplars, entry, dataset_name) if should_retrieve_exemplars else None
         inference = get_judgment(model, tokenizer, prompt, device, entry, dataset_name)
         inference_metadata = inference[1] if isinstance(inference, tuple) else None
@@ -313,7 +324,6 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
 
         inference_log = inference_metadata if inference_metadata is not None else {}
         inference_log["latency"] = time.perf_counter() - start_time
-        inference_log["augmentation latency"] = aug_end_time
         inference_log["input"] = entry["text"]
         if is_adaptive_set:
             inference_log["original_input"] = entry["original_text"]
@@ -531,7 +541,7 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
     # Try reading from the cache. If the cache doesn't exist, generate a new rewrite
     cached_rewrites = get_cached_rewrites(dataset_name, adaptive_model, temperature, input_prompts)
     if cached_rewrites is not None:
-        return input_prompts, cached_rewrites, True
+        return input_prompts, cached_rewrites + [input_entry["original_text"]], True
 
     tokenized_prompt = input_prompts if adaptive_tokenizer is None else adaptive_tokenizer.encode(input_prompts, return_tensors="pt").to(adaptive_model.device)
     try:
@@ -572,7 +582,7 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
 
     print(f"\n\nOriginal Input: {input_entry['text']}")
     print("Rewrites:\n- " + "\n- ".join(formatted_generated_sequences))
-    return input_prompts, formatted_generated_sequences, False
+    return input_prompts, formatted_generated_sequences + [input_entry["original_text"]], False
 
 
 def parse_generation(style_input, generation):
