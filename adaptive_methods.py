@@ -384,7 +384,7 @@ def save_baseline_logs(experiment_id, model_name, dataset_name, icl_method, eval
     # Save logs frame
     experiment_directory = f"results/{experiment_id}"
     experiment_run_prefix = f"{model_name.replace('/', '-')}-{dataset_name}-{icl_method}-{eval_set}-{adaptive_method_name.replace('/', '-')}-{num_shots}"
-    no_adapt_logs = get_baseline_inference_log_frame(experiment_id, model_name, dataset_name, icl_method, eval_set)
+    no_adapt_logs = get_baseline_inference_log_frame(experiment_id, model_name, dataset_name, icl_method, eval_set, num_shots)
     inference_log_frame = pd.DataFrame(inference_logs)
     inference_log_frame["original judgment"] = no_adapt_logs["judgment"]
     inference_log_frame["input"] = inference_log_frame["input"].apply(lambda inputs: [f"<aug>{input}</aug>" for input in inputs]).values
@@ -435,7 +435,7 @@ def save_baseline_logs(experiment_id, model_name, dataset_name, icl_method, eval
     return inference_log_frame
 
 
-def get_baseline_inference_log_frame(experiment_id, model_name, dataset_name, icl_method, eval_set):
+def get_baseline_inference_log_frame(experiment_id, model_name, dataset_name, icl_method, eval_set, num_shots):
     compare_file_name_prefix = None
     if is_large_language_model(model_name):
         if dataset_name.startswith("boss_"):
@@ -570,7 +570,7 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
     except torch.cuda.OutOfMemoryError as generation_error:
         print(generation_error)
         print(f"Ran out of memory when generating an input for the following prompt: {input_prompts}")
-        return input_prompts, None
+        return input_prompts, None, None
 
     formatted_generated_sequences = []
     if is_openai:

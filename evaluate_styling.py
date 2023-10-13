@@ -209,7 +209,7 @@ def main():
                         for adaptive_method in adaptive_methods:
                             if adaptive_method == "No Adaptation":
                                 # Evaluate the task model
-                                for shot_count in num_shots if is_llm else [0]:
+                                for shot_count in [16] if is_llm else [0]:
                                     current_report = evaluate_without_adaptation(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, shot_count)
                                     if rank == 0:
                                         reports.append(current_report)
@@ -219,69 +219,10 @@ def main():
                                         if wandb_enabled:
                                             wandb.log(current_report)
                                             wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
-
-                            elif adaptive_method == "test_time_augmentation":
-                                for aug_method in ["paraphrase", "replace"]:
-                                    tta_report = evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, evaluation_set, icl_method, aug_method)
-                                    reports.append(tta_report)
-                                    all_reports = pd.DataFrame(reports).drop_duplicates()
-                                    print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "avg f1", "rewrite rate"]])
-                                    all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
-                                    if wandb_enabled:
-                                        wandb.log(tta_report)
-                                        wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
-
-                            elif adaptive_method == "memo":
-                                for aug_method in ["paraphrase", "replace"]:
-                                    memo_report = evaluate_memo(experiment_id, model_name, model, tokenizer, dataset_name, dataset, evaluation_set, icl_method, aug_method)
-
-                                    reports.append(memo_report)
-                                    all_reports = pd.DataFrame(reports).drop_duplicates()
-                                    print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "avg f1", "rewrite rate"]])
-                                    all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
-                                    if wandb_enabled:
-                                        wandb.log(memo_report)
-                                        wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
-
-                                    # Now evaluate on the in-distribution set to assess potential catastrophic forgetting
-                                    forgetting_report = evaluate_without_adaptation(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, "validation")
-                                    reports.append(forgetting_report)
-                                    all_reports = pd.DataFrame(reports).drop_duplicates()
-                                    print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "avg f1", "rewrite rate"]])
-                                    all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
-                                    if wandb_enabled:
-                                        wandb.log(forgetting_report)
-                                        wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
-
-                                    # Since MEMO updates the model's parameters, we need to reload the model so
-                                    # as to not affect the next experiment
-                                    tokenizer, model = get_model_objects(model_name, num_labels)
-                            elif adaptive_method == "fine-tuning":
-                                ft_report = evaluate_fine_tuning(experiment_id, model_name, model, tokenizer, dataset_name, dataset, evaluation_set, icl_method)
-                                reports.append(ft_report)
-                                all_reports = pd.DataFrame(reports).drop_duplicates()
-                                print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "avg f1", "rewrite rate"]])
-                                all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
-                                if wandb_enabled:
-                                    wandb.log(ft_report)
-                                    wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
-
-                                # Now evaluate on the in-distribution set to assess potential catastrophic forgetting
-                                forgetting_report = evaluate_without_adaptation(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, "validation")
-                                reports.append(forgetting_report)
-                                all_reports = pd.DataFrame(reports).drop_duplicates()
-                                print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "avg f1", "rewrite rate"]])
-                                all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
-                                if wandb_enabled:
-                                    wandb.log(forgetting_report)
-                                    wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
-
-                                # Since fine-tuning the model further updates the model's parameters, we
-                                # need to reload the model so as to not affect the next experiment
-                                tokenizer, model = get_model_objects(model_name, num_labels, training=True)
                             else:
                                 for style_icl_method in icl_methods:
-                                    for shots in num_shots:
+                                    is_icr = adaptive_method != "No Adaptation" and not adaptive_method.startswith("aug")
+                                    for shots in num_shots if is_icr else [16]:
                                         is_zero_shot = shots == 0
                                         is_first_icl_run = style_icl_method == icl_methods[0]
                                         if is_zero_shot and not is_first_icl_run:
@@ -295,7 +236,6 @@ def main():
                                                 if temperature != domain_transfer_temperatures[0]:
                                                     continue
                                                 transfer_prompt = "baseline_zero_shot"
-                                                style_icl_method = "static"
 
                                             rewriting_report = evaluate_style_transfer(
                                                 rank,
