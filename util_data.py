@@ -85,7 +85,7 @@ def generate_evaluation_Report(experiment_id, model_name, dataset_name, icl_meth
         "inference method": inference_method,
         "icl_method": icl_method,
         "task model": formatted_model_name,
-        "style transfer model": adaptive_method_name if formatted_split_name == "OOD w/ Style Transfer" else None,
+        "style transfer model": adaptive_method_name if "original_input" in inference_log_frame.columns else None,
         "exemplar count": num_shots,
         "temperature": temperature,
         "trim exemplars": trim_exemplars,
