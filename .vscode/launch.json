@@ -109,17 +109,17 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "env": {
-                "CUDA_VISIBLE_DEVICES": "0"
+                "CUDA_VISIBLE_DEVICES": "2"
             },
             "args": [
-                "--max_examples=40",
+                "--max_examples=50",
                 // "--model=tiiuae/falcon-7b-instruct",
-                // "--model=Kyle1668/boss-sentiment-bert-base-uncased",
-                "--model=Kyle1668/boss-sentiment-t5-large",
+                "--model=Kyle1668/boss-sentiment-bert-base-uncased",
+                // "--model=Kyle1668/boss-sentiment-t5-large",
                 // "--model=EleutherAI/pythia-12b",
                 // "--model=stabilityai/StableBeluga2",
                 // "--adaptive_model=stabilityai/StableBeluga-7B",
-                "--adaptive_model=aug_back-translate,aug_insert,aug_substitute",
+                "--adaptive_model=aug_insert,aug_substitute,aug_back-translate",
                 // "--adaptive_model=stabilityai/StableBeluga2",
                 // "--adaptive_model=TheBloke/vicuna-7B-1.1-HF",
                 // "--adaptive_model=humarin/chatgpt_paraphraser_on_T5_base",
@@ -128,12 +128,13 @@
                 "--baseline=skip",
                 // "--baseline=test_time_augmentation",
                 "--skip_style_model_eval",
-                "--splits=semval",
+                // "--splits=semval",
                 // "--icl_method=random",
                 "--icl_method=random",
                 "--num_shots=16",
                 "--temperature=0.0",
-                "--trim_exemplars"
+                "--trim_exemplars",
+                "--evaluate_id_adaptation"
             ]
         },
         {
