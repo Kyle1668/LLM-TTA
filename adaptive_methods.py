@@ -149,6 +149,18 @@ def parse_generation_to_label(dataset_name, generation):
         "negative": 0,
         "positive": 1,
         "neutral": 2,
+        "world": 0,
+        "politics": 0,
+        "toxic": 0,
+        "non-toxic": 1,
+        "sports": 1,
+        "business": 2,
+        "finance": 2,
+        "economy": 2,
+        "sci/tech": 3,
+        "science": 3,
+        "technology": 3,
+        "tech": 3,
     }
     if split_tokens[0].lower() in verbalizers:
         return verbalizers[split_tokens[0].lower()]
