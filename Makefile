@@ -51,6 +51,24 @@ rewriter_model_id_eval:
 	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --split=validation --model=stabilityai/StableBeluga-7b --adaptive_model=aug_back-translate --skip_style_model_eval --skip_eval_styling --num_shots=16 --icl_method=random,topk_nearest --temperature=0 --trim_exemplars --use_wandb
 	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=ag_news_twitter --split=validation --model=stabilityai/StableBeluga-7b --adaptive_model=aug_back-translate --skip_style_model_eval --skip_eval_styling --num_shots=16 --icl_method=random,topk_nearest --temperature=0 --trim_exemplars --use_wandb
 
+
+########## 10/14 Reruns ##########
+
+# Falcon for semval and dynasent and T5 and BERT for the whole sweep
+10_14_rerun_main_results_ood_sentiment:
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_sentiment --split=semval,dynasent --model=tiiuae/falcon-7b-instruct --adaptive_model=aug_insert,aug_substitute,aug_back-translate,stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_sentiment --model=Kyle1668/boss-sentiment-t5-large,Kyle1668/boss-sentiment-bert-base-uncased --adaptive_model=aug_insert,aug_substitute,aug_back-translate,stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+
+# Falcon for implicit_hate and T5/BERT for the whole sweep
+10_14_rerun_main_results_ood_toxicity:
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --split=implicit_hate --model=tiiuae/falcon-7b-instruct --adaptive_model=aug_insert,aug_substitute,aug_back-translate,stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --model=Kyle1668/boss-toxicity-t5-large,Kyle1668/boss-toxicity-bert-base-uncased --adaptive_model=aug_insert,aug_substitute,aug_back-translate,stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+
+# Falcon ICR for test split and T5/BERT for the whole sweep
+10_14_rerun_main_results_ood_news:
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=ag_news_twitter --split=test --model=tiiuae/falcon-7b-instruct --adaptive_model=stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=ag_news_twitter --model=Kyle1668/ag-news-t5-large,Kyle1668/ag-news-bert-base-uncased --adaptive_model=aug_insert,aug_substitute,aug_back-translate,stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+
 ########## Targeted Experiments ##########
 
 main_icr_results:
