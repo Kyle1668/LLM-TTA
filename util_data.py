@@ -361,7 +361,7 @@ def load_boss_nli_task():
 
 def load_ag_news_twitter():
     ag_news = load_dataset("ag_news")
-    tweets = load_dataset("Kyle1668/AG-Tweets", use_auth_token=True)["test"].rename_column("tweet summary", "text")
+    tweets = load_dataset("Kyle1668/AG-Tweets")["test"].rename_column("tweet summary", "text")
     return DatasetDict({"train": ag_news["train"], "validation": ag_news["test"], "test": tweets})
 
 
