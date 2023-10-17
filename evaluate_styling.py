@@ -140,16 +140,17 @@ def main():
     # Evalaute with baselines
     adaptive_methods = ["No Adaptation"] + [method for method in baselines if method != "skip"] + ([] if args.skip_eval_styling else adaptive_model_names)
 
-    print("--------------------------------------------------")
-    print("Running experiment with the following parameters:")
-    print(f"Experiment ID: {experiment_id}")
-    print(f"Dataset Names: {dataset_names}")
-    print(f"ICL Methods: {icl_methods}")
-    print(f"Task Model Names: {model_names}")
-    print(f"Style Model Names: {adaptive_model_names}")
-    print(f"Max Examples: {args.max_examples}")
-    print(args)
-    print("--------------------------------------------------\n")
+    if rank == 0:
+        print("--------------------------------------------------")
+        print("Running experiment with the following parameters:")
+        print(f"Experiment ID: {experiment_id}")
+        print(f"Dataset Names: {dataset_names}")
+        print(f"ICL Methods: {icl_methods}")
+        print(f"Task Model Names: {model_names}")
+        print(f"Style Model Names: {adaptive_model_names}")
+        print(f"Max Examples: {args.max_examples}")
+        print(args)
+        print("--------------------------------------------------\n")
 
     wandb_run = None
     if rank == 0:
