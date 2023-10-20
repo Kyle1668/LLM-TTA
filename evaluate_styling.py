@@ -64,7 +64,7 @@ def init_distributed(rank: int, world_size: int):
         world size (int): Total number of processes
     """
     print(f"Initializing distributed group with rank {rank} and world size {world_size}")
-    dist.init_process_group(backend="nccl", timeout=timedelta(minutes=60), rank=rank, world_size=world_size)
+    dist.init_process_group(backend="nccl", timeout=timedelta(minutes=180), rank=rank, world_size=world_size)
     torch.cuda.set_device(rank)
 
 
