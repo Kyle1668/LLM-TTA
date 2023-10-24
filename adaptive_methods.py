@@ -322,7 +322,10 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
                 else:
                     entry["style_prompt"], entry["text"], entry["rewrite_cache_hit"] = cached_rewrites
 
-        assert entry["text"][-1] == entry["original_text"]
+        # Ensure that the original input is passed into the inference batch
+        if entry["text"] is not None:
+            assert entry["text"][-1] == entry["original_text"]
+
         prompt = generate_prompt(model_name, template, exemplars, entry, dataset_name) if should_retrieve_exemplars else None
         inference = get_judgment(model, tokenizer, prompt, device, entry, dataset_name)
         inference_metadata = inference[1] if isinstance(inference, tuple) else None
@@ -330,6 +333,11 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
         judgment = judgment[0] if isinstance(judgment, tuple) else judgment
         original_judgments.append(judgment)
         if judgment == -1:
+            if num_failed_generations > 5:
+                message = f"Critical error: {model_name} failed over 500 times. Terminating evaluation."
+                print(f"Critical error: {model_name} failed over 500 times. Terminating evaluation.")
+                raise Exception(message)
+
             num_failed_generations += 1
             print(f"Warning: {model_name} failed to generate a judgment for the following input: {entry['text']}")
 
