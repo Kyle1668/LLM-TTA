@@ -333,7 +333,7 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
         judgment = judgment[0] if isinstance(judgment, tuple) else judgment
         original_judgments.append(judgment)
         if judgment == -1:
-            if num_failed_generations > 5:
+            if num_failed_generations > 500:
                 message = f"Critical error: {model_name} failed over 500 times. Terminating evaluation."
                 print(f"Critical error: {model_name} failed over 500 times. Terminating evaluation.")
                 raise Exception(message)
