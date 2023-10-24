@@ -622,6 +622,8 @@ def parse_generation(style_input, generation):
             generation = generation[:-1]
     if ":" in generation and "://" not in generation:
         generation = generation.split(":")[1].strip()
+    if "{" in generation or "}" in generation:
+        generation = generation.replace("{", "").replace("}", "").strip()
     if "<end task example>" in generation:
         generation = generation.split("<end task example>")[0].strip()
     if generation.startswith('"') and generation.endswith('"'):
