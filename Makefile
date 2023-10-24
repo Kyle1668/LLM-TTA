@@ -53,11 +53,17 @@ rewriter_model_id_eval:
 
 ########## 10/23 Reruns ##########
 
-main_results_id_sentiment_no_llm:
-	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_sentiment --split=validation --evaluate_id_adaptation --model=tiiuae/falcon-7b-instruct,Kyle1668/boss-sentiment-t5-large,Kyle1668/boss-sentiment-bert-base-uncased --adaptive_model=aug_insert,aug_substitute,aug_back-translate --skip_style_model_eval --num_shots=0 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+single_node_id_sentiment_toxicity_no_paraphrase_icr:
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --split=validation --evaluate_id_adaptation --model=Kyle1668/boss-toxicity-t5-large,Kyle1668/boss-toxicity-bert-base-uncased --adaptive_model=aug_insert,aug_substitute,aug_back-translate --skip_style_model_eval --num_shots=0 --icl_method=random --temperature=0 --use_wandb
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_sentiment --split=validation --evaluate_id_adaptation --model=Kyle1668/boss-sentiment-t5-large,Kyle1668/boss-sentiment-bert-base-uncased --adaptive_model=aug_insert,aug_substitute,aug_back-translate --skip_style_model_eval --num_shots=0 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+	# screen -S eval_falcon_toxicity -d -m conda activate eval-aug && CUDA_VISIBLE_DEVICES=0,1,2,3 python evaluate_styling.py --dataset=boss_toxicity --split=validation --evaluate_id_adaptation --model=tiiuae/falcon-7b-instruct --adaptive_model=aug_insert,aug_substitute,aug_back-translate --skip_style_model_eval --num_shots=16 --icl_method=random --temperature=0
+	# screen -S eval_Falcon_sentiment -d -m conda activate eval-aug && CUDA_VISIBLE_DEVICES=4,5,6,7 python evaluate_styling.py --dataset=boss_sentiment --split=validation --evaluate_id_adaptation --model=tiiuae/falcon-7b-instruct --adaptive_model=aug_insert,aug_substitute,aug_back-translate --skip_style_model_eval --num_shots=16 --icl_method=random --temperature=0 --trim_exemplars &
 
-main_results_id_toxicity_no_llm:
-	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --split=validation --evaluate_id_adaptation --model=tiiuae/falcon-7b-instruct,Kyle1668/boss-toxicity-t5-large,Kyle1668/boss-toxicity-bert-base-uncased --adaptive_model=aug_insert,aug_substitute,aug_back-translate --skip_style_model_eval --num_shots=0 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+main_results_id_sentiment_llm:
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_sentiment --split=validation --evaluate_id_adaptation --model=tiiuae/falcon-7b-instruct,Kyle1668/boss-sentiment-t5-large,Kyle1668/boss-sentiment-bert-base-uncased --adaptive_model=stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=16,0 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+
+main_results_id_toxicity_llm:
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --split=validation --evaluate_id_adaptation --model=tiiuae/falcon-7b-instruct,Kyle1668/boss-toxicity-t5-large,Kyle1668/boss-toxicity-bert-base-uncased --adaptive_model=stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=16,0 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
 
 main_results_sentiment_tta_llama2:
 	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_sentiment --evaluate_id_adaptation --model=tiiuae/falcon-7b-instruct,Kyle1668/boss-sentiment-t5-large,Kyle1668/boss-sentiment-bert --adaptive_model=NousResearch/Llama-2-7b-chat-hf --skip_style_model_eval --num_shots=16,0 --icl_method=random --temperature=0 --trim_exemplars --use_wandb

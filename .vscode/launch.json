@@ -133,13 +133,14 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "env": {
-                "CUDA_VISIBLE_DEVICES": "0"
+                // "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
-                "--max_examples=500",
+                // "--max_examples=500",
                 "--model=Kyle1668/boss-sentiment-bert-base-uncased",
-                "--adaptive_model=stabilityai/StableBeluga-7B",
+                "--adaptive_model=stabilityai/StableBeluga-13B",
                 "--dataset=boss_sentiment",
+                "--split=sst5",
                 "--skip_style_model_eval",
                 "--splits=validation",
                 "--icl_method=random",
