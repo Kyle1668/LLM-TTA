@@ -90,8 +90,8 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
                 input_sequences = prompt if is_large_language_model(model.name_or_path) else input_sequences
                 current_input = wrap_classification_prompt_keywords(input_sequences[index], model.name_or_path)
                 truncation_length = 512 if model.config.architectures[0].startswith("T5") else 20000
-                tokenized_prompt = tokenizer.encode(current_input, return_tensors="pt", max_length=truncation_length).to(model.device)
-                outputs = model.generate(tokenized_prompt, max_new_tokens=10, length_penalty=0, early_stopping=True, output_scores=True, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id)
+                tokenized_prompt = tokenizer.encode(current_input, return_tensors="pt", max_length=truncation_length, truncation=True).to(model.device)
+                outputs = model.generate(tokenized_prompt, max_new_tokens=10, output_scores=False, return_dict_in_generate=True, pad_token_id=tokenizer.eos_token_id)
                 start_decoding_index = len(tokenized_prompt[0]) if is_large_language_model(model.name_or_path) else 0
                 generation = tokenizer.decode(outputs["sequences"][0][start_decoding_index:], skip_special_tokens=True).split("\n")[0].replace("</s>", "").strip()
                 generations.append(generation)

@@ -4,6 +4,7 @@ import pandas as pd
 import argparse
 import random
 import numpy as np
+import transformers
 import torch
 import wandb
 import time
@@ -149,6 +150,7 @@ def main():
         print(f"Task Model Names: {model_names}")
         print(f"Style Model Names: {adaptive_model_names}")
         print(f"Max Examples: {args.max_examples}")
+        print(f"Transformers version: {transformers.__version__}")
         print(args)
         print("--------------------------------------------------\n")
 

@@ -131,14 +131,14 @@
             "request": "launch",
             "program": "evaluate_styling.py",
             "console": "integratedTerminal",
-            "justMyCode": true,
+            "justMyCode": false,
             "env": {
-                // "CUDA_VISIBLE_DEVICES": "0"
+                "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
                 // "--max_examples=500",
-                "--model=Kyle1668/boss-sentiment-bert-base-uncased",
-                "--adaptive_model=stabilityai/StableBeluga-13B",
+                "--model=tiiuae/falcon-7b-instruct",
+                "--adaptive_model=tta_insert",
                 "--dataset=boss_sentiment",
                 "--split=sst5",
                 "--skip_style_model_eval",

@@ -13,7 +13,12 @@ def is_large_language_model(model_name):
     if is_openai_model(model_name):
         return True
 
-    model_config = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
+    is_falcon_based_model = "falcon" in model_name
+    model_config = None
+    if is_falcon_based_model:
+        model_config = FalconConfig.from_pretrained(model_name)
+    else:
+        model_config = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
     return model_config.architectures[0].endswith("ForCausalLM")
 
 
@@ -24,7 +29,12 @@ def is_language_model(model_name):
     if is_openai_model(model_name):
         return True
 
-    model_config = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
+    is_falcon_based_model = "falcon" in model_name
+    model_config = None
+    if is_falcon_based_model:
+        model_config = FalconConfig.from_pretrained(model_name)
+    else:
+        model_config = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
     is_seq2seq_lm = model_config.architectures[0].endswith("ForConditionalGeneration")
     return is_seq2seq_lm or is_large_language_model(model_name)
 
@@ -125,5 +135,8 @@ def get_model(model_name, num_labels, training=False):
         model = AutoModel.from_pretrained(model_name, trust_remote_code=True, torch_dtype=numerical_precision).eval().to(device)
     else:
         model = AutoModelForSequenceClassification.from_pretrained(model_name, trust_remote_code=True, num_labels=num_labels).eval().to(device)
+
+    # if is_falcon_based_model:
+    #     model.to_bettertransformer()
 
     return tokenizer, model
