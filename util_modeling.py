@@ -118,12 +118,12 @@ def get_model(model_name, num_labels, training=False):
                 model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, load_in_8bit=True, llm_int8_threshold=0, device_map="auto").eval()
         elif dist.is_initialized():
             if is_falcon_based_model:
-                model = FalconForCausalLM.from_pretrained(model_name, torch_dtype=numerical_precision).eval().to(device)
+                model = FalconForCausalLM.from_pretrained(model_name, load_in_8bit=True, llm_int8_threshold=0).eval().to(device)
             else:
                 model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, torch_dtype=numerical_precision).eval().to(device)
         else:
             if is_falcon_based_model:
-                model = FalconForCausalLM.from_pretrained(model_name, torch_dtype=numerical_precision, device_map="auto").eval()
+                model = FalconForCausalLM.from_pretrained(model_name, load_in_8bit=True, llm_int8_threshold=0, device_map="auto").eval()
             else:
                 model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, torch_dtype=numerical_precision, device_map="auto").eval()
 
