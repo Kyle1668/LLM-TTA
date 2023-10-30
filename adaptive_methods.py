@@ -86,7 +86,12 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
             if show_progress:
                 input_sequence_indices = tqdm(input_sequence_indices, desc="Processing augmentation batch")
 
+            inference_latencies = []
             for index in input_sequence_indices:
+                # set a stopwatch for inference latency in seconds
+                start_time = time.perf_counter()
+
+
                 input_sequences = prompt if is_large_language_model(model.name_or_path) else input_sequences
                 current_input = wrap_classification_prompt_keywords(input_sequences[index], model.name_or_path)
                 truncation_length = 512 if model.config.architectures[0].startswith("T5") else 20000
@@ -96,6 +101,11 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
                 generation = tokenizer.decode(outputs["sequences"][0][start_decoding_index:], skip_special_tokens=True).split("\n")[0].replace("</s>", "").strip()
                 generations.append(generation)
 
+                # save the number of seconds since the stopwatch started
+                inference_latencies.append(time.perf_counter() - start_time)
+
+            if len(inference_latencies) > 1:
+                print(f"Average inference latency: {np.mean(inference_latencies)}")
 
             # for input_text in input_sequences:
             #     if model.config.architectures[0].startswith("T5"):
@@ -395,7 +405,7 @@ def save_baseline_logs(experiment_id, model_name, dataset_name, icl_method, eval
     no_adapt_logs = get_baseline_inference_log_frame(experiment_id, model_name, dataset_name, icl_method, eval_set, num_shots)
     inference_log_frame = pd.DataFrame(inference_logs)
     inference_log_frame["original judgment"] = no_adapt_logs["judgment"]
-    inference_log_frame["input"] = inference_log_frame["input"].apply(lambda inputs: [f"<aug>{input}</aug>" for input in inputs]).values
+    inference_log_frame["input"] = inference_log_frame["input"].apply(lambda inputs: [f"<aug>{input}</aug>" for input in inputs] if inputs is not None else []).values
     if "entropy" in inference_log_frame.columns:
         inference_log_frame["original entropy"] = no_adapt_logs["entropy"]
         inference_log_frame["entropy decrease"] =  inference_log_frame["original entropy"] - inference_log_frame["entropy"]

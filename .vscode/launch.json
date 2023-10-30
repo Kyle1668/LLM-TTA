@@ -133,12 +133,13 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "env": {
-                "CUDA_VISIBLE_DEVICES": "0"
+                "CUDA_VISIBLE_DEVICES": "7"
             },
             "args": [
-                // "--max_examples=500",
-                "--model=tiiuae/falcon-7b-instruct",
-                "--adaptive_model=tta_insert",
+                "--max_examples=40",
+                // "--model=tiiuae/falcon-7b-instruct",
+                "--model=Kyle1668/boss-sentiment-t5-large",
+                "--adaptive_model=aug_insert",
                 "--dataset=boss_sentiment",
                 "--split=sst5",
                 "--skip_style_model_eval",
