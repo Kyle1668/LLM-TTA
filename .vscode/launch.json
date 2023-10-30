@@ -137,8 +137,8 @@
             },
             "args": [
                 "--max_examples=40",
-                // "--model=tiiuae/falcon-7b-instruct",
-                "--model=Kyle1668/boss-sentiment-t5-large",
+                "--model=tiiuae/falcon-7b-instruct",
+                // "--model=Kyle1668/boss-sentiment-t5-large",
                 "--adaptive_model=aug_insert",
                 "--dataset=boss_sentiment",
                 "--split=sst5",
