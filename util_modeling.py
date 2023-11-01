@@ -105,13 +105,13 @@ def get_model(model_name, num_labels, training=False):
         load_in_8bit = needs_quantization and torch.cuda.get_device_capability()[0] >= 8
         load_in_4bit = needs_quantization and torch.cuda.get_device_capability()[0] < 8
         if load_in_4bit:
-            print("Loading in 4-bit mode since the model has more than 7B parameters or we are training.")
+            print("Loading in 4-bit mode since the model has more than 7B parameters and 8bit isn't supported.")
             if is_falcon_based_model:
                 model = FalconForCausalLM.from_pretrained(model_name, load_in_4bit=True).eval()
             else:
                 model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, load_in_4bit=True).eval()
         elif load_in_8bit and dist.is_initialized():
-            print("Loading in 8-bit mode since the model has more than 13B parameters or we are training. Keeping each model on a single device.")
+            print("Loading in 8-bit mode since the model has more than 7B parameters or we are training. Keeping each model on a single device.")
             if is_falcon_based_model:
                 model = FalconForCausalLM.from_pretrained(model_name, load_in_8bit=True, llm_int8_threshold=0).eval().to(device)
             else:
