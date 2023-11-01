@@ -110,7 +110,13 @@ def get_model(model_name, num_labels, training=False):
                 model = FalconForCausalLM.from_pretrained(model_name, load_in_4bit=True).eval()
             else:
                 model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, load_in_4bit=True).eval()
-        elif load_in_8bit:
+        elif load_in_8bit and dist.is_initialized():
+            print("Loading in 8-bit mode since the model has more than 13B parameters or we are training. Keeping each model on a single device.")
+            if is_falcon_based_model:
+                model = FalconForCausalLM.from_pretrained(model_name, load_in_8bit=True, llm_int8_threshold=0).eval().to(device)
+            else:
+                model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, load_in_8bit=True, llm_int8_threshold=0).eval().to(device)
+        elif load_in_8bit and not dist.is_initialized():
             print("Loading in 8-bit mode since the model has more than 13B parameters or we are training.")
             if is_falcon_based_model:
                 model = FalconForCausalLM.from_pretrained(model_name, load_in_8bit=True, llm_int8_threshold=0, device_map="auto").eval()
