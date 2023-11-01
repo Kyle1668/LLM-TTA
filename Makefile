@@ -59,6 +59,13 @@ rewriter_model_id_eval:
 	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --split=validation --model=stabilityai/StableBeluga-7b --adaptive_model=aug_back-translate --skip_style_model_eval --skip_eval_styling --num_shots=16 --icl_method=random,topk_nearest --temperature=0 --trim_exemplars --use_wandb
 	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=ag_news_twitter --split=validation --model=stabilityai/StableBeluga-7b --adaptive_model=aug_back-translate --skip_style_model_eval --skip_eval_styling --num_shots=16 --icl_method=random,topk_nearest --temperature=0 --trim_exemplars --use_wandb
 
+
+########## 11/1 Reruns ##########
+
+falcon_id_tta_baselines:
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_sentiment --split=validation --evaluate_id_adaptation --model=tiiuae/falcon-7b-instruct --adaptive_model=aug_insert,aug_substitute,aug_back-translate --skip_style_model_eval --num_shots=16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --split=validation --evaluate_id_adaptation --model=tiiuae/falcon-7b-instruct --adaptive_model=aug_insert,aug_substitute,aug_back-translate --skip_style_model_eval --num_shots=16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+
 ########## 10/29 Reruns ##########
 
 # RTX A6000 - 48gb VRAM
