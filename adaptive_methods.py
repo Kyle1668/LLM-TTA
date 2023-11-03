@@ -386,7 +386,8 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
         inference_log_frame = save_baseline_logs(experiment_id, model_name, dataset_name, icl_method, eval_set, adaptive_method_name, num_shots, eval_inference_logs)
 
         eval_reports = []
-        for inference_method in ["ensemble", "entropy threshold half", "entropy threshold best", "entropy threshold+lowest", "lowest entropy", "single rewrite"]:
+        # for inference_method in ["ensemble", "entropy threshold half", "entropy threshold best", "entropy threshold+lowest", "lowest entropy", "single rewrite"]:
+        for inference_method in ["ensemble", "single rewrite"]:
             if "entropy" not in inference_log_frame.columns and "entropy" in inference_method:
                 print(f"Skipping {inference_method} because entropy was not calculated")
                 continue
