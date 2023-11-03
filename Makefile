@@ -23,13 +23,13 @@ main_results_id_news:
 	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_sentiment --model=Kyle1668/boss-sentiment-bert-base-uncased --adaptive_model=NousResearch/Llama-2-7b-chat-hf,NousResearch/Llama-2-7b-hf --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
 
 main_results_ood_sentiment:
-	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_sentiment --split=sst5,semval,dynasent --model=Kyle1668/boss-sentiment-bert-base-uncased,Kyle1668/boss-sentiment-t5-large,tiiuae/falcon-7b-instruct, --adaptive_model=aug_insert,aug_substitute,aug_back-translate,stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_sentiment --split=sst5,semval,dynasent --model=Kyle1668/boss-sentiment-bert-base-uncased,Kyle1668/boss-sentiment-t5-large,tiiuae/falcon-7b-instruct --adaptive_model=aug_insert,aug_substitute,aug_back-translate,stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
 
 main_results_ood_toxicity:
 	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --split=toxigen,adv_civil,implicit_hate --model=Kyle1668/boss-toxicity-bert-base-uncased,Kyle1668/boss-toxicity-t5-large,tiiuae/falcon-7b-instruct --adaptive_model=aug_insert,aug_substitute,aug_back-translate,stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
 
 main_results_ood_news:
-	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=ag_news_twitter --split=test --model=Kyle1668/ag-news-bert-base-uncased,Kyle1668/ag-news-t5-large,tiiuae/falcon-7b-instruct, --adaptive_model=aug_insert,aug_substitute,aug_back-translate,stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=ag_news_twitter --split=test --model=Kyle1668/ag-news-bert-base-uncased,Kyle1668/ag-news-t5-large,tiiuae/falcon-7b-instruct --adaptive_model=aug_insert,aug_substitute,aug_back-translate,stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
 
 ablate_model_size:
 	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=ag_news_twitter --split=test --model=EleutherAI/pythia-1.4b,EleutherAI/pythia-2.8b,EleutherAI/pythia-6.9b,EleutherAI/pythia-12b --adaptive_model=aug_back-translate,aug_insert,aug_substitute,stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=0,16 --icl_method=random,topk_nearest --temperature=0 --trim_exemplars --use_wandb
