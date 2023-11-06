@@ -60,6 +60,15 @@ rewriter_model_id_eval:
 	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=ag_news_twitter --split=validation --model=stabilityai/StableBeluga-7b --adaptive_model=aug_back-translate --skip_style_model_eval --skip_eval_styling --num_shots=16 --icl_method=random,topk_nearest --temperature=0 --trim_exemplars --use_wandb
 
 
+########## Train Data Abblation Models ##########
+
+ablate_data_boss_sentiment:
+	python train_model.py --dataset=boss_sentiment --num_labels=4 --base_model=bert-base-uncased --max_examples=1500 --push_to_hub --use_wandb
+	python train_model.py --dataset=boss_sentiment --num_labels=4 --base_model=bert-base-uncased --max_examples=3000 --push_to_hub --use_wandb
+	python train_model.py --dataset=boss_sentiment --num_labels=4 --base_model=bert-base-uncased --max_examples=6000 --push_to_hub --use_wandb
+	python train_model.py --dataset=boss_sentiment --num_labels=4 --base_model=bert-base-uncased --max_examples=12000 --push_to_hub --use_wandb
+	python train_model.py --dataset=boss_sentiment --num_labels=4 --base_model=bert-base-uncased --max_examples=24000 --push_to_hub --use_wandb
+
 ########## 11/1 Reruns ##########
 
 falcon_id_tta_baselines:
