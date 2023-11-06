@@ -76,50 +76,50 @@ def get_dataset(dataset_name,  max_examples=None):
 def preprocess_logits_for_metrics(logits, labels):
     predictions = None
     formatted_labels = None
-    if not isinstance(logits[0], int):
-        model_name = get_cli_args().base_model
-        tokenizer = LlamaTokenizer.from_pretrained(model_name) if "llama" in model_name else AutoTokenizer.from_pretrained(model_name)
-        formatted_labels = [int(tokenizer.decode([id for id in label_ids if id > 0], skip_special_tokens=True)[-1]) for label_ids in labels]
+    # if not isinstance(logits[0], int):
+    #     model_name = get_cli_args().base_model
+    #     tokenizer = LlamaTokenizer.from_pretrained(model_name) if "llama" in model_name else AutoTokenizer.from_pretrained(model_name)
+    #     formatted_labels = [int(tokenizer.decode([id for id in label_ids if id > 0], skip_special_tokens=True)[-1]) for label_ids in labels]
 
-        raw_predictions = None
-        if isinstance(logits, tuple):
-            raw_predictions = [tokenizer.decode(word_dist.argmax(-1), skip_special_tokens=True).split("Label:")[-1].split("\n")[0].lower().strip() for word_dist in logits[0]]
-        else:
-            raw_predictions = [tokenizer.decode(word_dist.argmax(-1), skip_special_tokens=True).split("Label:")[-1].split("\n")[0].lower().strip() for word_dist in logits]
+    #     raw_predictions = None
+    #     if isinstance(logits, tuple):
+    #         raw_predictions = [tokenizer.decode(word_dist.argmax(-1), skip_special_tokens=True).split("Label:")[-1].split("\n")[0].lower().strip() for word_dist in logits[0]]
+    #     else:
+    #         raw_predictions = [tokenizer.decode(word_dist.argmax(-1), skip_special_tokens=True).split("Label:")[-1].split("\n")[0].lower().strip() for word_dist in logits]
 
-        verbalizers = {
-            "pos": 1,
-            "positive": 1,
-            "1": 1,
-            "neg": 0,
-            "negative": 0,
-            "0": 0,
-            "neutral": 2,
-            "neut": 2,
-            "toxic": 1,
-            "non-toxic": 0,
-            "word": 0,
-            "sports": 1,
-            "business": 2,
-            "sci/tech": 3,
-        }
-        predictions = []
-        for pred in raw_predictions:
-            if pred == "":
-                predictions.append(-1)
-                continue
+    #     verbalizers = {
+    #         "pos": 1,
+    #         "positive": 1,
+    #         "1": 1,
+    #         "neg": 0,
+    #         "negative": 0,
+    #         "0": 0,
+    #         "neutral": 2,
+    #         "neut": 2,
+    #         "toxic": 1,
+    #         "non-toxic": 0,
+    #         "word": 0,
+    #         "sports": 1,
+    #         "business": 2,
+    #         "sci/tech": 3,
+    #     }
+    #     predictions = []
+    #     for pred in raw_predictions:
+    #         if pred == "":
+    #             predictions.append(-1)
+    #             continue
 
-            pred = pred.split()[0].lower().strip()
-            if pred in verbalizers:
-                predictions.append(verbalizers[pred])
-            else:
-                try:
-                    predictions.append(int(pred))
-                except:
-                    predictions.append(-1)
-    else:
-        predictions = np.argmax(logits, axis=-1)
-        formatted_labels = labels
+    #         pred = pred.split()[0].lower().strip()
+    #         if pred in verbalizers:
+    #             predictions.append(verbalizers[pred])
+    #         else:
+    #             try:
+    #                 predictions.append(int(pred))
+    #             except:
+    #                 predictions.append(-1)
+    # else:
+    predictions = np.argmax(logits.cpu(), axis=-1)
+    formatted_labels = [label[0] for label in labels.cpu().tolist()]
 
     return torch.Tensor(predictions), torch.Tensor(formatted_labels)
 
@@ -185,7 +185,7 @@ def fine_tune_model():
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     model.to(device)
 
-    dataset = get_dataset(dataset_name)
+    dataset = get_dataset(dataset_name, args.max_examples)
     data_collator = DataCollatorForSeq2Seq(tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True) if is_language_model(model_name) else DataCollatorWithPadding(tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True)
     if is_large_language_model(model_name):
         peft_config = LoraConfig(task_type=TaskType.CAUSAL_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1)
@@ -278,18 +278,12 @@ def get_trainer(args, num_epochs, model_name, experiment_id, project_name, datas
             eval_dataset=tokenized_datasets["test"],
             data_collator=data_collator,
             tokenizer=tokenizer,
+            preprocess_logits_for_metrics=preprocess_logits_for_metrics if not args.skip_computing_metrics else None,
+            compute_metrics=None if args.skip_computing_metrics else compute_metrics
         )
 
     # add early stopping
     trainer.add_callback(EarlyStoppingCallback(early_stopping_patience=3))
-
-    if not args.skip_computing_metrics:
-        print("Adding metrics to trainer")
-        trainer.preprocess_logits_for_metrics = preprocess_logits_for_metrics,
-        trainer.compute_metrics = compute_metrics
-    else:
-        print("Skipping metrics")
-
     return trainer
 
 

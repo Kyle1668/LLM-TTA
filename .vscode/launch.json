@@ -10,17 +10,17 @@
             "request": "launch",
             "program": "train_model.py",
             "console": "integratedTerminal",
-            "justMyCode": true,
+            "justMyCode": false,
             "args": [
                 "--dataset=boss_sentiment",
                 "--num_labels=4",
                 "--base_model=bert-base-uncased",
-                "--max_examples=1500",
+                "--max_examples=100",
                 "--push_to_hub",
                 // "--use_wandb"
             ],
             "env": {
-                "CUDA_VISIBLE_DEVICES": "0"
+                "CUDA_VISIBLE_DEVICES": "1"
                 // "CUDA_VISIBLE_DEVICES": "0"
             },
         },
@@ -130,17 +130,15 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "env": {
-                "CUDA_VISIBLE_DEVICES": "7"
+                "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
-                "--max_examples=40",
-                "--model=tiiuae/falcon-7b-instruct",
+                "--model=Kyle1668/boss-sentiment-bert-base-uncased",
+                // "--model=tiiuae/falcon-7b-instruct",
                 // "--model=Kyle1668/boss-sentiment-t5-large",
-                "--adaptive_model=aug_insert",
+                "--adaptive_model=stabilityai/StableBeluga-7b",
                 "--dataset=boss_sentiment",
-                "--split=sst5",
                 "--skip_style_model_eval",
-                "--splits=validation",
                 "--icl_method=random",
                 "--num_shots=16",
                 "--temperature=0.0",
