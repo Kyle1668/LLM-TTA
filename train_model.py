@@ -181,10 +181,11 @@ def fine_tune_model():
         project_name = "In-Context Domain Transfer Improves Out-of-Domain Robustness"
         wandb_run = wandb.init(project=project_name, group="training", name=experiment_id, config=args)
 
-    dataset = get_dataset(dataset_name)
     tokenizer, model = get_model_objects(model_name, num_labels=args.num_labels, training=True)
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     model.to(device)
+
+    dataset = get_dataset(dataset_name)
     data_collator = DataCollatorForSeq2Seq(tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True) if is_language_model(model_name) else DataCollatorWithPadding(tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True)
     if is_large_language_model(model_name):
         peft_config = LoraConfig(task_type=TaskType.CAUSAL_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1)
