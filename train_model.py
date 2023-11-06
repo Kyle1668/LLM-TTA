@@ -1,6 +1,6 @@
 from typing import Callable, Dict, List, Optional, Tuple, Union
 from torch import nn
-from transformers import DataCollatorWithPadding, DataCollatorForSeq2Seq, Trainer, TrainingArguments, Seq2SeqTrainer, Seq2SeqTrainingArguments, AutoModel, LlamaTokenizer, AutoTokenizer, pipeline
+from transformers import EarlyStoppingCallback, DataCollatorWithPadding, DataCollatorForSeq2Seq, Trainer, TrainingArguments, Seq2SeqTrainer, Seq2SeqTrainingArguments, AutoModel, LlamaTokenizer, AutoTokenizer, pipeline
 from peft import get_peft_config, get_peft_model, prepare_model_for_int8_training, get_peft_model_state_dict, LoraConfig, TaskType
 from sklearn.metrics import classification_report
 from datasets import Dataset, DatasetDict
@@ -181,17 +181,7 @@ def fine_tune_model():
         project_name = "In-Context Domain Transfer Improves Out-of-Domain Robustness"
         wandb_run = wandb.init(project=project_name, group="training", name=experiment_id, config=args)
 
-
-    dataset = None
-    if args.percent == 1:
-        dataset = get_dataset(dataset_name)
-    else:
-        dataset = get_dataset(dataset_name)
-        test_set = dataset["test"]
-        train_set_length = int(len(dataset["train"]) * args.percent)
-        train_set = get_dataset(dataset_name, train_set_length)["train"]
-        dataset = DatasetDict({"train": train_set, "test": test_set})
-
+    dataset = get_dataset(dataset_name)
     tokenizer, model = get_model_objects(model_name, num_labels=args.num_labels, training=True)
     data_collator = DataCollatorForSeq2Seq(tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True)
     if is_large_language_model(model_name):
@@ -252,7 +242,8 @@ def get_trainer(args, num_epochs, model_name, experiment_id, project_name, datas
             load_best_model_at_end=True,
             run_name=experiment_id,
             warmup_ratio = 0.1,
-            report_to="wandb",
+            report_to="wandb" if args.use_wandb else None,
+            push_to_hub=True if args.push_to_hub else False,
         )
 
     if is_large_language_model(model_name):
@@ -262,6 +253,11 @@ def get_trainer(args, num_epochs, model_name, experiment_id, project_name, datas
         training_args.wandb_project = project_name
         training_args.run_name = experiment_id
 
+    if args.push_to_hub:
+        hf_repo_name = "-".join([args.dataset.replace("_", "-")] + ([str(args.max_examples)] if args.max_examples is not None else []) + [args.base_model])
+        training_args = training_args.set_push_to_hub(hf_repo_name)
+        print(f"Pushing to hub with repo name: {hf_repo_name}")
+
     trainer = Trainer(
             model,
             training_args,
@@ -270,6 +266,9 @@ def get_trainer(args, num_epochs, model_name, experiment_id, project_name, datas
             data_collator=data_collator,
             tokenizer=tokenizer,
         )
+
+    # add early stopping
+    trainer.add_callback(EarlyStoppingCallback(early_stopping_patience=3))
 
     if not args.skip_computing_metrics:
         print("Adding metrics to trainer")
@@ -336,8 +335,8 @@ def get_cli_args():
     parser.add_argument("--base_model", type=str, required=False, default="Kyle1668/boss-sentiment-bert-base-uncased")
     parser.add_argument("--max_examples", type=int, required=False, default=None)
     parser.add_argument("--skip_computing_metrics", action="store_true")
-    parser.add_argument("--use_wandb", action="store_true")
-    parser.add_argument("--percent", type=float, required=False, default=1, help="Percentage of training data to use. Valid values between 0 and 1.")
+    parser.add_argument("--use_wandb", action="store_true"),
+    parser.add_argument("--push_to_hub", action="store_true"),
     args = parser.parse_args()
     return args
 

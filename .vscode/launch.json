@@ -10,12 +10,13 @@
             "request": "launch",
             "program": "train_model.py",
             "console": "integratedTerminal",
-            "justMyCode": false,
+            "justMyCode": true,
             "args": [
                 "--dataset=boss_sentiment",
                 "--num_labels=4",
                 "--base_model=bert-base-uncased",
-                "--max_examples=3000"
+                "--max_examples=3000",
+                "--push_to_hub",
                 // "--use_wandb"
             ],
             "env": {
