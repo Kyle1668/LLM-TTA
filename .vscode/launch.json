@@ -13,7 +13,7 @@
             "justMyCode": false,
             "args": [
                 "--dataset=boss_sentiment",
-                "--num_labels=4",
+                "--num_labels=3",
                 "--base_model=bert-base-uncased",
                 "--max_examples=100",
                 "--push_to_hub",

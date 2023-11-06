@@ -237,10 +237,13 @@ def get_trainer(args, num_epochs, model_name, experiment_id, project_name, datas
 
     for column in dataset["train"].column_names:
         if column in tokenized_datasets["train"].column_names:
-            tokenized_datasets.remove_columns(column)
+            tokenized_datasets["train"].remove_columns(column)
+        if column in tokenized_datasets["test"].column_names:
+            tokenized_datasets["test"].remove_columns(column)
 
-    if "__index_level_0__" in tokenized_datasets["train"].column_names:
-        tokenized_datasets.remove_columns("__index_level_0__")
+    # if "__index_level_0__" in tokenized_datasets["train"].column_names:
+    #     tokenized_datasets["train"].remove_columns("__index_level_0__")
+    #     tokenized_datasets["test"].remove_columns("__index_level_0__")
 
     hf_repo_name = "-".join([args.dataset.replace("_", "-")] + ([str(args.max_examples)] if args.max_examples is not None else []) + [args.base_model])
     training_args = TrainingArguments(

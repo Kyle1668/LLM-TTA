@@ -62,12 +62,29 @@ rewriter_model_id_eval:
 
 ########## Train Data Abblation Models ##########
 
+# 30000 training examples
 ablate_data_boss_sentiment:
-	python train_model.py --dataset=boss_sentiment --num_labels=4 --base_model=bert-base-uncased --max_examples=1500 --push_to_hub --use_wandb
-	python train_model.py --dataset=boss_sentiment --num_labels=4 --base_model=bert-base-uncased --max_examples=3000 --push_to_hub --use_wandb
-	python train_model.py --dataset=boss_sentiment --num_labels=4 --base_model=bert-base-uncased --max_examples=6000 --push_to_hub --use_wandb
-	python train_model.py --dataset=boss_sentiment --num_labels=4 --base_model=bert-base-uncased --max_examples=12000 --push_to_hub --use_wandb
-	python train_model.py --dataset=boss_sentiment --num_labels=4 --base_model=bert-base-uncased --max_examples=24000 --push_to_hub --use_wandb
+	python train_model.py --dataset=boss_sentiment --num_labels=3 --base_model=bert-base-uncased --max_examples=1500 --push_to_hub --use_wandb
+	python train_model.py --dataset=boss_sentiment --num_labels=3 --base_model=bert-base-uncased --max_examples=3000 --push_to_hub --use_wandb
+	python train_model.py --dataset=boss_sentiment --num_labels=3 --base_model=bert-base-uncased --max_examples=6000 --push_to_hub --use_wandb
+	python train_model.py --dataset=boss_sentiment --num_labels=3 --base_model=bert-base-uncased --max_examples=12000 --push_to_hub --use_wandb
+	python train_model.py --dataset=boss_sentiment --num_labels=3 --base_model=bert-base-uncased --max_examples=24000 --push_to_hub --use_wandb
+
+# 60000 training examples
+ablate_data_boss_toxicity:
+	python train_model.py --dataset=boss_toxicity --num_labels=2 --base_model=bert-base-uncased --max_examples=3000 --push_to_hub --use_wandb
+	python train_model.py --dataset=boss_toxicity --num_labels=2 --base_model=bert-base-uncased --max_examples=6000 --push_to_hub --use_wandb
+	python train_model.py --dataset=boss_toxicity --num_labels=2 --base_model=bert-base-uncased --max_examples=12000 --push_to_hub --use_wandb
+	python train_model.py --dataset=boss_toxicity --num_labels=2 --base_model=bert-base-uncased --max_examples=24000 --push_to_hub --use_wandb
+	python train_model.py --dataset=boss_toxicity --num_labels=2 --base_model=bert-base-uncased --max_examples=48000 --push_to_hub --use_wandb
+
+# 96000 training examples
+ablate_data_ag_news:
+	python train_model.py --dataset=ag_news_twitter --num_labels=4 --base_model=bert-base-uncased --max_examples=4800 --push_to_hub --use_wandb
+	python train_model.py --dataset=ag_news_twitter --num_labels=4 --base_model=bert-base-uncased --max_examples=9600 --push_to_hub --use_wandb
+	python train_model.py --dataset=ag_news_twitter --num_labels=4 --base_model=bert-base-uncased --max_examples=19200 --push_to_hub --use_wandb
+	python train_model.py --dataset=ag_news_twitter --num_labels=4 --base_model=bert-base-uncased --max_examples=38400 --push_to_hub --use_wandb
+	python train_model.py --dataset=ag_news_twitter --num_labels=4 --base_model=bert-base-uncased --max_examples=76800 --push_to_hub --use_wandb
 
 ########## 11/1 Reruns ##########
 
