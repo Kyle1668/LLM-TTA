@@ -221,6 +221,9 @@ def fine_tune_model():
 
 
 def get_trainer(args, num_epochs, model_name, experiment_id, project_name, dataset, tokenizer, model, data_collator, tokenized_datasets):
+    if "label" in dataset["train"].column_names and "labels" not in dataset["train"].column_names:
+        dataset["train"] = dataset["train"].rename_column("label", "labels")
+        dataset["test"] = dataset["test"].rename_column("label", "labels")
 
     for column in dataset["train"].column_names:
         if column in tokenized_datasets["train"].column_names:
@@ -229,8 +232,9 @@ def get_trainer(args, num_epochs, model_name, experiment_id, project_name, datas
     if "__index_level_0__" in tokenized_datasets["train"].column_names:
         tokenized_datasets.remove_columns("__index_level_0__")
 
+    hf_repo_name = "-".join([args.dataset.replace("_", "-")] + ([str(args.max_examples)] if args.max_examples is not None else []) + [args.base_model])
     training_args = TrainingArguments(
-            output_dir=f"trained_models/{experiment_id}/model",
+            output_dir=f"trained_models/{experiment_id}/{hf_repo_name}",
             per_device_train_batch_size=16,
             num_train_epochs=num_epochs,
             weight_decay=0.01,
@@ -242,9 +246,13 @@ def get_trainer(args, num_epochs, model_name, experiment_id, project_name, datas
             load_best_model_at_end=True,
             run_name=experiment_id,
             warmup_ratio = 0.1,
-            report_to="wandb" if args.use_wandb else None,
-            push_to_hub=True if args.push_to_hub else False,
+            report_to="wandb" if args.use_wandb is True else None,
+            # push_to_hub=True if args.push_to_hub else False,
         )
+
+    if args.push_to_hub:
+        print(f"Pushing to hub when completed with repo name: {hf_repo_name}")
+        training_args = training_args.set_push_to_hub(hf_repo_name, strategy="end")
 
     if is_large_language_model(model_name):
         training_args.fp16 = True
@@ -252,11 +260,6 @@ def get_trainer(args, num_epochs, model_name, experiment_id, project_name, datas
     if args.use_wandb:
         training_args.wandb_project = project_name
         training_args.run_name = experiment_id
-
-    if args.push_to_hub:
-        hf_repo_name = "-".join([args.dataset.replace("_", "-")] + ([str(args.max_examples)] if args.max_examples is not None else []) + [args.base_model])
-        training_args = training_args.set_push_to_hub(hf_repo_name)
-        print(f"Pushing to hub with repo name: {hf_repo_name}")
 
     trainer = Trainer(
             model,
