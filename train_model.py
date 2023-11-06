@@ -26,9 +26,6 @@ from util_icl import generate_classification_prompt, get_static_exemplars, get_d
 from util_data import get_formatted_dataset
 from adaptive_methods import GenericDataset
 
-# Set global tokenizer for computing metrics
-GLOBAL_TOKENIZER = None
-
 
 def get_dataset(dataset_name,  max_examples=None):
     local_dataset_paths = {
@@ -46,35 +43,32 @@ def get_dataset(dataset_name,  max_examples=None):
         },
     }
 
-    if dataset_name in local_dataset_paths:
-        train_file_path = local_dataset_paths[dataset_name]["train"]
-        seperator = "\t" if "tsv" in train_file_path else ","
-        train_set = pd.read_csv(local_dataset_paths[dataset_name]["train"], sep=seperator).dropna()
-        train_set.rename(columns={"Text": "text", "Label": "label"}, inplace=True)
-        if max_examples is not None:
-            train_set = train_set.sample(max_examples)
+    # if dataset_name in local_dataset_paths:
+    #     train_file_path = local_dataset_paths[dataset_name]["train"]
+    #     seperator = "\t" if "tsv" in train_file_path else ","
+    #     train_set = pd.read_csv(local_dataset_paths[dataset_name]["train"], sep=seperator).dropna()
+    #     train_set.rename(columns={"Text": "text", "Label": "label"}, inplace=True)
+    #     if max_examples is not None:
+    #         train_set = train_set.sample(max_examples)
 
-        test_file_path = local_dataset_paths[dataset_name]["train"]
-        test_set = pd.read_csv(local_dataset_paths[dataset_name]["test"], sep=seperator).dropna()
-        test_set.rename(columns={"Text": "text", "Label": "label"}, inplace=True)
-        if max_examples is not None:
-            test_set = test_set.sample(max_examples)
+    #     test_file_path = local_dataset_paths[dataset_name]["train"]
+    #     test_set = pd.read_csv(local_dataset_paths[dataset_name]["test"], sep=seperator).dropna()
+    #     test_set.rename(columns={"Text": "text", "Label": "label"}, inplace=True)
+    #     if max_examples is not None:
+    #         test_set = test_set.sample(max_examples)
 
-        return DatasetDict(
-            {
-                "train": Dataset.from_pandas(train_set),
-                "test": Dataset.from_pandas(test_set),
-            }
-        )
+    #     return DatasetDict(
+    #         {
+    #             "train": Dataset.from_pandas(train_set),
+    #             "test": Dataset.from_pandas(test_set),
+    #         }
+    #     )
 
-    # return load_dataset(dataset_name)
-    dataset = get_formatted_dataset(dataset_name, max_examples=None)
+    train_set = get_formatted_dataset(dataset_name, max_examples)["train"]
+    test_set = get_formatted_dataset(dataset_name)["validation"]
+    dataset = DatasetDict({ "train": train_set, "test": test_set })
     if dataset_name == "sst2":
         dataset["test"] = dataset["validation"]
-
-    if max_examples is not None:
-        dataset["train"] = dataset["train"].select(range(max_examples)) if max_examples < len(dataset["train"]) else dataset["train"]
-        dataset["test"] = dataset["test"].select(range(max_examples)) if max_examples < len(dataset["test"]) else dataset["test"]
 
     return dataset
 
@@ -237,7 +231,14 @@ def fine_tune_model():
 
 
 def get_trainer(args, num_epochs, model_name, experiment_id, project_name, dataset, tokenizer, model, data_collator, tokenized_datasets):
-    tokenized_datasets = tokenized_datasets.remove_columns(dataset["train"].column_names)
+
+    for column in dataset["train"].column_names:
+        if column in tokenized_datasets["train"].column_names:
+            tokenized_datasets.remove_columns(column)
+
+    if "__index_level_0__" in tokenized_datasets["train"].column_names:
+        tokenized_datasets.remove_columns("__index_level_0__")
+
     training_args = TrainingArguments(
             output_dir=f"trained_models/{experiment_id}/model",
             per_device_train_batch_size=16,
@@ -250,11 +251,9 @@ def get_trainer(args, num_epochs, model_name, experiment_id, project_name, datas
             save_strategy="epoch",
             load_best_model_at_end=True,
             run_name=experiment_id,
+            warmup_ratio = 0.1,
             report_to="wandb",
         )
-
-    if args.use_lr_warmup:
-        training_args.warmup_ratio = 0.1,
 
     if is_large_language_model(model_name):
         training_args.fp16 = True
@@ -336,7 +335,6 @@ def get_cli_args():
     parser.add_argument("--num_labels", type=int, required=True)
     parser.add_argument("--base_model", type=str, required=False, default="Kyle1668/boss-sentiment-bert-base-uncased")
     parser.add_argument("--max_examples", type=int, required=False, default=None)
-    parser.add_argument("--use_lr_warmup", action="store_true")
     parser.add_argument("--skip_computing_metrics", action="store_true")
     parser.add_argument("--use_wandb", action="store_true")
     parser.add_argument("--percent", type=float, required=False, default=1, help="Percentage of training data to use. Valid values between 0 and 1.")
