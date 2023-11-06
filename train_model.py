@@ -183,7 +183,9 @@ def fine_tune_model():
 
     dataset = get_dataset(dataset_name)
     tokenizer, model = get_model_objects(model_name, num_labels=args.num_labels, training=True)
-    data_collator = DataCollatorForSeq2Seq(tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True)
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    model.to(device)
+    data_collator = DataCollatorForSeq2Seq(tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True) if is_language_model(model_name) else DataCollatorWithPadding(tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True)
     if is_large_language_model(model_name):
         peft_config = LoraConfig(task_type=TaskType.CAUSAL_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1)
         model = prepare_model_for_int8_training(model)
@@ -196,9 +198,9 @@ def fine_tune_model():
     elif is_language_model(model_name):
         tokenized_datasets = dataset.map(lambda example: tokenize_t5(example, tokenizer), batched=True, remove_columns=["text", "label"])
     else:
-        tokenized_datasets = dataset.map(lambda example: tokenizer(example["text"], truncation=True, max_length=512), batched=True, remove_columns=["text", "label"])
+        tokenized_datasets = dataset.map(lambda example: tokenizer(example["text"], truncation=True, max_length=512), batched=True)
 
-    for extra_column in ["class", "label"]:
+    for extra_column in ["class"]:
         tokenized_datasets = tokenized_datasets.remove_columns(extra_column) if extra_column in tokenized_datasets["train"].column_names else tokenized_datasets
         # tokenized_datasets = tokenized_datasets.remove_columns(extra_column) if extra_column in tokenized_datasets["validation"].column_names else tokenized_datasets
         tokenized_datasets = tokenized_datasets.remove_columns(extra_column) if extra_column in tokenized_datasets["test"].column_names else tokenized_datasets
@@ -220,10 +222,17 @@ def fine_tune_model():
     trainer.save_model(f"trained_models/{experiment_id}/best_F1={trainer.state.best_metric}")
 
 
+def map_label_to_tensor(example_dict):
+    example_dict["labels"] = torch.tensor([example_dict["labels"]], dtype=torch.int8)
+    return example_dict
+
+
 def get_trainer(args, num_epochs, model_name, experiment_id, project_name, dataset, tokenizer, model, data_collator, tokenized_datasets):
-    if "label" in dataset["train"].column_names and "labels" not in dataset["train"].column_names:
-        dataset["train"] = dataset["train"].rename_column("label", "labels")
-        dataset["test"] = dataset["test"].rename_column("label", "labels")
+    if "label" in tokenized_datasets["train"].column_names and "labels" not in tokenized_datasets["train"].column_names:
+        tokenized_datasets["train"] = tokenized_datasets["train"].rename_column("label", "labels")
+        tokenized_datasets["train"] = tokenized_datasets["train"].map(lambda example: map_label_to_tensor(example), batched=False)
+        tokenized_datasets["test"] = tokenized_datasets["test"].rename_column("label", "labels")
+        tokenized_datasets["test"] = tokenized_datasets["test"].map(lambda example: map_label_to_tensor(example), batched=False)
 
     for column in dataset["train"].column_names:
         if column in tokenized_datasets["train"].column_names:
