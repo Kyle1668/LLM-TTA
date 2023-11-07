@@ -59,8 +59,12 @@ rewriter_model_id_eval:
 	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --split=validation --model=stabilityai/StableBeluga-7b --adaptive_model=aug_back-translate --skip_style_model_eval --skip_eval_styling --num_shots=16 --icl_method=random,topk_nearest --temperature=0 --trim_exemplars --use_wandb
 	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=ag_news_twitter --split=validation --model=stabilityai/StableBeluga-7b --adaptive_model=aug_back-translate --skip_style_model_eval --skip_eval_styling --num_shots=16 --icl_method=random,topk_nearest --temperature=0 --trim_exemplars --use_wandb
 
+########## Data Ablations ##########
 
-########## Train Data Abblation Models ##########
+ablate_data_ood:
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_sentiment --split=sst5,semval,dynasent --model=Kyle1668/boss-sentiment-1500-bert-base-uncased,Kyle1668/boss-sentiment-3000-bert-base-uncased,Kyle1668/boss-sentiment-6000-bert-base-uncased,Kyle1668/boss-sentiment-12000-bert-base-uncased,Kyle1668/boss-sentiment-24000-bert-base-uncased --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --split=toxigen,adv_civil,implicit_hate --model=Kyle1668/boss-toxicity-3000-bert-base-uncased,Kyle1668/boss-toxicity-6000-bert-base-uncased,Kyle1668/boss-toxicity-12000-bert-base-uncased,Kyle1668/boss-toxicity-24000-bert-base-uncased,Kyle1668/boss-toxicity-48000-bert-base-uncased --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=ag_news_twitter --split=test --model=Kyle1668/ag-news-4800-bert-base-uncased,Kyle1668/ag-news-9600-bert-base-uncased,Kyle1668/ag-news-19200-bert-base-uncased,Kyle1668/ag-news-38400-bert-base-uncased,Kyle1668/ag-news-76800-bert-base-uncased --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
 
 # 30000 training examples
 ablate_data_boss_sentiment:
