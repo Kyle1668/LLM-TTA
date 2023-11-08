@@ -18,8 +18,8 @@ import os
 import re
 tqdm.pandas()
 
-from util_data import generate_evaluation_Report, get_num_labels
 from util_caching import distributed_cache_write, get_cached_rewrites
+from util_data import generate_evaluation_Report, get_num_labels, get_formatted_dataset
 from util_modeling import get_model_objects, is_large_language_model, is_language_model, is_openai_model
 from util_icl import generate_prompt, get_prompt_template, get_retriever, get_static_exemplars, get_dynamic_exemplars
 
@@ -280,7 +280,7 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
     should_retrieve_exemplars = should_get_exemplars(model, evaluate_style_transfer)
     icl_method = icl_method if should_retrieve_exemplars else None
     template = get_prompt_template(dataset_name) if should_retrieve_exemplars else None
-    data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
+    data_reader = DatasetReader(get_formatted_dataset(dataset_name), input_columns=["text"], output_column="label")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     original_judgments = []
     inference_logs = []

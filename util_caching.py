@@ -2,11 +2,14 @@ from torch.utils.data.distributed import DistributedSampler
 import torch.distributed as dist
 import pandas as pd
 import hashlib
+import time
 import ast
 import os
 
 from util_modeling import is_language_model
 
+
+cache_frame = None
 
 def distributed_cache_write(rank, world_size, model_name, dataset_name, icl_method, eval_set, temperature, inference_logs, adaptive_model, entry):
     distributed_rewrites_cache = None
@@ -36,7 +39,13 @@ def distributed_cache_write(rank, world_size, model_name, dataset_name, icl_meth
 
 
 def get_cached_rewrites(dataset_name, rewrite_model, temperature, input_prompt):
+    global cache_frame
+
+    # set stopwatch for cache read
+    start_time = time.perf_counter()
+
     try:
+
         if not os.path.exists("cached_rewrites"):
             os.mkdir("cached_rewrites")
 
@@ -44,15 +53,20 @@ def get_cached_rewrites(dataset_name, rewrite_model, temperature, input_prompt):
         if is_language_model(rewrite_model.name_or_path):
             cache_path = cache_path.replace(".csv", f"_temp={temperature}.csv")
 
-        if os.path.exists(cache_path):
+        if os.path.exists(cache_path) and cache_frame is None:
             cache_frame = pd.read_csv(cache_path)
+
+        if cache_frame is not None:
             hashed_prompt = hashlib.sha256(input_prompt.encode()).hexdigest()
+            read_frame_start = time.perf_counter()
             cached_inference = cache_frame[cache_frame["prompt_hash"] == hashed_prompt]
+            end_time = time.perf_counter()
             if len(cached_inference) > 0:
-                print(f"Found cached rewrites for {rewrite_model.name_or_path}")
+                print(f"Found cached rewrites for {rewrite_model.name_or_path}. Overall Latency = {round(end_time - start_time, 2)} seconds & Search Latency = {round(end_time - read_frame_start, 2)} seconds")
                 return ast.literal_eval(cached_inference.iloc[0]["rewrites"])
     except Exception as e:
-        print(f"Error reading cached rewrites: {e}")
+        end_time = time.perf_counter()
+        print(f"Error reading cached rewrites with Latency = {round(end_time - start_time, 2)}: {e}")
 
     return None
 

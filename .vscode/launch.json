@@ -143,7 +143,8 @@
                 "--num_shots=16",
                 "--temperature=0.0",
                 "--trim_exemplars",
-                "--evaluate_id_adaptation"
+                "--evaluate_id_adaptation",
+                "--max_examples=100"
             ]
         },
         {

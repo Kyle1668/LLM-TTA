@@ -6,6 +6,8 @@ from openai_hf.openai_model import OpenAIModel, OpenAIModelConfig
 from augmenters_hf.augmenter import AugmenterModel, AugmenterConfig
 
 
+model_config = {}
+
 def is_large_language_model(model_name):
     if model_name.startswith("aug"):
         return False
@@ -23,19 +25,21 @@ def is_large_language_model(model_name):
 
 
 def is_language_model(model_name):
+    global model_config
+
     if model_name.startswith("aug"):
         return False
 
     if is_openai_model(model_name):
         return True
 
-    is_falcon_based_model = "falcon" in model_name
-    model_config = None
-    if is_falcon_based_model:
-        model_config = FalconConfig.from_pretrained(model_name)
-    else:
-        model_config = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
-    is_seq2seq_lm = model_config.architectures[0].endswith("ForConditionalGeneration")
+    if model_name not in model_config:
+        if "falcon" in model_name:
+            model_config[model_name] = FalconConfig.from_pretrained(model_name)
+        else:
+            model_config[model_name] = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
+
+    is_seq2seq_lm = model_config[model_name].architectures[0].endswith("ForConditionalGeneration")
     return is_seq2seq_lm or is_large_language_model(model_name)
 
 
