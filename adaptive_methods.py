@@ -387,7 +387,7 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
 
         eval_reports = []
         # for inference_method in ["ensemble", "entropy threshold half", "entropy threshold best", "entropy threshold+lowest", "lowest entropy", "single rewrite"]:
-        for inference_method in ["ensemble", "single rewrite"]:
+        for inference_method in ["ensemble"]:
             if "entropy" not in inference_log_frame.columns and "entropy" in inference_method:
                 print(f"Skipping {inference_method} because entropy was not calculated")
                 continue
