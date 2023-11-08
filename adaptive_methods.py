@@ -196,7 +196,7 @@ def evaluate_without_adaptation(rank, world_size, experiment_id, model_name, mod
     should_retrieve_exemplars = should_get_exemplars(model, eval_set)
     icl_method = icl_method if should_retrieve_exemplars else None
     template = get_prompt_template(dataset_name) if should_retrieve_exemplars else None
-    data_reader = DatasetReader(dataset, input_columns=["text"], output_column="label")
+    data_reader = DatasetReader(get_formatted_dataset(dataset_name), input_columns=["text"], output_column="label")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     original_judgments = []
     inference_logs = []
@@ -221,7 +221,7 @@ def evaluate_without_adaptation(rank, world_size, experiment_id, model_name, mod
                 distance_goal = "NA" if not icl_method.startswith("topk") else icl_method if icl_method == "topk" else icl_method.split("_")[1]
                 exemplars, mean_exemplar_distance = get_dynamic_exemplars(entry["text"], dataset_name, exemplar_retriever, num_shots, distance_goal) if should_retrieve_exemplars else None
 
-        prompt = generate_prompt(model_name, template, exemplars, entry, dataset_name) if should_retrieve_exemplars else None
+        prompt = generate_prompt(model_name, template, exemplars, entry, dataset_name) if is_large_language_model(model_name) else None
         inference = get_judgment(model, tokenizer, prompt, device, entry, dataset_name)
         inference_metadata = inference[1] if isinstance(inference, tuple) else None
         judgment = inference[0] if isinstance(inference, tuple) else inference

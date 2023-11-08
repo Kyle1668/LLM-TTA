@@ -149,6 +149,34 @@
             ]
         },
         {
+            "name": "BOSS Sentiment ID Distributed",
+            "type": "python",
+            "request": "launch",
+            "module": "torch.distributed.run",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                // "CUDA_VISIBLE_DEVICES": "0"
+            },
+            "args": [
+                "--nproc-per-node=gpu",
+                "evaluate_styling.py",
+                "--model=Kyle1668/boss-sentiment-bert-base-uncased",
+                // "--model=tiiuae/falcon-7b-instruct",
+                // "--model=Kyle1668/boss-sentiment-t5-large",
+                // "--adaptive_model=stabilityai/StableBeluga-7b",
+                "--adaptive_model=aug_insert,aug_back-translate,aug_substitute",
+                "--dataset=boss_sentiment",
+                "--skip_style_model_eval",
+                "--icl_method=random",
+                "--num_shots=16",
+                "--temperature=0.0",
+                "--trim_exemplars",
+                "--evaluate_id_adaptation",
+                // "--max_examples=100"
+            ]
+        },
+        {
             "name": "BOSS Sentiment: GPT + Aug",
             "type": "python",
             "request": "launch",
