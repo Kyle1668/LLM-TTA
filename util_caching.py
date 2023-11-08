@@ -35,7 +35,10 @@ def distributed_cache_write(rank, world_size, model_name, dataset_name, icl_meth
             cache_texts = [write_entry["text"] for write_entry in writable_entries]
             write_cached_rewrites(dataset_name, adaptive_model, temperature, cache_style_prompts, cache_texts)
     else:
-        write_cached_rewrites(dataset_name, adaptive_model, temperature, entry["style_prompt"], entry["text"])
+        if entry["rewrite_cache_hit"] is True:
+            print(f"Skipping cache write because entry was a cache hit")
+        else:
+            write_cached_rewrites(dataset_name, adaptive_model, temperature, entry["style_prompt"], entry["text"])
 
 
 def get_cached_rewrites(dataset_name, rewrite_model, temperature, input_prompt):

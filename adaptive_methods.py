@@ -336,7 +336,7 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
         if entry["text"] is not None:
             assert entry["text"][-1] == entry["original_text"]
 
-        prompt = generate_prompt(model_name, template, exemplars, entry, dataset_name) if should_retrieve_exemplars else None
+        prompt = generate_prompt(model_name, template, exemplars, entry, dataset_name) if is_large_language_model(model_name) else None
         inference = get_judgment(model, tokenizer, prompt, device, entry, dataset_name)
         inference_metadata = inference[1] if isinstance(inference, tuple) else None
         judgment = inference[0] if isinstance(inference, tuple) else inference
