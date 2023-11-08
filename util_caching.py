@@ -57,7 +57,7 @@ def get_cached_rewrites(dataset_name, rewrite_model, temperature, input_prompt):
             cache_path = cache_path.replace(".csv", f"_temp={temperature}.csv")
 
         if os.path.exists(cache_path) and cache_frame is None:
-            cache_frame = pd.read_csv(cache_path)
+            cache_frame = pd.read_csv(cache_path, on_bad_lines="warn")
 
         if cache_frame is not None:
             hashed_prompt = hashlib.sha256(input_prompt.encode()).hexdigest()
@@ -87,7 +87,7 @@ def write_cached_rewrites(dataset_name, rewrite_model, temperature, input_prompt
                     "rewrites": rewrites if isinstance(rewrites[0], list) else [rewrites],
         })
 
-        cache_frame = pd.read_csv(cache_path) if os.path.exists(cache_path) else None
+        cache_frame = pd.read_csv(cache_path, on_bad_lines="warn") if os.path.exists(cache_path) else None
         if cache_frame is not None and cache_miss_frame["prompt_hash"].isin(cache_frame["prompt_hash"]).any():
             print(f"Skipping cache write because prompt already exists in cache")
             return
