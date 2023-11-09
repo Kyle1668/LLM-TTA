@@ -80,7 +80,7 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
             generations = [model.generate(model_input_prompt, max_new_tokens=100) for model_input_prompt in prompt]
         else:
             generations = []
-            input_sequences = [input_entry["text"]] if not isinstance(input_entry["text"], list) else input_entry["text"]
+            input_sequences = [input_entry["text"]] if not isinstance(input_entry["text"], list) else input_entry["text"][:5]
             input_sequence_indices = range(len(input_sequences))
             show_progress = len(input_sequence_indices) > 1 and not dist.is_initialized()
             if show_progress:
