@@ -9,7 +9,7 @@ import os
 from util_modeling import is_language_model
 
 
-cache_frame = None
+cache_frame = {}
 
 def distributed_cache_write(rank, world_size, model_name, dataset_name, icl_method, eval_set, temperature, inference_logs, adaptive_model, entry):
     distributed_rewrites_cache = None
@@ -56,13 +56,13 @@ def get_cached_rewrites(dataset_name, rewrite_model, temperature, input_prompt):
         if is_language_model(rewrite_model.name_or_path):
             cache_path = cache_path.replace(".csv", f"_temp={temperature}.csv")
 
-        if os.path.exists(cache_path) and cache_frame is None:
-            cache_frame = pd.read_csv(cache_path, on_bad_lines="warn")
+        if os.path.exists(cache_path) and cache_path not in cache_frame:
+            cache_frame[cache_path] = pd.read_csv(cache_path, on_bad_lines="warn")
 
-        if cache_frame is not None:
+        if cache_frame[cache_path] is not None:
             hashed_prompt = hashlib.sha256(input_prompt.encode()).hexdigest()
             read_frame_start = time.perf_counter()
-            cached_inference = cache_frame[cache_frame["prompt_hash"] == hashed_prompt]
+            cached_inference = cache_frame[cache_path][cache_frame[cache_path]["prompt_hash"] == hashed_prompt]
             end_time = time.perf_counter()
             if len(cached_inference) > 0:
                 print(f"Found cached rewrites for {rewrite_model.name_or_path}. Overall Latency = {round(end_time - start_time, 2)} seconds & Search Latency = {round(end_time - read_frame_start, 2)} seconds")
