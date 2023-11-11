@@ -104,6 +104,18 @@ ablate_data_ag_news:
 	python train_model.py --dataset=ag_news_twitter --num_labels=4 --base_model=bert-base-uncased --max_examples=38400 --push_to_hub --use_wandb
 	python train_model.py --dataset=ag_news_twitter --num_labels=4 --base_model=bert-base-uncased --max_examples=76800 --push_to_hub --use_wandb
 
+
+########## 11/10 Reruns ##########
+
+main_results_ood_low_compute:
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --split=toxigen,adv_civil,implicit_hate --model=Kyle1668/boss-toxicity-bert-base-uncased,Kyle1668/boss-toxicity-t5-large --adaptive_model=aug_insert,aug_substitute,aug_back-translate,stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_sentiment --split=sst5,semval,dynasent --model=Kyle1668/boss-sentiment-bert-base-uncased,Kyle1668/boss-sentiment --adaptive_model=aug_insert,aug_substitute,aug_back-translate,stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=ag_news_twitter --split=test --model=Kyle1668/ag-news-bert-base-uncased,Kyle1668/ag-news-t5-large --adaptive_model=aug_insert,aug_substitute,aug_back-translate,stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+
+	python evaluate_styling.py --dataset=boss_toxicity --split=toxigen,adv_civil,implicit_hate --model=tiiuae/falcon-7b-instruct --adaptive_model=aug_insert,aug_substitute,aug_back-translate,stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+	python evaluate_styling.py --dataset=boss_sentiment --split=sst5,semval,dynasent --model=tiiuae/falcon-7b-instruct --adaptive_model=aug_insert,aug_substitute,aug_back-translate,stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+	python evaluate_styling.py --dataset=ag_news_twitter --split=test --model=tiiuae/falcon-7b-instruct --adaptive_model=aug_insert,aug_substitute,aug_back-translate,stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wand
+
 ########## 11/1 Reruns ##########
 
 falcon_id_tta_baselines:

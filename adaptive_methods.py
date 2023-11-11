@@ -411,6 +411,8 @@ def save_baseline_logs(experiment_id, model_name, dataset_name, icl_method, eval
         inference_log_frame["original entropy"] = no_adapt_logs["entropy"]
         inference_log_frame["entropy decrease"] =  inference_log_frame["original entropy"] - inference_log_frame["entropy"]
         inference_log_frame["entropy decreased"] = inference_log_frame["entropy"] < inference_log_frame["original entropy"]
+    if "all probs" in inference_log_frame.columns:
+        inference_log_frame["original probs"] = inference_log_frame["all probs"].apply(lambda probs:ast.literal_eval(probs.iloc[0]) if isinstance(probs, str) else probs)
     inference_log_frame["outcome"] = inference_log_frame.apply(lambda row: get_outcome_type(row["original judgment"], row["judgment"], row["label"]), axis=1)
     inference_log_frame.to_csv(f"{experiment_directory}/{experiment_run_prefix}-style_inference_log.csv", index=False)
 
