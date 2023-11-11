@@ -199,7 +199,7 @@ def main():
                                     if rank == 0:
                                         reports.append(current_report)
                                         all_reports = pd.DataFrame(reports).drop_duplicates()
-                                        print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "avg f1", "rewrite rate"]])
+                                        print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy"]])
                                         all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
                                         if wandb_enabled:
                                             wandb.log(current_report)
@@ -217,7 +217,7 @@ def main():
                                     if rank == 0:
                                         reports.append(current_report)
                                         all_reports = pd.DataFrame(reports).drop_duplicates()
-                                        print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "avg f1", "rewrite rate"]])
+                                        print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy"]])
                                         all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
                                         if wandb_enabled:
                                             wandb.log(current_report)
@@ -267,7 +267,7 @@ def main():
                                                 all_reports = pd.DataFrame(reports).drop_duplicates()
                                                 print(
                                                     all_reports[
-                                                        ["dataset", "split", "task model", "icl_method", "exemplar count", "trim exemplars", "style transfer model", "dataset size", "inference method", "avg f1", "rewrite rate"]
+                                                        ["dataset", "split", "task model", "icl_method", "exemplar count", "trim exemplars", "style transfer model", "dataset size", "inference method", "accuracy"]
                                                     ]
                                                 )
                                                 all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
@@ -282,7 +282,7 @@ def main():
                                 if rank == 0:
                                     reports.append(current_report)
                                     all_reports = pd.DataFrame(reports).drop_duplicates()
-                                    print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "avg f1", "rewrite rate"]])
+                                    print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy"]])
                                     all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
                                     if wandb_enabled:
                                         wandb.log(current_report)
@@ -292,7 +292,7 @@ def main():
                             if rank == 0:
                                 reports.append(current_report)
                                 all_reports = pd.DataFrame(reports).drop_duplicates()
-                                print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "avg f1", "rewrite rate"]])
+                                print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy"]])
                                 all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
                                 if wandb_enabled:
                                     wandb.log(current_report)

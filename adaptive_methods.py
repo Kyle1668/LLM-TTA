@@ -18,9 +18,9 @@ import os
 import re
 tqdm.pandas()
 
-from util_caching import distributed_cache_write, get_cached_rewrites
+from util_caching import distributed_cache_write, get_cached_rewrites, flush_local_cache
 from util_modeling import get_model_objects, is_large_language_model, is_language_model, is_openai_model
-from util_data import generate_evaluation_Report, get_num_labels, get_formatted_dataset, flush_local_cache
+from util_data import generate_evaluation_Report, get_num_labels, get_formatted_dataset
 from util_icl import generate_prompt, get_prompt_template, get_retriever, get_static_exemplars, get_dynamic_exemplars
 
 # Distributed inference
