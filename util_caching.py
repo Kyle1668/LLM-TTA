@@ -41,6 +41,11 @@ def distributed_cache_write(rank, world_size, model_name, dataset_name, icl_meth
             write_cached_rewrites(dataset_name, adaptive_model, temperature, entry["style_prompt"], entry["text"])
 
 
+def flush_local_cache():
+    global cache_frame
+    cache_frame = {}
+
+
 def get_cached_rewrites(dataset_name, rewrite_model, temperature, input_prompt):
     global cache_frame
 
