@@ -1,0 +1,30 @@
+
+    "AgNewsTweets_Ablate_Data_Tweets_BERT4800_Insert": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT4800_Substitute": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT4800_Translate": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT4800_Paraphrase": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT4800_ICR": "",
+
+    "AgNewsTweets_Ablate_Data_Tweets_BERT9600_Insert": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT9600_Substitute": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT9600_Translate": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT9600_Paraphrase": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT9600_ICR": "",
+
+    "AgNewsTweets_Ablate_Data_Tweets_BERT19200_Insert": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT19200_Substitute": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT19200_Translate": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT19200_Paraphrase": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT19200_ICR": ""
+
+    "AgNewsTweets_Ablate_Data_Tweets_BERT38400_Insert": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT38400_Substitute": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT38400_Translate": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT38400_Paraphrase": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT38400_ICR": "",
+
+    "AgNewsTweets_Ablate_Data_Tweets_BERT76800_Insert": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT76800_Substitute": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT76800_Translate": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT76800_Paraphrase": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT76800_ICR": "",
