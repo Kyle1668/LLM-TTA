@@ -8,11 +8,11 @@ install_depends:
 	mkdir datasets; cd datasets && wget https://huggingface.co/datasets/Kyle1668/BOSS-Robustness-Benchmark/resolve/main/BOSS.zip && unzip BOSS.zip
 	mv datasets/process datasets/boss_benchmark
 
-make download_cached_rewrites:
-	python populate_cached.py
+download_rewrites_cache:
+	python populate_cache.py
 
 clear_rewrites_cache:
-	rm -rf cached_rewrites/*
+	rm -rf cached_rewrites
 
 ########## Primary Experiment Sweeps ##########
 
