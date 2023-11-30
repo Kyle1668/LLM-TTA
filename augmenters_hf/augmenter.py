@@ -8,6 +8,7 @@ from transformers import (
 )
 from transformers.modeling_outputs import CausalLMOutput
 import nlpaug.augmenter.word as naw
+import torch
 
 class AugmenterConfig(PretrainedConfig):
     def __init__(self, name_or_path, action):
@@ -19,12 +20,13 @@ class AugmenterModel(PreTrainedModel):
         super().__init__(config)
         self.name_or_path = config.name_or_path
         self.config = config
+        device = "cuda" if torch.cuda.is_available() else "cpu"
 
         if config.action == "back_translate":
-            self.en_de_translator = pipeline("translation", model="facebook/wmt19-en-de", device="cuda")
-            self.de_en_translator = pipeline("translation", model="facebook/wmt19-de-en", device="cuda")
+            self.en_de_translator = pipeline("translation", model="facebook/wmt19-en-de", device=device)
+            self.de_en_translator = pipeline("translation", model="facebook/wmt19-de-en", device=device)
         else:
-            self.augmenter = naw.ContextualWordEmbsAug(action=config.action, device="cuda")
+            self.augmenter = naw.ContextualWordEmbsAug(action=config.action, device=device)
 
     def generate(
         self,

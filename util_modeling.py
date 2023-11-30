@@ -110,6 +110,12 @@ def get_model(model_name, num_labels, training=False):
         needs_quantization = (len(num_billions) > 0 and num_billions[0] >= 13) or training or model_name in large_models
         load_in_8bit = needs_quantization and torch.cuda.get_device_capability()[0] >= 8
         load_in_4bit = needs_quantization and torch.cuda.get_device_capability()[0] < 8
+        if device == "cpu":
+            print("Loading LLM on CPU since no GPU is available.")
+            if is_falcon_based_model:
+                model = FalconForCausalLM.from_pretrained(model_name, torch_dtype=numerical_precision).eval()
+            else:
+                model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, torch_dtype=numerical_precision).eval()
         if load_in_4bit:
             print("Loading in 4-bit mode since the model has more than 7B parameters and 8bit isn't supported.")
             if is_falcon_based_model:
