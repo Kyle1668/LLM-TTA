@@ -22,3 +22,5 @@ umap-learn
 kaleido
 sacremoses
 optimum
+seaborn
+faiss-cpu
