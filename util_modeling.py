@@ -8,6 +8,21 @@ from augmenters_hf.augmenter import AugmenterModel, AugmenterConfig
 
 model_config = {}
 
+def select_device():
+    if torch.cuda.is_available():
+        print("Using CUDA.")
+        return "cuda"
+    if torch.backends.mps.is_available():
+        if not torch.backends.mps.is_built():
+            print("Warning: Torch MPS is not built. Falling back to CPU.")
+        
+        print("Using MPS.")
+        return "mps"
+    
+    print("Using CPU.")
+    return "cpu"
+
+
 def is_large_language_model(model_name):
     global model_config
 
@@ -102,7 +117,7 @@ def get_model(model_name, num_labels, training=False):
         tokenizer.pad_token = "<s>" if tokenizer.pad_token in [None, ""] and str(tokenizer.eos_token) in [None, ""] else tokenizer.eos_token
 
     model = None
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = select_device()
     numerical_precision = torch.float32 if training else torch.float16
     if is_llm:
         num_billions = [float(entry[:-1]) for entry in model_name.split("-") if entry[0].isdigit() and entry.lower().endswith("b")]
@@ -128,7 +143,7 @@ def get_model(model_name, num_labels, training=False):
                 model = FalconForCausalLM.from_pretrained(model_name, load_in_8bit=True, llm_int8_threshold=0, device_map="auto").eval()
             else:
                 model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, load_in_8bit=True, llm_int8_threshold=0, device_map="auto").eval()
-        elif dist.is_initialized():
+        elif dist.is_initialized() or device == "mps":
             if is_falcon_based_model:
                 model = FalconForCausalLM.from_pretrained(model_name, torch_dtype=numerical_precision).eval().to(device)
             else:

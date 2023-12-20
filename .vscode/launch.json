@@ -134,8 +134,8 @@
             },
             "args": [
                 // "--model=Kyle1668/boss-sentiment-bert-base-uncased",
-                // "--model=tiiuae/falcon-7b-instruct",
-                "--model=Kyle1668/boss-sentiment-t5-large",
+                "--model=tiiuae/falcon-7b-instruct",
+                // "--model=Kyle1668/boss-sentiment-t5-large",
                 // "--adaptive_model=stabilityai/StableBeluga-7b",
                 "--adaptive_model=aug_insert",
                 "--dataset=boss_sentiment",
@@ -145,7 +145,7 @@
                 "--temperature=0.0",
                 "--trim_exemplars",
                 "--evaluate_id_adaptation",
-                "--max_examples=100"
+                // "--max_examples=100"
             ]
         },
         {

@@ -19,7 +19,7 @@ import re
 tqdm.pandas()
 
 from util_caching import distributed_cache_write, get_cached_rewrites, flush_local_cache
-from util_modeling import get_model_objects, is_large_language_model, is_language_model, is_openai_model
+from util_modeling import get_model_objects, is_large_language_model, is_language_model, is_openai_model, select_device
 from util_data import generate_evaluation_Report, get_num_labels, get_formatted_dataset
 from util_icl import generate_prompt, get_prompt_template, get_retriever, get_static_exemplars, get_dynamic_exemplars
 
@@ -37,7 +37,7 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
         with torch.no_grad():
             question = input_entry["question"]
             context = input_entry["text"]
-            question_answerer = pipeline("question-answering", model=model, tokenizer=tokenizer, device="cuda:0")
+            question_answerer = pipeline("question-answering", model=model, tokenizer=tokenizer, device=device)
             qa_response = question_answerer(question=question, context=context)
             return qa_response["answer"]
 
@@ -197,7 +197,7 @@ def evaluate_without_adaptation(rank, world_size, experiment_id, model_name, mod
     icl_method = icl_method if should_retrieve_exemplars else None
     template = get_prompt_template(dataset_name) if should_retrieve_exemplars else None
     data_reader = DatasetReader(get_formatted_dataset(dataset_name), input_columns=["text"], output_column="label")
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = select_device()
     original_judgments = []
     inference_logs = []
     num_failed_generations = 0
@@ -284,7 +284,7 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
     icl_method = icl_method if should_retrieve_exemplars else None
     template = get_prompt_template(dataset_name) if should_retrieve_exemplars else None
     data_reader = DatasetReader(get_formatted_dataset(dataset_name), input_columns=["text"], output_column="label")
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = select_device()
     original_judgments = []
     inference_logs = []
     num_failed_generations = 0
@@ -668,9 +668,9 @@ def parse_generation(style_input, generation):
 
 # TODO: Add support for LLM inference
 def evaluate_test_time_augmentation(experiment_id, model_name, model, tokenizer, dataset_name, dataset, eval_set, icl_method, aug_method):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = select_device()
     paraphrase_tokenizer, paraphrase_model = get_model_objects("humarin/chatgpt_paraphraser_on_T5_base", num_labels=-1)
-    aug = naw.ContextualWordEmbsAug(action="substitute", device="cuda")
+    aug = naw.ContextualWordEmbsAug(action="substitute", device=device)
     inference_logs = []
 
     print(f"Evaluating {dataset_name} with {model_name} using TTA baseline")
@@ -727,10 +727,10 @@ def get_augmentations(aug_method, device, paraphrase_tokenizer, paraphrase_model
 
 # TODO: Add support for LLM inference
 def evaluate_memo(experiment_id, task_model_name, task_model, task_tokenizer, dataset_name, dataset, eval_set, icl_method, aug_method):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = select_device()
     paraphrase_tokenizer, paraphrase_model = get_model_objects("humarin/chatgpt_paraphraser_on_T5_base", num_labels=-1)
     optimizer = AdamW(task_model.parameters(), lr=0.000001, weight_decay=0.01)
-    aug = naw.ContextualWordEmbsAug(action="substitute", device="cuda")
+    aug = naw.ContextualWordEmbsAug(action="substitute", device=device)
 
     inference_logs = []
     entropies = []

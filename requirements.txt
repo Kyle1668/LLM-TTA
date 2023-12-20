@@ -17,7 +17,7 @@ einops
 nlpaug
 scipy
 wandb
-openicl
+sentence_transformers
 umap-learn
 kaleido
 sacremoses
