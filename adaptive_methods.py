@@ -83,7 +83,8 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
             input_sequences = [input_entry["text"]] if not isinstance(input_entry["text"], list) else input_entry["text"][:5]
             input_sequence_indices = range(len(input_sequences))
             show_progress = len(input_sequence_indices) > 1 and not dist.is_initialized()
-            if show_progress:
+            log_batch_inference = show_progress and False
+            if log_batch_inference:
                 input_sequence_indices = tqdm(input_sequence_indices, desc="Processing augmentation batch")
 
             inference_latencies = []
@@ -104,7 +105,7 @@ def get_judgment(model, tokenizer, prompt, device, input_entry, dataset_name):
                 # save the number of seconds since the stopwatch started
                 inference_latencies.append(time.perf_counter() - start_time)
 
-            if len(inference_latencies) > 1:
+            if log_batch_inference:
                 print(f"Average inference latency: {np.mean(inference_latencies)}")
 
             # for input_text in input_sequences:
@@ -591,10 +592,12 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
                 num_beams=4,
                 diversity_penalty=0.5,
             )
-    except torch.cuda.OutOfMemoryError as generation_error:
-        print(generation_error)
-        print(f"Ran out of memory when generating an input for the following prompt: {input_prompts}")
-        return input_prompts, None, None
+    except Exception as e:
+        if "memory" in str(e).lower():
+            print(f"Ran out of memory when generating an input for the following prompt: {input_prompts}")
+            return input_prompts, None, None
+        
+        raise e
 
     formatted_generated_sequences = []
     if is_openai:

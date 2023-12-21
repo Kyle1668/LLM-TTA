@@ -86,7 +86,8 @@
             },
             "args": [
                 "--dataset=ag_news_twitter",
-                "--model=Kyle1668/ag-news-bert-base-uncased,tiiuae/falcon-7b-instruct,Kyle1668/ag-news-t5-large",
+                // "--model=Kyle1668/ag-news-bert-base-uncased,tiiuae/falcon-7b-instruct,Kyle1668/ag-news-t5-large",
+                "--model=tiiuae/falcon-7b-instruct",
                 "--adaptive_model=aug_insert,aug_substitute,aug_back-translate,stabilityai/StableBeluga-7b",
                 "--skip_style_model_eval",
                 "--evaluate_id_adaptation",
