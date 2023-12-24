@@ -46,7 +46,7 @@
             },
         },
         {
-            "name": "BOSS Toxicity ToxiGen",
+            "name": "BOSS Toxicity AdvCivil",
             "type": "python",
             "request": "launch",
             "program": "evaluate_styling.py",
@@ -56,22 +56,15 @@
                 "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
-                "--max_examples=20",
                 "--model=Kyle1668/boss-toxicity-bert-base-uncased",
-                // "--model=stabilityai/StableBeluga2",
-                // "--adaptive_model=stabilityai/StableBeluga-7B",
-                // "--adaptive_model=stabilityai/StableBeluga2",
-                // "--adaptive_model=TheBloke/vicuna-7B-1.1-HF",
-                "--adaptive_model=humarin/chatgpt_paraphraser_on_T5_base",
+                "--adaptive_model=stabilityai/StableBeluga-7b",
                 "--dataset=boss_toxicity",
-                // "--report_wandb",
                 "--baseline=skip",
-                // "--baseline=test_time_augmentation",
                 "--skip_style_model_eval",
-                "--splits=toxigen",
+                "--splits=adv_civil",
                 "--icl_method=random",
                 "--num_shots=16",
-                "--temperature=0.7"
+                "--temperature=0.0"
             ]
         },
         {
@@ -88,10 +81,10 @@
                 "--dataset=ag_news_twitter",
                 // "--model=Kyle1668/ag-news-bert-base-uncased,tiiuae/falcon-7b-instruct,Kyle1668/ag-news-t5-large",
                 "--model=tiiuae/falcon-7b-instruct",
-                "--adaptive_model=aug_insert,aug_substitute,aug_back-translate,stabilityai/StableBeluga-7b",
+                "--adaptive_model=stabilityai/StableBeluga-7b",
                 "--skip_style_model_eval",
                 "--evaluate_id_adaptation",
-                "--num_shots=0,16",
+                "--num_shots=16",
                 "--icl_method=random",
                 "--temperature=0",
                 "--trim_exemplars",

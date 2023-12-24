@@ -10,16 +10,17 @@ model_config = {}
 
 def select_device():
     if torch.cuda.is_available():
-        print("Using CUDA.")
+        print(f"PyTorch Backend: CUDA")
         return "cuda"
     if torch.backends.mps.is_available():
-        if not torch.backends.mps.is_built():
+        if torch.backends.mps.is_built():
+            torch.mps.set_per_process_memory_fraction(0.8)
+            print(f"PyTorch Backend: MPS")
+            return "mps"
+        else:
             print("Warning: Torch MPS is not built. Falling back to CPU.")
-        
-        print("Using MPS.")
-        return "mps"
     
-    print("Using CPU.")
+    print("Warning: No GPU detected. Falling back to CPU.")
     return "cpu"
 
 
@@ -166,4 +167,5 @@ def get_model(model_name, num_labels, training=False):
     # if is_falcon_based_model:
     #     model.to_bettertransformer()
 
+    print(f"Loaded {model_name} on {device}.")
     return tokenizer, model
