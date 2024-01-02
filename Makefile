@@ -124,19 +124,19 @@ ablate_data_ag_news:
 ########## Falcon Evals ##########
 
 falcon_toxicity_insert:
-	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --model=tiiuae/falcon-7b-instruct --adaptive_model=aug_insert --skip_style_model_eval --num_shots=16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --evaluate_id_adaptation --model=tiiuae/falcon-7b-instruct --adaptive_model=aug_insert --skip_style_model_eval --num_shots=16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
 
 falcon_toxicity_substitute:
-	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --model=tiiuae/falcon-7b-instruct --adaptive_model=aug_substitute --skip_style_model_eval --num_shots=16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --evaluate_id_adaptation --model=tiiuae/falcon-7b-instruct --adaptive_model=aug_substitute --skip_style_model_eval --num_shots=16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
 
 falcon_toxicity_back_translate:
-	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --model=tiiuae/falcon-7b-instruct --adaptive_model=aug_back-translate --skip_style_model_eval --num_shots=16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --evaluate_id_adaptation --model=tiiuae/falcon-7b-instruct --adaptive_model=aug_back-translate --skip_style_model_eval --num_shots=16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
 
 falcon_toxicity_paraphrase:
-	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --model=tiiuae/falcon-7b-instruct --adaptive_model=stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=0 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --evaluate_id_adaptation --model=tiiuae/falcon-7b-instruct --adaptive_model=stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=0 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
 
 falcon_toxicity_icr:
-	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --model=tiiuae/falcon-7b-instruct --adaptive_model=stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --evaluate_id_adaptation --model=tiiuae/falcon-7b-instruct --adaptive_model=stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
 
 ########## 11/10 Reruns ##########
 
