@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import torch.distributed as dist
 import pandas as pd
+import traceback
 import argparse
 import random
 import numpy as np
@@ -171,49 +172,115 @@ def main():
             wandb_run = wandb.init(project=project_name, name=experiment_id, config=wandb_config)
 
     reports = []
-    for dataset_name in dataset_names:
-        print(f"Loading dataset {dataset_name}...")
-        dataset = get_formatted_dataset(dataset_name, max_examples=args.max_examples)
-        splits = splits if splits is not None else [split for split in dataset.keys() if split != "train"]
+    try:
+        for dataset_name in dataset_names:
+            print(f"Loading dataset {dataset_name}...")
+            dataset = get_formatted_dataset(dataset_name, max_examples=args.max_examples)
+            splits = splits if splits is not None else [split for split in dataset.keys() if split != "train"]
 
-        for model_name in model_names:
-            print(f"Loading model {model_name}...")
-            num_labels = get_num_labels(dataset_name)
-            tokenizer, model = get_model_objects(model_name, num_labels)
-            adaptive_tokenizer = adaptive_model = None
-            is_llm = is_large_language_model(model_name)
+            for model_name in model_names:
+                print(f"Loading model {model_name}...")
+                num_labels = get_num_labels(dataset_name)
+                tokenizer, model = get_model_objects(model_name, num_labels)
+                adaptive_tokenizer = adaptive_model = None
+                is_llm = is_large_language_model(model_name)
 
-            for evaluation_set in splits:
-                for icl_method in icl_methods if is_llm else ["static"]:
-                    # Evaluate style model on the task
-                    if not args.skip_style_model_eval:
-                        for adaptive_model_name in adaptive_model_names:
-                            for style_icl_method in icl_methods:
-                                for shots in num_shots:
-                                    if adaptive_model is None:
-                                        adaptive_tokenizer, adaptive_model = get_model_objects(adaptive_model_name, num_labels)
+                for evaluation_set in splits:
+                    for icl_method in icl_methods if is_llm else ["static"]:
+                        # Evaluate style model on the task
+                        if not args.skip_style_model_eval:
+                            for adaptive_model_name in adaptive_model_names:
+                                for style_icl_method in icl_methods:
+                                    for shots in num_shots:
+                                        if adaptive_model is None:
+                                            adaptive_tokenizer, adaptive_model = get_model_objects(adaptive_model_name, num_labels)
 
-                                    current_report = evaluate_without_adaptation(
-                                        rank, world_size, experiment_id, adaptive_model_name, adaptive_model, adaptive_tokenizer, dataset_name, dataset, style_icl_method, evaluation_set, shots
-                                    )
-                                    if rank == 0:
-                                        reports.append(current_report)
-                                        all_reports = pd.DataFrame(reports).drop_duplicates()
-                                        print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy"]])
-                                        all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
-                                        if wandb_enabled:
-                                            wandb.log(current_report)
-                                            wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
+                                        current_report = evaluate_without_adaptation(
+                                            rank, world_size, experiment_id, adaptive_model_name, adaptive_model, adaptive_tokenizer, dataset_name, dataset, style_icl_method, evaluation_set, shots
+                                        )
+                                        if rank == 0:
+                                            reports.append(current_report)
+                                            all_reports = pd.DataFrame(reports).drop_duplicates()
+                                            print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy"]])
+                                            all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                                            if wandb_enabled:
+                                                wandb.log(current_report)
+                                                wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
 
-                                        adaptive_tokenizer = None
-                                        adaptive_model = None
+                                            adaptive_tokenizer = None
+                                            adaptive_model = None
 
-                    if args.evaluate_id_adaptation or evaluation_set not in ["validation"]:
-                        for adaptive_method in adaptive_methods:
-                            if adaptive_method == "No Adaptation":
-                                # Evaluate the task model
-                                for shot_count in [16] if is_llm else [0]:
-                                    current_report = evaluate_without_adaptation(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, shot_count)
+                        if args.evaluate_id_adaptation or evaluation_set not in ["validation"]:
+                            for adaptive_method in adaptive_methods:
+                                if adaptive_method == "No Adaptation":
+                                    # Evaluate the task model
+                                    for shot_count in [16] if is_llm else [0]:
+                                        current_report = evaluate_without_adaptation(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, shot_count)
+                                        if rank == 0:
+                                            reports.append(current_report)
+                                            all_reports = pd.DataFrame(reports).drop_duplicates()
+                                            print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy"]])
+                                            all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                                            if wandb_enabled:
+                                                wandb.log(current_report)
+                                                wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
+                                else:
+                                    for style_icl_method in icl_methods:
+                                        is_icr = adaptive_method != "No Adaptation" and not adaptive_method.startswith("aug")
+                                        for shots in num_shots if is_icr else [16]:
+                                            is_zero_shot = shots == 0
+                                            is_first_icl_run = style_icl_method == icl_methods[0]
+                                            if is_zero_shot and not is_first_icl_run:
+                                                continue
+
+                                            print(f"Evaluating style transfer with {shots} shots")
+
+                                            for temperature in domain_transfer_temperatures:
+                                                transfer_prompt = args.transfer_prompt
+                                                if is_zero_shot:
+                                                    if temperature != domain_transfer_temperatures[0]:
+                                                        continue
+                                                    transfer_prompt = "baseline_zero_shot"
+
+                                                rewriting_report = evaluate_style_transfer(
+                                                    rank,
+                                                    world_size,
+                                                    experiment_id,
+                                                    model_name,
+                                                    model,
+                                                    tokenizer,
+                                                    dataset_name,
+                                                    dataset,
+                                                    style_icl_method,
+                                                    evaluation_set,
+                                                    adaptive_method,
+                                                    shots,
+                                                    bool(args.trim_exemplars),
+                                                    temperature,
+                                                    transfer_prompt,
+                                                )
+
+                                                if rank == 0:
+                                                    style_inference_log_frame, current_reports = rewriting_report
+
+                                                    for report in current_reports:
+                                                        reports.append(report)
+
+                                                    all_reports = pd.DataFrame(reports).drop_duplicates()
+                                                    print(
+                                                        all_reports[
+                                                            ["dataset", "split", "task model", "icl_method", "exemplar count", "trim exemplars", "style transfer model", "dataset size", "inference method", "accuracy"]
+                                                        ]
+                                                    )
+                                                    all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
+                                                    if wandb_enabled:
+                                                        wandb.log(current_report)
+                                                        wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
+                                                        wandb_run.log({f"{evaluation_set}_{adaptive_method}_{style_icl_method}_{shots}_{model_name}_style_logs": wandb.Table(dataframe=style_inference_log_frame)})
+                        else:
+                            if is_llm:
+                                for shots in [16]:
+                                    current_report = evaluate_without_adaptation(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, num_shots=shots)
                                     if rank == 0:
                                         reports.append(current_report)
                                         all_reports = pd.DataFrame(reports).drop_duplicates()
@@ -223,62 +290,7 @@ def main():
                                             wandb.log(current_report)
                                             wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
                             else:
-                                for style_icl_method in icl_methods:
-                                    is_icr = adaptive_method != "No Adaptation" and not adaptive_method.startswith("aug")
-                                    for shots in num_shots if is_icr else [16]:
-                                        is_zero_shot = shots == 0
-                                        is_first_icl_run = style_icl_method == icl_methods[0]
-                                        if is_zero_shot and not is_first_icl_run:
-                                            continue
-
-                                        print(f"Evaluating style transfer with {shots} shots")
-
-                                        for temperature in domain_transfer_temperatures:
-                                            transfer_prompt = args.transfer_prompt
-                                            if is_zero_shot:
-                                                if temperature != domain_transfer_temperatures[0]:
-                                                    continue
-                                                transfer_prompt = "baseline_zero_shot"
-
-                                            rewriting_report = evaluate_style_transfer(
-                                                rank,
-                                                world_size,
-                                                experiment_id,
-                                                model_name,
-                                                model,
-                                                tokenizer,
-                                                dataset_name,
-                                                dataset,
-                                                style_icl_method,
-                                                evaluation_set,
-                                                adaptive_method,
-                                                shots,
-                                                bool(args.trim_exemplars),
-                                                temperature,
-                                                transfer_prompt,
-                                            )
-
-                                            if rank == 0:
-                                                style_inference_log_frame, current_reports = rewriting_report
-
-                                                for report in current_reports:
-                                                    reports.append(report)
-
-                                                all_reports = pd.DataFrame(reports).drop_duplicates()
-                                                print(
-                                                    all_reports[
-                                                        ["dataset", "split", "task model", "icl_method", "exemplar count", "trim exemplars", "style transfer model", "dataset size", "inference method", "accuracy"]
-                                                    ]
-                                                )
-                                                all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
-                                                if wandb_enabled:
-                                                    wandb.log(current_report)
-                                                    wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
-                                                    wandb_run.log({f"{evaluation_set}_{adaptive_method}_{style_icl_method}_{shots}_{model_name}_style_logs": wandb.Table(dataframe=style_inference_log_frame)})
-                    else:
-                        if is_llm:
-                            for shots in [16]:
-                                current_report = evaluate_without_adaptation(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, evaluation_set, num_shots=shots)
+                                current_report = evaluate_without_adaptation(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, "static", evaluation_set)
                                 if rank == 0:
                                     reports.append(current_report)
                                     all_reports = pd.DataFrame(reports).drop_duplicates()
@@ -287,16 +299,19 @@ def main():
                                     if wandb_enabled:
                                         wandb.log(current_report)
                                         wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
-                        else:
-                            current_report = evaluate_without_adaptation(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, "static", evaluation_set)
-                            if rank == 0:
-                                reports.append(current_report)
-                                all_reports = pd.DataFrame(reports).drop_duplicates()
-                                print(all_reports[["dataset", "split", "task model", "icl_method", "exemplar count", "style transfer model", "dataset size", "accuracy"]])
-                                all_reports.to_csv(f"results/{experiment_id}/reports.csv", index=False)
-                                if wandb_enabled:
-                                    wandb.log(current_report)
-                                    wandb_run.log({"reports": wandb.Table(dataframe=all_reports)})
+    except Exception as e:
+        detailed_exception_dict = {
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+        }
+        if wandb_run is not None:
+            crash_table = wandb.Table(columns=["error", "traceback"])
+            crash_table.add_data(detailed_exception_dict["error"], detailed_exception_dict["traceback"])
+            wandb_run.log({"crash": crash_table})
+            wandb_run.finish(exit_code=1)     
+
+        print("An exception occurred while running the experiment. The exception has been logged to wandb.")
+        print(json.dumps(detailed_exception_dict, indent=4))   
 
 
 if __name__ == "__main__":

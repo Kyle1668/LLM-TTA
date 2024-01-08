@@ -64,7 +64,7 @@ def get_cached_rewrites(dataset_name, rewrite_model, temperature, input_prompt):
         if os.path.exists(cache_path) and cache_path not in cache_frame:
             cache_frame[cache_path] = pd.read_csv(cache_path, on_bad_lines="warn", engine="python")
 
-        if cache_frame[cache_path] is not None:
+        if cache_path in cache_frame and cache_frame[cache_path] is not None:
             hashed_prompt = hashlib.sha256(input_prompt.encode()).hexdigest()
             read_frame_start = time.perf_counter()
             cached_inference = cache_frame[cache_path][cache_frame[cache_path]["prompt_hash"] == hashed_prompt]

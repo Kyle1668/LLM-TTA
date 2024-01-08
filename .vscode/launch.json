@@ -154,9 +154,10 @@
             },
             "args": [
                 // "--model=Kyle1668/boss-toxicity-t5-large,Kyle1668/boss-toxicity-bert-base-uncased",
-                "--model=tiiuae/falcon-7b-instruct",
-                // "--model=Kyle1668/boss-sentiment-t5-large",
+                // "--model=tiiuae/falcon-7b-instruct",
+                "--model=Kyle1668/boss-sentiment-bert-base-uncased",
                 // "--adaptive_model=stabilityai/StableBeluga-7b",
+                "--split=toxigen",
                 "--adaptive_model=aug_insert,aug_back-translate,aug_substitute",
                 // "--adaptive_model=aug_insert",
                 "--dataset=boss_toxicity",
@@ -166,7 +167,8 @@
                 "--temperature=0.0",
                 "--trim_exemplars",
                 "--evaluate_id_adaptation",
-                "--max_examples=100"
+                "--max_examples=20",
+                "--use_wandb"
             ]
         },
         {
