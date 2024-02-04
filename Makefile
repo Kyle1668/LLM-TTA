@@ -66,6 +66,11 @@ rewriter_model_ood_eval:
 	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --split=toxigen,adv_civil,implicit_hate --model=stabilityai/StableBeluga-7b --adaptive_model=aug_back-translate --skip_style_model_eval --skip_eval_styling --num_shots=16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
 	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=ag_news_twitter --split=test --model=stabilityai/StableBeluga-7b --adaptive_model=aug_back-translate --skip_style_model_eval --skip_eval_styling --num_shots=16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
 
+rewriter_model_eval_sync:
+	python evaluate_styling.py --dataset=boss_sentiment --model=stabilityai/StableBeluga-7b --adaptive_model=aug_back-translate --skip_style_model_eval --skip_eval_styling --num_shots=16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+	python evaluate_styling.py --dataset=boss_toxicity --model=stabilityai/StableBeluga-7b --adaptive_model=aug_back-translate --skip_style_model_eval --skip_eval_styling --num_shots=16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+	python evaluate_styling.py --dataset=ag_news_twitter --model=stabilityai/StableBeluga-7b --adaptive_model=aug_back-translate --skip_style_model_eval --skip_eval_styling --num_shots=16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb
+
 rewriter_model_eval_topk_nearest:
 	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_sentiment --split=sst5,semval,dynasent --model=stabilityai/StableBeluga-7b --adaptive_model=aug_back-translate --skip_style_model_eval --skip_eval_styling --num_shots=0,16 --icl_method=topk_nearest,random --temperature=0 --trim_exemplars --use_wandb
 	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --split=toxigen,adv_civil,implicit_hate --model=stabilityai/StableBeluga-7b --adaptive_model=aug_back-translate --skip_style_model_eval --skip_eval_styling --num_shots=0,16 --icl_method=topk_nearest,random --temperature=0 --trim_exemplars --use_wandb
