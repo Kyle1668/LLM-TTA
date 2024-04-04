@@ -273,7 +273,7 @@ def get_outcome_type(original_judgment, styled_jdugment, label):
     return "NA"
 
 
-def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, adaptive_method_name=None, num_shots=None, trim_exemplars=False, temperature=0, transfer_prompt=None):
+def evaluate_style_transfer(rank, world_size, seed, experiment_id, model_name, model, tokenizer, dataset_name, dataset, icl_method, eval_set, adaptive_method_name=None, num_shots=None, trim_exemplars=False, temperature=0, transfer_prompt=None):
     # Clear the rewrites cache between runs
     flush_local_cache()
 
@@ -324,15 +324,15 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
             entry["original_text"] = entry["text"]
             if dataset_name == "boss_nli":
                 entry["text"] = entry["Premise"]
-                entry["style_prompt"], styled_premise, entry["rewrite_cache_hit"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, icr_exemplars, trim_exemplars, temperature, transfer_prompt, dataset_name)
+                entry["style_prompt"], styled_premise, entry["rewrite_cache_hit"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, icr_exemplars, trim_exemplars, temperature, transfer_prompt, dataset_name, seed)
                 entry["text"] = entry["Hypothesis"]
-                entry["style_prompt"], styled_hypothesis, entry["rewrite_cache_hit"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, icr_exemplars, trim_exemplars, temperature, transfer_prompt, dataset_name)
+                entry["style_prompt"], styled_hypothesis, entry["rewrite_cache_hit"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, icr_exemplars, trim_exemplars, temperature, transfer_prompt, dataset_name, seed)
                 entry["text"] = f"{styled_premise} / {styled_hypothesis}"
             else:
                 # cached_rewrites = get_cached_rewritess(dataset_name, eval_set, adaptive_method_name, icl_method, num_shots, temperature, entry)
                 cached_rewrites = None
                 if cached_rewrites == None:
-                    entry["style_prompt"], entry["text"], entry["rewrite_cache_hit"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature, transfer_prompt, dataset_name)
+                    entry["style_prompt"], entry["text"], entry["rewrite_cache_hit"] = get_transferred_input(adaptive_tokenizer, adaptive_model, entry, exemplars, trim_exemplars, temperature, transfer_prompt, dataset_name, seed)
                 else:
                     entry["style_prompt"], entry["text"], entry["rewrite_cache_hit"] = cached_rewrites
 
@@ -356,6 +356,7 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
             print(f"Warning: {model_name} failed to generate a judgment for the following input: {entry['text']}")
 
         inference_log = inference_metadata if inference_metadata is not None else {}
+        inference_log["seed"] = seed
         inference_log["latency"] = time.perf_counter() - start_time
         inference_log["input"] = entry["text"]
         if is_adaptive_set:
@@ -370,7 +371,7 @@ def evaluate_style_transfer(rank, world_size, experiment_id, model_name, model, 
 
         inference_log["label"] = entry["label"]
         inference_logs.append(inference_log)
-        distributed_cache_write(rank, world_size, model_name, dataset_name, icl_method, eval_set, temperature, inference_logs, adaptive_model, entry)
+        distributed_cache_write(rank, world_size, model_name, dataset_name, icl_method, eval_set, temperature, inference_logs, adaptive_model, entry, seed)
 
     distributed_inference_logs = None
     if rank == 0:
@@ -546,7 +547,7 @@ def wrap_classification_prompt_keywords(prompt, model_name):
         return prompt
 
 
-def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemplars, trim_exemplars, temperature, transfer_prompt, dataset_name):
+def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemplars, trim_exemplars, temperature, transfer_prompt, dataset_name, seed):
     style_input = input_entry["text"].replace("\n", " ")
     is_openai = is_openai_model(adaptive_model.name_or_path)
     num_example_tokens = adaptive_tokenizer(style_input, return_tensors="pt")["input_ids"].shape[1] if adaptive_tokenizer is not None else len(style_input)
@@ -574,7 +575,7 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
         input_prompts = style_input
 
     # Try reading from the cache. If the cache doesn't exist, generate a new rewrite
-    cached_rewrites = get_cached_rewrites(dataset_name, adaptive_model, temperature, input_prompts)
+    cached_rewrites = get_cached_rewrites(dataset_name, adaptive_model, temperature, input_prompts, seed)
     if cached_rewrites is not None:
         return input_prompts, cached_rewrites + [input_entry["original_text"]], True
 
