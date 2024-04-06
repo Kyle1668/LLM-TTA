@@ -13,32 +13,42 @@ cache_frame = {}
 
 def distributed_cache_write(rank, world_size, model_name, dataset_name, icl_method, eval_set, temperature, inference_logs, adaptive_model, entry, seed):
     distributed_rewrites_cache = None
-    cache_write_steps = 1
+    cache_write_steps = 5
+    if is_cache_write_step := len(inference_logs) % cache_write_steps != 0:
+        print(f"Skipping cache write because it is not a cache write step: {len(inference_logs)} - {cache_write_steps}")
+        return
+
     if dist.is_initialized():
-        dist.barrier()
         if rank == 0:
             distributed_rewrites_cache = [[] for i in range(world_size)]
 
-        if is_cache_write_step := len(inference_logs) % cache_write_steps == 0:
-            print(f"Gathering cached rewrites across ranks")
-            dist.gather_object(entry, distributed_rewrites_cache)
+        if is_cache_write_step:
+            print(f"Halting to cache rewrites across ranks - Rank {rank}")
+            dist.barrier()
+
+        print(f"Gathering cached rewrites across ranks")
+        # dist.gather_object(entry, distributed_rewrites_cache)
+        dist.gather_object(inference_logs, distributed_rewrites_cache)
 
         if rank == 0 and is_cache_write_step:
-            writable_entries = [write_entry for write_entry in distributed_rewrites_cache if not write_entry["rewrite_cache_hit"]]
+            writable_entries = [write_entry for write_entry in distributed_rewrites_cache]
             if len(writable_entries) == 0:
                 print("Skipping cache writes because all entries were cache hits")
                 return
 
             description = f"Writing {len(writable_entries)} rewrites for {dataset_name}-{eval_set} with {model_name} using {icl_method}"
             print(description)
-            cache_style_prompts = [write_entry["style_prompt"] for write_entry in writable_entries]
-            cache_texts = [write_entry["text"] for write_entry in writable_entries]
-            write_cached_rewrites(dataset_name, adaptive_model, temperature, cache_style_prompts, cache_texts, seed)
+
+            distributed_cache_write_steps = cache_write_steps * world_size
+            write_cached_rewrites(dataset_name, adaptive_model, temperature, inference_logs, seed, cache_write_steps)
+
+            # cache_style_prompts = [write_entry["style_prompt"] for write_entry in writable_entries]
+            # cache_texts = [write_entry["text"] for write_entry in writable_entries]
+            # write_cached_rewrites(dataset_name, adaptive_model, temperature, cache_style_prompts, cache_texts, seed)
+            
+            
     else:
-        if entry["rewrite_cache_hit"] is True:
-            print(f"Skipping cache write because entry was a cache hit")
-        else:
-            write_cached_rewrites(dataset_name, adaptive_model, temperature, entry["style_prompt"], entry["text"], seed)
+        write_cached_rewrites(dataset_name, adaptive_model, temperature, inference_logs, seed, cache_write_steps)
 
 
 def flush_local_cache():
@@ -53,7 +63,6 @@ def get_cached_rewrites(dataset_name, rewrite_model, temperature, input_prompt, 
     start_time = time.perf_counter()
 
     try:
-
         if not os.path.exists("cached_rewrites"):
             os.mkdir("cached_rewrites")
 
@@ -79,25 +88,36 @@ def get_cached_rewrites(dataset_name, rewrite_model, temperature, input_prompt, 
     return None
 
 
-def write_cached_rewrites(dataset_name, rewrite_model, temperature, input_prompt, rewrites, seed):
+def write_cached_rewrites(dataset_name, rewrite_model, temperature, inference_logs, seed, cache_write_steps):
+
+    # Track how many MS it takes to write to cache
+    start_time = time.perf_counter()
     try:
         cache_path = f"cached_rewrites/seed={seed}_{dataset_name}_{rewrite_model.name_or_path.replace('/', '_')}.csv"
         if is_language_model(rewrite_model.name_or_path):
             cache_path = cache_path.replace(".csv", f"_temp={temperature}.csv")
 
-        input_prompt = input_prompt if isinstance(input_prompt, list) else [input_prompt]
-        cache_miss_frame = pd.DataFrame({
-                    "prompt_hash": [hashlib.sha256(prompt.encode()).hexdigest() for prompt in input_prompt],
-                    "prompt": input_prompt,
-                    "rewrites": rewrites if isinstance(rewrites[0], list) else [rewrites],
-        })
-
-        cache_frame = pd.read_csv(cache_path, on_bad_lines="warn", engine="python") if os.path.exists(cache_path) else None
-        if cache_frame is not None and cache_miss_frame["prompt_hash"].isin(cache_frame["prompt_hash"]).any():
-            print(f"Skipping cache write because prompt already exists in cache")
+        logs_to_write = inference_logs[-cache_write_steps:]
+        cache_miss_entries = [{
+            "prompt_hash": hashlib.sha256(log["style prompt"].encode()).hexdigest(),
+            "prompt": log["style prompt"],
+            "rewrites": log["input"]
+        } for log in logs_to_write]
+        
+        cache_miss_frame = pd.DataFrame(cache_miss_entries)
+        # cache_miss_frame = cache_miss_frame[~cache_miss_frame["prompt_hash"].isin(cache_frame["prompt_hash"])] if cache_frame is not None else cache_miss_frame
+        cache_miss_frame = cache_miss_frame[~cache_miss_frame["prompt_hash"].isin(cache_frame[cache_path]["prompt_hash"])] if cache_frame.get(cache_path) is not None else cache_miss_frame
+        if len(cache_miss_frame) == 0:
+            print(f"Skipping cache write because all entries were cache hits")
             return
+        else:
+            print(f"Writing {len(cache_miss_frame)} rewrites to cache")
 
-        updated_cache_frame = cache_miss_frame if cache_frame is None else pd.concat([cache_frame, cache_miss_frame])
+        fresh_cache_frame = pd.read_csv(cache_path, on_bad_lines="warn", engine="python") if os.path.exists(cache_path) else None
+        updated_cache_frame = cache_miss_frame if fresh_cache_frame is None else pd.concat([fresh_cache_frame, cache_miss_frame])
         updated_cache_frame.to_csv(cache_path, index=False)
     except Exception as e:
         print(f"Error writing cached rewrites: {e}")
+    
+    end_time = time.perf_counter()
+    print(f"Cache write took {round(end_time - start_time, 5)} seconds")

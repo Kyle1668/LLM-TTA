@@ -127,8 +127,8 @@
                 "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
-                // "--model=Kyle1668/boss-sentiment-bert-base-uncased",
-                "--model=tiiuae/falcon-7b-instruct",
+                "--model=Kyle1668/boss-sentiment-bert-base-uncased",
+                // "--model=tiiuae/falcon-7b-instruct",
                 // "--model=Kyle1668/boss-sentiment-t5-large",
                 // "--adaptive_model=stabilityai/StableBeluga-7b",
                 "--adaptive_model=aug_insert",
@@ -155,7 +155,7 @@
             "args": [
                 // "--model=Kyle1668/boss-toxicity-t5-large,Kyle1668/boss-toxicity-bert-base-uncased",
                 // "--model=tiiuae/falcon-7b-instruct",
-                "--model=Kyle1668/boss-sentiment-bert-base-uncased",
+                "--model=Kyle1668/boss-toxicity-bert-base-uncased",
                 // "--adaptive_model=stabilityai/StableBeluga-7b",
                 "--split=toxigen",
                 "--adaptive_model=aug_insert,aug_back-translate,aug_substitute",
@@ -168,7 +168,7 @@
                 "--trim_exemplars",
                 "--evaluate_id_adaptation",
                 "--max_examples=20",
-                "--use_wandb"
+                // "--use_wandb"
             ]
         },
         {
