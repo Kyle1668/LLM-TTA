@@ -11,6 +11,7 @@ results
 notebooks/data/
 icl_inference_output/
 *.zip
+slurm_logs
 
 ### Data ###
 *.pt

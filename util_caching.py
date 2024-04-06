@@ -11,7 +11,7 @@ from util_modeling import is_language_model
 
 cache_frame = {}
 
-def distributed_cache_write(rank, world_size, model_name, dataset_name, icl_method, eval_set, temperature, inference_logs, adaptive_model, entry):
+def distributed_cache_write(rank, world_size, model_name, dataset_name, icl_method, eval_set, temperature, inference_logs, adaptive_model, entry, seed):
     distributed_rewrites_cache = None
     cache_write_steps = 1
     if dist.is_initialized():
@@ -33,12 +33,12 @@ def distributed_cache_write(rank, world_size, model_name, dataset_name, icl_meth
             print(description)
             cache_style_prompts = [write_entry["style_prompt"] for write_entry in writable_entries]
             cache_texts = [write_entry["text"] for write_entry in writable_entries]
-            write_cached_rewrites(dataset_name, adaptive_model, temperature, cache_style_prompts, cache_texts)
+            write_cached_rewrites(dataset_name, adaptive_model, temperature, cache_style_prompts, cache_texts, seed)
     else:
         if entry["rewrite_cache_hit"] is True:
             print(f"Skipping cache write because entry was a cache hit")
         else:
-            write_cached_rewrites(dataset_name, adaptive_model, temperature, entry["style_prompt"], entry["text"])
+            write_cached_rewrites(dataset_name, adaptive_model, temperature, entry["style_prompt"], entry["text"], seed)
 
 
 def flush_local_cache():
@@ -46,7 +46,7 @@ def flush_local_cache():
     cache_frame = {}
 
 
-def get_cached_rewrites(dataset_name, rewrite_model, temperature, input_prompt):
+def get_cached_rewrites(dataset_name, rewrite_model, temperature, input_prompt, seed):
     global cache_frame
 
     # set stopwatch for cache read
@@ -57,7 +57,7 @@ def get_cached_rewrites(dataset_name, rewrite_model, temperature, input_prompt):
         if not os.path.exists("cached_rewrites"):
             os.mkdir("cached_rewrites")
 
-        cache_path = f"cached_rewrites/{dataset_name}_{rewrite_model.name_or_path.replace('/', '_')}.csv"
+        cache_path = f"cached_rewrites/seed={seed}_{dataset_name}_{rewrite_model.name_or_path.replace('/', '_')}.csv"
         if is_language_model(rewrite_model.name_or_path):
             cache_path = cache_path.replace(".csv", f"_temp={temperature}.csv")
 
@@ -79,9 +79,9 @@ def get_cached_rewrites(dataset_name, rewrite_model, temperature, input_prompt):
     return None
 
 
-def write_cached_rewrites(dataset_name, rewrite_model, temperature, input_prompt, rewrites):
+def write_cached_rewrites(dataset_name, rewrite_model, temperature, input_prompt, rewrites, seed):
     try:
-        cache_path = f"cached_rewrites/{dataset_name}_{rewrite_model.name_or_path.replace('/', '_')}.csv"
+        cache_path = f"cached_rewrites/seed={seed}_{dataset_name}_{rewrite_model.name_or_path.replace('/', '_')}.csv"
         if is_language_model(rewrite_model.name_or_path):
             cache_path = cache_path.replace(".csv", f"_temp={temperature}.csv")
 

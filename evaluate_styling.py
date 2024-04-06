@@ -85,7 +85,7 @@ def main():
     torch.manual_seed(args.seed)
 
     # Create expeirment directory
-    experiment_id = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{args.dataset}_{args.model.replace('/', '-')}"
+    experiment_id = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{args.dataset}_{args.model.replace('/', '-')}_seed={args.seed}"
     time.sleep(5)
     if rank == 0:
         if not os.path.exists("results"):
@@ -245,6 +245,7 @@ def main():
                                                 rewriting_report = evaluate_style_transfer(
                                                     rank,
                                                     world_size,
+                                                    args.seed,
                                                     experiment_id,
                                                     model_name,
                                                     model,
