@@ -579,6 +579,84 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
     if cached_rewrites is not None:
         return input_prompts, cached_rewrites + [input_entry["original_text"]], True
 
+    tokenized_prompts = input_prompts if adaptive_tokenizer is None else adaptive_tokenizer([input_prompts, input_prompts, input_prompts, input_prompts], return_tensors="pt").to(adaptive_model.device)
+    llm_outputs = []
+    try:
+        with torch.no_grad():
+            # for _ in range(4):
+            lm_output = adaptive_model.generate(
+                **tokenized_prompts,
+                max_new_tokens=num_example_tokens * 5,
+                return_dict_in_generate=False,
+                do_sample=True,
+                temperature=0.3,
+            )
+            llm_outputs = lm_output
+            # llm_outputs.append(lm_output[0])
+    except Exception as e:
+        if "memory" in str(e).lower():
+            print(f"Ran out of memory when generating an input for the following prompt: {input_prompts}")
+            return input_prompts, None, None
+        
+        raise e
+
+    formatted_generated_sequences = []
+    # if is_openai:
+        # return input_prompts, [outputs["choices"][0]["message"]["content"]]
+
+    for output in llm_outputs:
+        # print(f"Len Output: {len(output)}")
+        if isinstance(output, str):
+            print("Is string")
+            formatted_generated_sequences.append(output)
+            continue
+
+        generation = None
+        if is_large_language_model(adaptive_model.name_or_path):
+            generation = adaptive_tokenizer.decode(output[len(tokenized_prompts[0]) :])
+        else:
+            generation = adaptive_tokenizer.decode(output, skip_special_tokens=True)
+
+        parsed_generation = parse_generation(style_input, generation)
+        formatted_generated_sequences.append(parsed_generation)
+
+    print(f"\n\nOriginal Input: {input_entry['text']}")
+    print("Rewrites:\n- " + "\n- ".join(formatted_generated_sequences))
+    return input_prompts, formatted_generated_sequences + [input_entry["original_text"]], False
+
+
+def get_transferred_input_beam(adaptive_tokenizer, adaptive_model, input_entry, exemplars, trim_exemplars, temperature, transfer_prompt, dataset_name, seed):
+    style_input = input_entry["text"].replace("\n", " ")
+    is_openai = is_openai_model(adaptive_model.name_or_path)
+    num_example_tokens = adaptive_tokenizer(style_input, return_tensors="pt")["input_ids"].shape[1] if adaptive_tokenizer is not None else len(style_input)
+
+    input_prompts = None
+    if is_large_language_model(adaptive_model.name_or_path):
+        style_transfer_exemplars = None
+        if is_openai:
+            style_transfer_exemplars = "".join(['- "' + exemplar["text"].strip().replace("\n", "")[:500] + '"\n' for exemplar in exemplars])
+        elif trim_exemplars:
+            style_transfer_exemplars = "".join([f'- "{adaptive_tokenizer.decode(adaptive_tokenizer.encode(exemplar["text"].strip())[:int(500 / len(exemplars))])}"\n' for exemplar in exemplars])
+        else:
+            style_transfer_exemplars = "".join(['- "' + exemplar["text"].strip().replace("\n", "") + '"\n' for exemplar in exemplars])
+
+        task_prompt = None
+        with open(f"prompts/{transfer_prompt}.txt", "r") as style_transfer_prompt_file:
+            prompt_template = style_transfer_prompt_file.read()
+            prompt_template = prompt_template.replace("<style_transfer_exemplars>", style_transfer_exemplars)
+            prompt_template = prompt_template.replace("<style_input>", style_input)
+            prompt_template = prompt_template.replace("<s>", "")
+            task_prompt = prompt_template
+
+        input_prompts = wrap_rewrite_prompt_keywords(task_prompt, adaptive_model.config.name_or_path)
+    else:
+        input_prompts = style_input
+
+    # Try reading from the cache. If the cache doesn't exist, generate a new rewrite
+    cached_rewrites = get_cached_rewrites(dataset_name, adaptive_model, temperature, input_prompts, seed)
+    if cached_rewrites is not None:
+        return input_prompts, cached_rewrites + [input_entry["original_text"]], True
+
     tokenized_prompt = input_prompts if adaptive_tokenizer is None else adaptive_tokenizer.encode(input_prompts, return_tensors="pt").to(adaptive_model.device)
     try:
         with torch.no_grad():
