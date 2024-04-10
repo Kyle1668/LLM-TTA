@@ -583,16 +583,20 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
     llm_outputs = []
     try:
         with torch.no_grad():
-            # for _ in range(4):
-            lm_output = adaptive_model.generate(
-                **tokenized_prompts,
-                max_new_tokens=num_example_tokens * 5,
-                return_dict_in_generate=False,
-                do_sample=True,
-                temperature=0.3,
-            )
-            llm_outputs = lm_output
-            # llm_outputs.append(lm_output[0])
+            if isinstance(tokenized_prompts, str):
+                # Input is string for augmentation baselines
+                llm_outputs = adaptive_model.generate(
+                    tokenized_prompts,
+                    max_new_tokens=num_example_tokens * 5,
+                )[0]
+            else:
+                llm_outputs = adaptive_model.generate(
+                    **tokenized_prompts,
+                    max_new_tokens=num_example_tokens * 5,
+                    return_dict_in_generate=False,
+                    do_sample=True,
+                    temperature=0.3,
+                )
     except Exception as e:
         if "memory" in str(e).lower():
             print(f"Ran out of memory when generating an input for the following prompt: {input_prompts}")
@@ -607,7 +611,6 @@ def get_transferred_input(adaptive_tokenizer, adaptive_model, input_entry, exemp
     for output in llm_outputs:
         # print(f"Len Output: {len(output)}")
         if isinstance(output, str):
-            print("Is string")
             formatted_generated_sequences.append(output)
             continue
 

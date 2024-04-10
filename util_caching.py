@@ -1,5 +1,6 @@
 from torch.utils.data.distributed import DistributedSampler
 import torch.distributed as dist
+from itertools import chain
 import pandas as pd
 import hashlib
 import time
@@ -13,8 +14,9 @@ cache_frame = {}
 
 def distributed_cache_write(rank, world_size, model_name, dataset_name, icl_method, eval_set, temperature, inference_logs, adaptive_model, entry, seed):
     distributed_rewrites_cache = None
-    cache_write_steps = 5
-    if is_cache_write_step := len(inference_logs) % cache_write_steps != 0:
+    cache_write_steps = 50
+    is_cache_write_step = len(inference_logs) % cache_write_steps == 0
+    if not is_cache_write_step:
         print(f"Skipping cache write because it is not a cache write step: {len(inference_logs)} - {cache_write_steps}")
         return
 
@@ -30,7 +32,16 @@ def distributed_cache_write(rank, world_size, model_name, dataset_name, icl_meth
         # dist.gather_object(entry, distributed_rewrites_cache)
         dist.gather_object(inference_logs, distributed_rewrites_cache)
 
-        if rank == 0 and is_cache_write_step:
+        if rank == 0:
+            prev_length = len(inference_logs)
+            distributed_rewrites_cache = list(chain(*distributed_rewrites_cache))
+            new_length = len(distributed_rewrites_cache)
+            print(f"Chained distributed rewrites from {prev_length} to {new_length}")
+
+            if not is_cache_write_step:
+                print(f"Rank 0: Skipping cache write because it is not a cache write step: {len(inference_logs)} - {cache_write_steps}")
+                return
+
             writable_entries = [write_entry for write_entry in distributed_rewrites_cache]
             if len(writable_entries) == 0:
                 print("Skipping cache writes because all entries were cache hits")
@@ -40,7 +51,7 @@ def distributed_cache_write(rank, world_size, model_name, dataset_name, icl_meth
             print(description)
 
             distributed_cache_write_steps = cache_write_steps * world_size
-            write_cached_rewrites(dataset_name, adaptive_model, temperature, inference_logs, seed, cache_write_steps)
+            write_cached_rewrites(dataset_name, adaptive_model, temperature, inference_logs, seed, distributed_cache_write_steps)
 
             # cache_style_prompts = [write_entry["style_prompt"] for write_entry in writable_entries]
             # cache_texts = [write_entry["text"] for write_entry in writable_entries]
@@ -97,6 +108,7 @@ def write_cached_rewrites(dataset_name, rewrite_model, temperature, inference_lo
         if is_language_model(rewrite_model.name_or_path):
             cache_path = cache_path.replace(".csv", f"_temp={temperature}.csv")
 
+        print(f"Inference Logs: {len(inference_logs)}")
         logs_to_write = inference_logs[-cache_write_steps:]
         cache_miss_entries = [{
             "prompt_hash": hashlib.sha256(log["style prompt"].encode()).hexdigest(),

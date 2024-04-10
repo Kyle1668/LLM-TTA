@@ -119,7 +119,7 @@ def get_model(model_name, num_labels, training=False):
 
     model = None
     device = select_device()
-    numerical_precision = torch.float32 if training else torch.float16
+    numerical_precision = torch.float32 if training else torch.bfloat16
     if is_llm:
         num_billions = [float(entry[:-1]) for entry in model_name.split("-") if entry[0].isdigit() and entry.lower().endswith("b")]
         large_models = ["stabilityai/StableBeluga2"]

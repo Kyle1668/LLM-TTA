@@ -348,7 +348,8 @@
             "args": [
                 "--max_examples=50",
                 "--model=Kyle1668/boss-sentiment-bert-base-uncased",
-                "--adaptive_model=stabilityai/StableBeluga-7B",
+                "--adaptive_model=aug_back-translate,aug_insert,aug_substitute,stabilityai/StableBeluga-7B",
+                // "--adaptive_model=stabilityai/StableBeluga-7B",
                 // "--model=stabilityai/StableBeluga2",
                 "--dataset=boss_sentiment",
                 "--baseline=skip",
