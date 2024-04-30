@@ -14,7 +14,7 @@ cache_frame = {}
 
 def distributed_cache_write(rank, world_size, model_name, dataset_name, icl_method, eval_set, temperature, inference_logs, adaptive_model, entry, seed):
     distributed_rewrites_cache = None
-    cache_write_steps = 50
+    cache_write_steps = 20
     is_cache_write_step = len(inference_logs) % cache_write_steps == 0
     if not is_cache_write_step:
         print(f"Skipping cache write because it is not a cache write step: {len(inference_logs)} - {cache_write_steps}")
@@ -51,7 +51,7 @@ def distributed_cache_write(rank, world_size, model_name, dataset_name, icl_meth
             print(description)
 
             distributed_cache_write_steps = cache_write_steps * world_size
-            write_cached_rewrites(dataset_name, adaptive_model, temperature, inference_logs, seed, distributed_cache_write_steps)
+            write_cached_rewrites(dataset_name, adaptive_model, temperature, distributed_rewrites_cache, seed, distributed_cache_write_steps)
 
             # cache_style_prompts = [write_entry["style_prompt"] for write_entry in writable_entries]
             # cache_texts = [write_entry["text"] for write_entry in writable_entries]
@@ -72,6 +72,9 @@ def get_cached_rewrites(dataset_name, rewrite_model, temperature, input_prompt, 
 
     # set stopwatch for cache read
     start_time = time.perf_counter()
+
+    if dist.get_rank() == 0:
+        print()
 
     try:
         if not os.path.exists("cached_rewrites"):
