@@ -3,6 +3,10 @@ main_results_experiment_ids=(
     # "main_results_ood_sentiment"
     # "main_results_ood_toxicity"
     # "main_results_ood_news"
+    main_results_ood_sentiment_translate
+    main_results_ood_toxicity_translate
+    main_results_ood_news_translate
+
     "main_results_id_news"
     "main_results_id_sentiment"
     "main_results_id_toxicity"

@@ -14,7 +14,7 @@ cache_frame = {}
 
 def distributed_cache_write(rank, world_size, model_name, dataset_name, icl_method, eval_set, temperature, inference_logs, adaptive_model, entry, seed):
     distributed_rewrites_cache = None
-    cache_write_steps = 20
+    cache_write_steps = 5
     is_cache_write_step = len(inference_logs) % cache_write_steps == 0
     if not is_cache_write_step:
         print(f"Skipping cache write because it is not a cache write step: {len(inference_logs)} - {cache_write_steps}")
@@ -47,8 +47,8 @@ def distributed_cache_write(rank, world_size, model_name, dataset_name, icl_meth
                 print("Skipping cache writes because all entries were cache hits")
                 return
 
-            description = f"Writing {len(writable_entries)} rewrites for {dataset_name}-{eval_set} with {model_name} using {icl_method}"
-            print(description)
+            # description = f"Writing {len(writable_entries)} rewrites for {dataset_name}-{eval_set} with {model_name} using {icl_method}"
+            # print(description)
 
             distributed_cache_write_steps = cache_write_steps * world_size
             write_cached_rewrites(dataset_name, adaptive_model, temperature, distributed_rewrites_cache, seed, distributed_cache_write_steps)
@@ -95,6 +95,8 @@ def get_cached_rewrites(dataset_name, rewrite_model, temperature, input_prompt, 
             if len(cached_inference) > 0:
                 print(f"Found cached rewrites for {rewrite_model.name_or_path}. Overall Latency = {round(end_time - start_time, 2)} seconds & Search Latency = {round(end_time - read_frame_start, 2)} seconds")
                 return ast.literal_eval(cached_inference.iloc[0]["rewrites"])
+            else:
+                print()
     except Exception as e:
         end_time = time.perf_counter()
         print(f"Error reading cached rewrites with Latency = {round(end_time - start_time, 2)}: {e}")
@@ -112,7 +114,8 @@ def write_cached_rewrites(dataset_name, rewrite_model, temperature, inference_lo
             cache_path = cache_path.replace(".csv", f"_temp={temperature}.csv")
 
         print(f"Inference Logs: {len(inference_logs)}")
-        logs_to_write = inference_logs[-cache_write_steps:]
+        # logs_to_write = inference_logs[-cache_write_steps:]
+        logs_to_write = inference_logs
         cache_miss_entries = [{
             "prompt_hash": hashlib.sha256(log["style prompt"].encode()).hexdigest(),
             "prompt": log["style prompt"],
@@ -125,11 +128,14 @@ def write_cached_rewrites(dataset_name, rewrite_model, temperature, inference_lo
         if len(cache_miss_frame) == 0:
             print(f"Skipping cache write because all entries were cache hits")
             return
-        else:
-            print(f"Writing {len(cache_miss_frame)} rewrites to cache")
 
         fresh_cache_frame = pd.read_csv(cache_path, on_bad_lines="warn", engine="python") if os.path.exists(cache_path) else None
         updated_cache_frame = cache_miss_frame if fresh_cache_frame is None else pd.concat([fresh_cache_frame, cache_miss_frame])
+
+        # Dedup and write the new frame to local storage
+        previous_length = len(updated_cache_frame)
+        updated_cache_frame = updated_cache_frame.drop_duplicates(["prompt_hash"])
+        print(f"Writing {len(updated_cache_frame) - (previous_length - len(updated_cache_frame))} rewrites to cache")
         updated_cache_frame.to_csv(cache_path, index=False)
     except Exception as e:
         print(f"Error writing cached rewrites: {e}")

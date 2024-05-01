@@ -44,18 +44,19 @@ class AugmenterModel(PreTrainedModel):
         for prompt in (prompt_batch if isinstance(prompt_batch, list) else [prompt_batch]):
             if self.config.action == "back_translate":
                 german_version = self.en_de_translator(prompt)[0]["translation_text"]
-                english_versions = self.de_en_translator(
-                    german_version,
-                    num_return_sequences=4,
-                    temperature=0.7,
-                    num_beams=4,
-                    num_beam_groups=4,
-                    top_p=0.95,
-                    top_k=0,
-                    repetition_penalty=10.0,
-                    diversity_penalty=1.0,
-                    no_repeat_ngram_size=2)
+                # english_versions = self.de_en_translator(
+                #     german_version,
+                #     num_return_sequences=4,
+                #     temperature=0.7,
+                #     num_beams=4,
+                #     num_beam_groups=4,
+                #     top_p=0.95,
+                #     top_k=0,
+                #     repetition_penalty=10.0,
+                #     diversity_penalty=1.0,
+                #     no_repeat_ngram_size=2)
 
+                english_versions = self.de_en_translator(german_version, num_return_sequences=4, temperature=0.3)
                 augmentations.append([translation["translation_text"] for translation in english_versions])
             else:
                 augmentations.append(self.augmenter.augment(prompt, n=num_agumentations))
