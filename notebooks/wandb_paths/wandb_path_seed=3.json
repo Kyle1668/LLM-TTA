@@ -295,7 +295,7 @@
     "BOSS_Toxicity_AdvCivil_T5_Insert": "run-vxvt9l40-adv_civil_aug_insert_random_16_Kyle1668bosstoxicityt5large_style_logs:v0",
     "BOSS_Toxicity_AdvCivil_T5_Substitute": "run-vxvt9l40-adv_civil_aug_substitute_random_16_Kyle1668bosstoxicityt5large_style_logs:v0",
     "BOSS_Toxicity_AdvCivil_T5_Translate": "run-vxvt9l40-adv_civil_aug_backtranslate_random_16_Kyle1668bosstoxicityt5large_style_logs:v0",
-    "BOSS_Toxicity_AdvCivil_T5_Paraphrase": "run-vxvt9l40-adv_civil_stabilityaiStableBeluga7b_random_0_Kyle1668bosstoxicityt5large_style_logs:v0    ",
+    "BOSS_Toxicity_AdvCivil_T5_Paraphrase": "run-vxvt9l40-adv_civil_stabilityaiStableBeluga7b_random_0_Kyle1668bosstoxicityt5large_style_logs:v0",
     "BOSS_Toxicity_AdvCivil_T5_ICR": "run-vxvt9l40-adv_civil_stabilityaiStableBeluga7b_random_16_Kyle1668bosstoxicityt5large_style_logs:v0",
 
     // Falcon
