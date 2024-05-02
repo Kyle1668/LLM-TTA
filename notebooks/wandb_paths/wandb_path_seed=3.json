@@ -1,0 +1,434 @@
+{
+    // BOSS Sentiment
+    // ID
+    // BERT
+    "BOSS_Sentiment_ID_BERT_Insert": "",
+    "BOSS_Sentiment_ID_BERT_Substitute": "",
+    "BOSS_Sentiment_ID_BERT_Translate": "",
+    "BOSS_Sentiment_ID_BERT_Paraphrase": "",
+    "BOSS_Sentiment_ID_BERT_ICR": "",
+
+    // T5
+    "BOSS_Sentiment_ID_T5_Insert": "",
+    "BOSS_Sentiment_ID_T5_Substitute": "",
+    "BOSS_Sentiment_ID_T5_Translate": "",
+    "BOSS_Sentiment_ID_T5_Paraphrase": "",
+    "BOSS_Sentiment_ID_T5_ICR": "",
+
+    // Falcon
+    "BOSS_Sentiment_ID_Falcon_Insert": "",
+    "BOSS_Sentiment_ID_Falcon_Substitute": "",
+    "BOSS_Sentiment_ID_Falcon_Translate": "",
+    "BOSS_Sentiment_ID_Falcon_Paraphrase": "",
+    "BOSS_Sentiment_ID_Falcon_ICR": "",
+
+    // SST5
+    // BERT
+    "BOSS_Sentiment_SST5_BERT_Insert": "run-vg726nl1-sst5_aug_insert_random_16_Kyle1668bosssentimentbertbaseuncased_style_logs:v0",
+    "BOSS_Sentiment_SST5_BERT_Substitute": "run-vg726nl1-sst5_aug_substitute_random_16_Kyle1668bosssentimentbertbaseuncased_style_logs:v0",
+    "BOSS_Sentiment_SST5_BERT_Translate": "run-vg726nl1-sst5_aug_backtranslate_random_16_Kyle1668bosssentimentbertbaseuncased_style_logs:v0",
+    "BOSS_Sentiment_SST5_BERT_Paraphrase": "run-vg726nl1-sst5_stabilityaiStableBeluga7b_random_0_Kyle1668bosssentimentbertbaseuncased_style_logs:v0",
+    "BOSS_Sentiment_SST5_BERT_ICR": "run-vg726nl1-sst5_stabilityaiStableBeluga7b_random_16_Kyle1668bosssentimentbertbaseuncased_style_logs:v0",
+
+    "BOSS_Sentiment_Ablate_Data_SST5_BERT1500_Insert": "",
+    "BOSS_Sentiment_Ablate_Data_SST5_BERT1500_Substitute": "",
+    "BOSS_Sentiment_Ablate_Data_SST5_BERT1500_Translate": "",
+    "BOSS_Sentiment_Ablate_Data_SST5_BERT1500_Paraphrase": "",
+    "BOSS_Sentiment_Ablate_Data_SST5_BERT1500_ICR": "",
+
+    "BOSS_Sentiment_Ablate_Data_SST5_BERT3000_Insert": "",
+    "BOSS_Sentiment_Ablate_Data_SST5_BERT3000_Substitute": "",
+    "BOSS_Sentiment_Ablate_Data_SST5_BERT3000_Translate": "",
+    "BOSS_Sentiment_Ablate_Data_SST5_BERT3000_Paraphrase": "",
+    "BOSS_Sentiment_Ablate_Data_SST5_BERT3000_ICR": "",
+
+    "BOSS_Sentiment_Ablate_Data_SST5_BERT6000_Insert": "",
+    "BOSS_Sentiment_Ablate_Data_SST5_BERT6000_Substitute": "",
+    "BOSS_Sentiment_Ablate_Data_SST5_BERT6000_Translate": "",
+    "BOSS_Sentiment_Ablate_Data_SST5_BERT6000_Paraphrase": "",
+    "BOSS_Sentiment_Ablate_Data_SST5_BERT6000_ICR": "",
+
+    "BOSS_Sentiment_Ablate_Data_SST5_BERT12000_Insert": "",
+    "BOSS_Sentiment_Ablate_Data_SST5_BERT12000_Substitute": "",
+    "BOSS_Sentiment_Ablate_Data_SST5_BERT12000_Translate": "",
+    "BOSS_Sentiment_Ablate_Data_SST5_BERT12000_Paraphrase": "",
+    "BOSS_Sentiment_Ablate_Data_SST5_BERT12000_ICR": "",
+
+    "BOSS_Sentiment_Ablate_Data_SST5_BERT24000_Insert": "",
+    "BOSS_Sentiment_Ablate_Data_SST5_BERT24000_Substitute": "",
+    "BOSS_Sentiment_Ablate_Data_SST5_BERT24000_Translate": "",
+    "BOSS_Sentiment_Ablate_Data_SST5_BERT24000_Paraphrase": "",
+    "BOSS_Sentiment_Ablate_Data_SST5_BERT24000_ICR": "",
+
+    // T5
+    "BOSS_Sentiment_SST5_T5_Insert": "run-vg726nl1-sst5_aug_insert_random_16_Kyle1668bosssentimentt5large_style_logs:v0",
+    "BOSS_Sentiment_SST5_T5_Substitute": "run-vg726nl1-sst5_aug_substitute_random_16_Kyle1668bosssentimentt5large_style_logs:v0",
+    "BOSS_Sentiment_SST5_T5_Translate": "run-vg726nl1-sst5_aug_backtranslate_random_16_Kyle1668bosssentimentt5large_style_logs:v0",
+    "BOSS_Sentiment_SST5_T5_Paraphrase": "run-vg726nl1-sst5_stabilityaiStableBeluga7b_random_0_Kyle1668bosssentimentt5large_style_logs:v0",
+    "BOSS_Sentiment_SST5_T5_ICR": "run-vg726nl1-sst5_stabilityaiStableBeluga7b_random_16_Kyle1668bosssentimentt5large_style_logs:v0",
+
+    // Falcon
+    "BOSS_Sentiment_SST5_Falcon_Insert": "run-vg726nl1-sst5_aug_insert_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+    "BOSS_Sentiment_SST5_Falcon_Substitute": "run-vg726nl1-sst5_aug_substitute_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+    "BOSS_Sentiment_SST5_Falcon_Translate": "run-vg726nl1-sst5_aug_backtranslate_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+    "BOSS_Sentiment_SST5_Falcon_Paraphrase": "run-vg726nl1-sst5_stabilityaiStableBeluga7b_random_0_tiiuaefalcon7binstruct_style_logs:v0",
+    "BOSS_Sentiment_SST5_Falcon_ICR": "run-vg726nl1-sst5_stabilityaiStableBeluga7b_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+
+    // SemEval
+    // BERT
+    "BOSS_Sentiment_SemEval_BERT_Insert": "run-vg726nl1-semval_aug_insert_random_16_Kyle1668bosssentimentbertbaseuncased_style_logs:v0",
+    "BOSS_Sentiment_SemEval_BERT_Substitute": "run-vg726nl1-semval_aug_substitute_random_16_Kyle1668bosssentimentbertbaseuncased_style_logs:v0",
+    "BOSS_Sentiment_SemEval_BERT_Translate": "run-vg726nl1-semval_aug_backtranslate_random_16_Kyle1668bosssentimentbertbaseuncased_style_logs:v0",
+    "BOSS_Sentiment_SemEval_BERT_Paraphrase": "run-vg726nl1-semval_stabilityaiStableBeluga7b_random_0_Kyle1668bosssentimentbertbaseuncased_style_logs:v0",
+    "BOSS_Sentiment_SemEval_BERT_ICR": "run-vg726nl1-semval_stabilityaiStableBeluga7b_random_16_Kyle1668bosssentimentbertbaseuncased_style_logs:v0",
+
+    "BOSS_Sentiment_Ablate_Data_SemEval_BERT1500_Insert": "",
+    "BOSS_Sentiment_Ablate_Data_SemEval_BERT1500_Substitute": "",
+    "BOSS_Sentiment_Ablate_Data_SemEval_BERT1500_Translate": "",
+    "BOSS_Sentiment_Ablate_Data_SemEval_BERT1500_Paraphrase": "",
+    "BOSS_Sentiment_Ablate_Data_SemEval_BERT1500_ICR": "",
+
+    "BOSS_Sentiment_Ablate_Data_SemEval_BERT3000_Insert": "",
+    "BOSS_Sentiment_Ablate_Data_SemEval_BERT3000_Substitute": "",
+    "BOSS_Sentiment_Ablate_Data_SemEval_BERT3000_Translate": "",
+    "BOSS_Sentiment_Ablate_Data_SemEval_BERT3000_Paraphrase": "",
+    "BOSS_Sentiment_Ablate_Data_SemEval_BERT3000_ICR": "",
+
+    "BOSS_Sentiment_Ablate_Data_SemEval_BERT6000_Insert": "",
+    "BOSS_Sentiment_Ablate_Data_SemEval_BERT6000_Substitute": "",
+    "BOSS_Sentiment_Ablate_Data_SemEval_BERT6000_Translate": "",
+    "BOSS_Sentiment_Ablate_Data_SemEval_BERT6000_Paraphrase": "",
+    "BOSS_Sentiment_Ablate_Data_SemEval_BERT6000_ICR": "",
+
+    "BOSS_Sentiment_Ablate_Data_SemEval_BERT12000_Insert": "",
+    "BOSS_Sentiment_Ablate_Data_SemEval_BERT12000_Substitute": "",
+    "BOSS_Sentiment_Ablate_Data_SemEval_BERT12000_Translate": "",
+    "BOSS_Sentiment_Ablate_Data_SemEval_BERT12000_Paraphrase": "",
+    "BOSS_Sentiment_Ablate_Data_SemEval_BERT12000_ICR": "",
+
+    "BOSS_Sentiment_Ablate_Data_SemEval_BERT24000_Insert": "",
+    "BOSS_Sentiment_Ablate_Data_SemEval_BERT24000_Substitute": "",
+    "BOSS_Sentiment_Ablate_Data_SemEval_BERT24000_Translate": "",
+    "BOSS_Sentiment_Ablate_Data_SemEval_BERT24000_Paraphrase": "",
+    "BOSS_Sentiment_Ablate_Data_SemEval_BERT24000_ICR": "",
+
+    // T5
+    "BOSS_Sentiment_SemEval_T5_Insert": "run-vg726nl1-semval_aug_insert_random_16_Kyle1668bosssentimentt5large_style_logs:v0",
+    "BOSS_Sentiment_SemEval_T5_Substitute": "un-vg726nl1-semval_aug_substitute_random_16_Kyle1668bosssentimentt5large_style_logs:v0",
+    "BOSS_Sentiment_SemEval_T5_Translate": "run-vg726nl1-semval_aug_backtranslate_random_16_Kyle1668bosssentimentt5large_style_logs:v0",
+    "BOSS_Sentiment_SemEval_T5_Paraphrase": "run-vg726nl1-semval_stabilityaiStableBeluga7b_random_0_Kyle1668bosssentimentt5large_style_logs:v0",
+    "BOSS_Sentiment_SemEval_T5_ICR": "run-vg726nl1-semval_stabilityaiStableBeluga7b_random_16_Kyle1668bosssentimentt5large_style_logs:v0",
+
+    // Falcon
+    "BOSS_Sentiment_SemEval_Falcon_Insert": "run-vg726nl1-semval_aug_insert_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+    "BOSS_Sentiment_SemEval_Falcon_Substitute": "run-vg726nl1-semval_aug_substitute_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+    "BOSS_Sentiment_SemEval_Falcon_Translate": "run-vg726nl1-semval_aug_backtranslate_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+    "BOSS_Sentiment_SemEval_Falcon_Paraphrase": "run-vg726nl1-semval_stabilityaiStableBeluga7b_random_0_tiiuaefalcon7binstruct_style_logs:v0",
+    "BOSS_Sentiment_SemEval_Falcon_ICR": "run-vg726nl1-semval_stabilityaiStableBeluga7b_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+
+    // Dynasent
+    // BERT
+    "BOSS_Sentiment_Dynasent_BERT_Insert": "run-vg726nl1-dynasent_aug_insert_random_16_Kyle1668bosssentimentbertbaseuncased_style_logs:v0",
+    "BOSS_Sentiment_Dynasent_BERT_Substitute": "run-vg726nl1-dynasent_aug_substitute_random_16_Kyle1668bosssentimentbertbaseuncased_style_logs:v0",
+    "BOSS_Sentiment_Dynasent_BERT_Translate": "run-vg726nl1-dynasent_aug_backtranslate_random_16_Kyle1668bosssentimentbertbaseuncased_style_logs:v0",
+    "BOSS_Sentiment_Dynasent_BERT_Paraphrase": "run-vg726nl1-dynasent_stabilityaiStableBeluga7b_random_0_Kyle1668bosssentimentbertbaseuncased_style_logs:v0",
+    "BOSS_Sentiment_Dynasent_BERT_ICR": "run-vg726nl1-dynasent_stabilityaiStableBeluga7b_random_16_Kyle1668bosssentimentbertbaseuncased_style_logs:v0",
+
+    "BOSS_Sentiment_Ablate_Data_Dynasent_BERT1500_Insert": "",
+    "BOSS_Sentiment_Ablate_Data_Dynasent_BERT1500_Substitute": "",
+    "BOSS_Sentiment_Ablate_Data_Dynasent_BERT1500_Translate": "",
+    "BOSS_Sentiment_Ablate_Data_Dynasent_BERT1500_Paraphrase": "",
+    "BOSS_Sentiment_Ablate_Data_Dynasent_BERT1500_ICR": "",
+
+    "BOSS_Sentiment_Ablate_Data_Dynasent_BERT3000_Insert": "",
+    "BOSS_Sentiment_Ablate_Data_Dynasent_BERT3000_Substitute": "",
+    "BOSS_Sentiment_Ablate_Data_Dynasent_BERT3000_Translate": "",
+    "BOSS_Sentiment_Ablate_Data_Dynasent_BERT3000_Paraphrase": "",
+    "BOSS_Sentiment_Ablate_Data_Dynasent_BERT3000_ICR": "",
+
+    "BOSS_Sentiment_Ablate_Data_Dynasent_BERT6000_Insert": "",
+    "BOSS_Sentiment_Ablate_Data_Dynasent_BERT6000_Substitute": "",
+    "BOSS_Sentiment_Ablate_Data_Dynasent_BERT6000_Translate": "",
+    "BOSS_Sentiment_Ablate_Data_Dynasent_BERT6000_Paraphrase": "",
+    "BOSS_Sentiment_Ablate_Data_Dynasent_BERT6000_ICR": "",
+
+    "BOSS_Sentiment_Ablate_Data_Dynasent_BERT12000_Insert": "",
+    "BOSS_Sentiment_Ablate_Data_Dynasent_BERT12000_Substitute": "",
+    "BOSS_Sentiment_Ablate_Data_Dynasent_BERT12000_Translate": "",
+    "BOSS_Sentiment_Ablate_Data_Dynasent_BERT12000_Paraphrase": "",
+    "BOSS_Sentiment_Ablate_Data_Dynasent_BERT12000_ICR": "",
+
+    "BOSS_Sentiment_Ablate_Data_Dynasent_BERT24000_Insert": "",
+    "BOSS_Sentiment_Ablate_Data_Dynasent_BERT24000_Substitute": "",
+    "BOSS_Sentiment_Ablate_Data_Dynasent_BERT24000_Translate": "",
+    "BOSS_Sentiment_Ablate_Data_Dynasent_BERT24000_Paraphrase": "",
+    "BOSS_Sentiment_Ablate_Data_Dynasent_BERT24000_ICR": "",
+
+    // T5
+    "BOSS_Sentiment_Dynasent_T5_Insert": "run-vg726nl1-dynasent_aug_insert_random_16_Kyle1668bosssentimentt5large_style_logs:v0",
+    "BOSS_Sentiment_Dynasent_T5_Substitute": "run-vg726nl1-dynasent_aug_substitute_random_16_Kyle1668bosssentimentt5large_style_logs:v0",
+    "BOSS_Sentiment_Dynasent_T5_Translate": "run-vg726nl1-dynasent_aug_backtranslate_random_16_Kyle1668bosssentimentt5large_style_logs:v0",
+    "BOSS_Sentiment_Dynasent_T5_Paraphrase": "run-vg726nl1-dynasent_stabilityaiStableBeluga7b_random_0_Kyle1668bosssentimentt5large_style_logs:v0",
+    "BOSS_Sentiment_Dynasent_T5_ICR": "run-vg726nl1-dynasent_stabilityaiStableBeluga7b_random_16_Kyle1668bosssentimentt5large_style_logs:v0",
+
+    // Falcon
+    "BOSS_Sentiment_Dynasent_Falcon_Insert": "run-vg726nl1-dynasent_aug_insert_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+    "BOSS_Sentiment_Dynasent_Falcon_Substitute": "run-vg726nl1-dynasent_aug_substitute_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+    "BOSS_Sentiment_Dynasent_Falcon_Translate": "run-vg726nl1-dynasent_aug_backtranslate_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+    "BOSS_Sentiment_Dynasent_Falcon_Paraphrase": "run-vg726nl1-dynasent_stabilityaiStableBeluga7b_random_0_tiiuaefalcon7binstruct_style_logs:v0",
+    "BOSS_Sentiment_Dynasent_Falcon_ICR": "run-vg726nl1-dynasent_stabilityaiStableBeluga7b_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+
+    // BOSS Toxicity
+    // ID
+    // BERT
+    "BOSS_Toxicity_ID_BERT_Insert": "",
+    "BOSS_Toxicity_ID_BERT_Substitute": "",
+    "BOSS_Toxicity_ID_BERT_Translate": "",
+    "BOSS_Toxicity_ID_BERT_Paraphrase": "",
+    "BOSS_Toxicity_ID_BERT_ICR": "",
+
+    // T5
+    "BOSS_Toxicity_ID_T5_Insert": "",
+    "BOSS_Toxicity_ID_T5_Substitute": "",
+    "BOSS_Toxicity_ID_T5_Translate": "",
+    "BOSS_Toxicity_ID_T5_Paraphrase": "",
+    "BOSS_Toxicity_ID_T5_ICR": "",
+
+    // Falcon
+    "BOSS_Toxicity_ID_Falcon_Insert": "",
+    "BOSS_Toxicity_ID_Falcon_Substitute": "",
+    "BOSS_Toxicity_ID_Falcon_Translate": "",
+    "BOSS_Toxicity_ID_Falcon_Paraphrase": "",
+    "BOSS_Toxicity_ID_Falcon_ICR": "",
+
+    // Toxigen
+    // BERT
+    "BOSS_Toxicity_Toxigen_BERT_Insert": "run-vxvt9l40-toxigen_aug_insert_random_16_Kyle1668bosstoxicitybertbaseuncased_style_logs:v0",
+    "BOSS_Toxicity_Toxigen_BERT_Substitute": "run-vxvt9l40-toxigen_aug_substitute_random_16_Kyle1668bosstoxicitybertbaseuncased_style_logs:v0",
+    "BOSS_Toxicity_Toxigen_BERT_Translate": "run-vxvt9l40-toxigen_aug_backtranslate_random_16_Kyle1668bosstoxicitybertbaseuncased_style_logs:v0",
+    "BOSS_Toxicity_Toxigen_BERT_Paraphrase": "run-vxvt9l40-toxigen_stabilityaiStableBeluga7b_random_0_Kyle1668bosstoxicitybertbaseuncased_style_logs:v0",
+    "BOSS_Toxicity_Toxigen_BERT_ICR": "run-vxvt9l40-toxigen_stabilityaiStableBeluga7b_random_16_Kyle1668bosstoxicitybertbaseuncased_style_logs:v0",
+
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT3000_Insert": "",
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT3000_Substitute": "",
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT3000_Translate": "",
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT3000_Paraphrase": "",
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT3000_ICR": "",
+
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT6000_Insert": "",
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT6000_Substitute": "",
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT6000_Translate": "",
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT6000_Paraphrase": "",
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT6000_ICR": "",
+
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT12000_Insert": "",
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT12000_Substitute": "",
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT12000_Translate": "",
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT12000_Paraphrase": "",
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT12000_ICR": "",
+
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT24000_Insert": "",
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT24000_Substitute": "",
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT24000_Translate": "",
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT24000_Paraphrase": "",
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT24000_ICR": "",
+
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT48000_Insert": "",
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT48000_Substitute": "",
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT48000_Translate": "",
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT48000_Paraphrase": "",
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT48000_ICR": "",
+
+    // T5
+    "BOSS_Toxicity_Toxigen_T5_Insert": "run-vxvt9l40-toxigen_aug_insert_random_16_Kyle1668bosstoxicityt5large_style_logs:v0",
+    "BOSS_Toxicity_Toxigen_T5_Substitute": "run-vxvt9l40-toxigen_aug_substitute_random_16_Kyle1668bosstoxicityt5large_style_logs:v0",
+    "BOSS_Toxicity_Toxigen_T5_Translate": "run-vxvt9l40-toxigen_aug_backtranslate_random_16_Kyle1668bosstoxicityt5large_style_logs:v0",
+    "BOSS_Toxicity_Toxigen_T5_Paraphrase": "run-vxvt9l40-toxigen_stabilityaiStableBeluga7b_random_0_Kyle1668bosstoxicityt5large_style_logs:v0",
+    "BOSS_Toxicity_Toxigen_T5_ICR": "run-vxvt9l40-toxigen_stabilityaiStableBeluga7b_random_16_Kyle1668bosstoxicityt5large_style_logs:v0",
+
+    // Falcon
+    "BOSS_Toxicity_Toxigen_Falcon_Insert": "run-vxvt9l40-toxigen_aug_insert_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+    "BOSS_Toxicity_Toxigen_Falcon_Substitute": "run-vxvt9l40-toxigen_aug_substitute_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+    "BOSS_Toxicity_Toxigen_Falcon_Translate": "run-vxvt9l40-toxigen_aug_backtranslate_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+    "BOSS_Toxicity_Toxigen_Falcon_Paraphrase": "run-vxvt9l40-toxigen_stabilityaiStableBeluga7b_random_0_tiiuaefalcon7binstruct_style_logs:v0",
+    "BOSS_Toxicity_Toxigen_Falcon_ICR": "run-vxvt9l40-toxigen_stabilityaiStableBeluga7b_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+
+    // AdvCivil
+    // BERT
+    "BOSS_Toxicity_AdvCivil_BERT_Insert": "run-vxvt9l40-adv_civil_aug_insert_random_16_Kyle1668bosstoxicitybertbaseuncased_style_logs:v0",
+    "BOSS_Toxicity_AdvCivil_BERT_Substitute": "run-vxvt9l40-adv_civil_aug_substitute_random_16_Kyle1668bosstoxicitybertbaseuncased_style_logs:v0",
+    "BOSS_Toxicity_AdvCivil_BERT_Translate": "run-vxvt9l40-adv_civil_aug_backtranslate_random_16_Kyle1668bosstoxicitybertbaseuncased_style_logs:v0",
+    "BOSS_Toxicity_AdvCivil_BERT_Paraphrase": "run-vxvt9l40-adv_civil_stabilityaiStableBeluga7b_random_0_Kyle1668bosstoxicitybertbaseuncased_style_logs:v0",
+    "BOSS_Toxicity_AdvCivil_BERT_ICR": "run-vxvt9l40-adv_civil_stabilityaiStableBeluga7b_random_16_Kyle1668bosstoxicitybertbaseuncased_style_logs:v0",
+
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT3000_Insert": "",
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT3000_Substitute": "",
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT3000_Translate": "",
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT3000_Paraphrase": "",
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT3000_ICR": "",
+
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT6000_Insert": "",
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT6000_Substitute": "",
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT6000_Translate": "",
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT6000_Paraphrase": "",
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT6000_ICR": "",
+
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT12000_Insert": "",
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT12000_Substitute": "",
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT12000_Translate": "",
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT12000_Paraphrase": "",
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT12000_ICR": "",
+
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT24000_Insert": "",
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT24000_Substitute": "",
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT24000_Translate": "",
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT24000_Paraphrase": "",
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT24000_ICR": "",
+
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT48000_Insert": "",
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT48000_Substitute": "",
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT48000_Translate": "",
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT48000_Paraphrase": "",
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT48000_ICR": "",
+
+    // T5
+    "BOSS_Toxicity_AdvCivil_T5_Insert": "run-vxvt9l40-adv_civil_aug_insert_random_16_Kyle1668bosstoxicityt5large_style_logs:v0",
+    "BOSS_Toxicity_AdvCivil_T5_Substitute": "run-vxvt9l40-adv_civil_aug_substitute_random_16_Kyle1668bosstoxicityt5large_style_logs:v0",
+    "BOSS_Toxicity_AdvCivil_T5_Translate": "run-vxvt9l40-adv_civil_aug_backtranslate_random_16_Kyle1668bosstoxicityt5large_style_logs:v0",
+    "BOSS_Toxicity_AdvCivil_T5_Paraphrase": "run-vxvt9l40-adv_civil_stabilityaiStableBeluga7b_random_0_Kyle1668bosstoxicityt5large_style_logs:v0    ",
+    "BOSS_Toxicity_AdvCivil_T5_ICR": "run-vxvt9l40-adv_civil_stabilityaiStableBeluga7b_random_16_Kyle1668bosstoxicityt5large_style_logs:v0",
+
+    // Falcon
+    "BOSS_Toxicity_AdvCivil_Falcon_Insert": "run-vxvt9l40-adv_civil_aug_insert_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+    "BOSS_Toxicity_AdvCivil_Falcon_Substitute": "run-vxvt9l40-adv_civil_aug_substitute_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+    "BOSS_Toxicity_AdvCivil_Falcon_Translate": "run-vxvt9l40-adv_civil_aug_backtranslate_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+    "BOSS_Toxicity_AdvCivil_Falcon_Paraphrase": "run-vxvt9l40-adv_civil_stabilityaiStableBeluga7b_random_0_tiiuaefalcon7binstruct_style_logs:v0",
+    "BOSS_Toxicity_AdvCivil_Falcon_ICR": "run-vxvt9l40-adv_civil_stabilityaiStableBeluga7b_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+
+    // ImplicitHate
+    // BERT
+    "BOSS_Toxicity_ImplicitHate_BERT_Insert": "run-vxvt9l40-implicit_hate_aug_insert_random_16_Kyle1668bosstoxicitybertbaseuncased_style_logs:v0",
+    "BOSS_Toxicity_ImplicitHate_BERT_Substitute": "run-vxvt9l40-implicit_hate_aug_substitute_random_16_Kyle1668bosstoxicitybertbaseuncased_style_logs:v0",
+    "BOSS_Toxicity_ImplicitHate_BERT_Translate": "run-vxvt9l40-implicit_hate_aug_backtranslate_random_16_Kyle1668bosstoxicitybertbaseuncased_style_logs:v0",
+    "BOSS_Toxicity_ImplicitHate_BERT_Paraphrase": "run-vxvt9l40-implicit_hate_stabilityaiStableBeluga7b_random_0_Kyle1668bosstoxicitybertbaseuncased_style_logs:v0",
+    "BOSS_Toxicity_ImplicitHate_BERT_ICR": "run-vxvt9l40-implicit_hate_stabilityaiStableBeluga7b_random_16_Kyle1668bosstoxicitybertbaseuncased_style_logs:v0",
+
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT3000_Insert": "",
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT3000_Substitute": "",
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT3000_Translate": "",
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT3000_Paraphrase": "",
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT3000_ICR": "",
+
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT6000_Insert": "",
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT6000_Substitute": "",
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT6000_Translate": "",
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT6000_Paraphrase": "",
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT6000_ICR": "",
+
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT12000_Insert": "",
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT12000_Substitute": "",
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT12000_Translate": "",
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT12000_Paraphrase": "",
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT12000_ICR": "",
+
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT24000_Insert": "",
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT24000_Substitute": "",
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT24000_Translate": "",
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT24000_Paraphrase": "",
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT24000_ICR": "",
+
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT48000_Insert": "",
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT48000_Substitute": "",
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT48000_Translate": "",
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT48000_Paraphrase": "",
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT48000_ICR": "",
+
+    // T5
+    "BOSS_Toxicity_ImplicitHate_T5_Insert": "run-vxvt9l40-implicit_hate_aug_insert_random_16_Kyle1668bosstoxicityt5large_style_logs:v0",
+    "BOSS_Toxicity_ImplicitHate_T5_Substitute": "run-vxvt9l40-implicit_hate_aug_substitute_random_16_Kyle1668bosstoxicityt5large_style_logs:v0",
+    "BOSS_Toxicity_ImplicitHate_T5_Translate": "run-vxvt9l40-implicit_hate_aug_backtranslate_random_16_Kyle1668bosstoxicityt5large_style_logs:v0",
+    "BOSS_Toxicity_ImplicitHate_T5_Paraphrase": "run-vxvt9l40-implicit_hate_stabilityaiStableBeluga7b_random_0_Kyle1668bosstoxicityt5large_style_logs:v0",
+    "BOSS_Toxicity_ImplicitHate_T5_ICR": "run-vxvt9l40-implicit_hate_stabilityaiStableBeluga7b_random_16_Kyle1668bosstoxicityt5large_style_logs:v0",
+
+    // Falcon
+    "BOSS_Toxicity_ImplicitHate_Falcon_Insert": "run-vxvt9l40-implicit_hate_aug_insert_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+    "BOSS_Toxicity_ImplicitHate_Falcon_Substitute": "run-vxvt9l40-implicit_hate_aug_substitute_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+    "BOSS_Toxicity_ImplicitHate_Falcon_Translate": "run-vxvt9l40-implicit_hate_aug_backtranslate_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+    "BOSS_Toxicity_ImplicitHate_Falcon_Paraphrase": "run-vxvt9l40-implicit_hate_stabilityaiStableBeluga7b_random_0_tiiuaefalcon7binstruct_style_logs:v0",
+    "BOSS_Toxicity_ImplicitHate_Falcon_ICR": "run-vxvt9l40-implicit_hate_stabilityaiStableBeluga7b_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+
+    // AG News Tweets
+    // ID
+    // BERT
+    "AgNewsTweets_ID_BERT_Insert": "",
+    "AgNewsTweets_ID_BERT_Substitute": "",
+    "AgNewsTweets_ID_BERT_Translate": "",
+    "AgNewsTweets_ID_BERT_Paraphrase": "",
+    "AgNewsTweets_ID_BERT_ICR": "",
+
+    // T5
+    "AgNewsTweets_ID_T5_Insert": "",
+    "AgNewsTweets_ID_T5_Substitute": "",
+    "AgNewsTweets_ID_T5_Translate": "",
+    "AgNewsTweets_ID_T5_Paraphrase": "",
+    "AgNewsTweets_ID_T5_ICR": "",
+
+    // Falcon
+    "AgNewsTweets_ID_Falcon_Insert": "",
+    "AgNewsTweets_ID_Falcon_Substitute": "",
+    "AgNewsTweets_ID_Falcon_Translate": "",
+    "AgNewsTweets_ID_Falcon_Paraphrase": "",
+    "AgNewsTweets_ID_Falcon_ICR": "",
+
+    // Tweets
+    // BERT
+    "AgNewsTweets_Tweets_BERT_Insert": "run-x5rtkkyc-test_aug_insert_random_16_Kyle1668agnewsbertbaseuncased_style_logs:v0",
+    "AgNewsTweets_Tweets_BERT_Substitute": "run-x5rtkkyc-test_aug_substitute_random_16_Kyle1668agnewsbertbaseuncased_style_logs:v0",
+    "AgNewsTweets_Tweets_BERT_Translate": "run-x5rtkkyc-test_aug_backtranslate_random_16_Kyle1668agnewsbertbaseuncased_style_logs:v0",
+    "AgNewsTweets_Tweets_BERT_Paraphrase": "run-x5rtkkyc-test_stabilityaiStableBeluga7b_random_0_Kyle1668agnewsbertbaseuncased_style_logs:v0",
+    "AgNewsTweets_Tweets_BERT_ICR": "run-x5rtkkyc-test_stabilityaiStableBeluga7b_random_16_Kyle1668agnewsbertbaseuncased_style_logs:v0",
+
+    "AgNewsTweets_Ablate_Data_Tweets_BERT76800_Insert": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT76800_Substitute": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT76800_Translate": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT76800_Paraphrase": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT76800_ICR": "",
+
+    "AgNewsTweets_Ablate_Data_Tweets_BERT9600_Insert": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT9600_Substitute": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT9600_Translate": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT9600_Paraphrase": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT9600_ICR": "",
+
+    "AgNewsTweets_Ablate_Data_Tweets_BERT19200_Insert": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT19200_Substitute": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT19200_Translate": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT19200_Paraphrase": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT19200_ICR": "",
+
+    "AgNewsTweets_Ablate_Data_Tweets_BERT38400_Insert": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT38400_Substitute": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT38400_Translate": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT38400_Paraphrase": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT38400_ICR": "",
+
+    "AgNewsTweets_Ablate_Data_Tweets_BERT4800_Insert": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT4800_Substitute": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT4800_Translate": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT4800_Paraphrase": "",
+    "AgNewsTweets_Ablate_Data_Tweets_BERT4800_ICR": "",
+
+    // T5
+    "AgNewsTweets_Tweets_T5_Insert": "un-x5rtkkyc-test_aug_insert_random_16_Kyle1668agnewst5large_style_logs:v0",
+    "AgNewsTweets_Tweets_T5_Substitute": "run-x5rtkkyc-test_aug_substitute_random_16_Kyle1668agnewst5large_style_logs:v0",
+    "AgNewsTweets_Tweets_T5_Translate": "run-x5rtkkyc-test_aug_backtranslate_random_16_Kyle1668agnewst5large_style_logs:v0",
+    "AgNewsTweets_Tweets_T5_Paraphrase": "run-x5rtkkyc-test_stabilityaiStableBeluga7b_random_0_Kyle1668agnewst5large_style_logs:v0",
+    "AgNewsTweets_Tweets_T5_ICR": "run-x5rtkkyc-test_stabilityaiStableBeluga7b_random_16_Kyle1668agnewst5large_style_logs:v0",
+
+    // Falcon
+    "AgNewsTweets_Tweets_Falcon_Insert": "run-x5rtkkyc-test_aug_insert_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+    "AgNewsTweets_Tweets_Falcon_Substitute": "run-x5rtkkyc-test_aug_substitute_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+    "AgNewsTweets_Tweets_Falcon_Translate": "run-x5rtkkyc-test_aug_backtranslate_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+    "AgNewsTweets_Tweets_Falcon_Paraphrase": "run-x5rtkkyc-test_stabilityaiStableBeluga7b_random_0_tiiuaefalcon7binstruct_style_logs:v0",
+    "AgNewsTweets_Tweets_Falcon_ICR": "run-x5rtkkyc-test_stabilityaiStableBeluga7b_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+}
