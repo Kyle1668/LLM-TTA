@@ -233,11 +233,11 @@
     "BOSS_Toxicity_Ablate_Data_Toxigen_BERT24000_Paraphrase": "run-pfn0gt7d-toxigen_stabilityaiStableBeluga7b_random_0_Kyle1668bosstoxicity24000bertbaseuncased_style_logs:v0",
     "BOSS_Toxicity_Ablate_Data_Toxigen_BERT24000_ICR": "run-pfn0gt7d-toxigen_stabilityaiStableBeluga7b_random_16_Kyle1668bosstoxicity24000bertbaseuncased_style_logs:v0",
 
-    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT48000_Insert": "run-6td0blfo-toxigen_stabilityaiStableBeluga7b_random_0_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
-    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT48000_Substitute": "run-6td0blfo-toxigen_stabilityaiStableBeluga7b_random_0_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
-    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT48000_Translate": "run-6td0blfo-toxigen_stabilityaiStableBeluga7b_random_0_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT48000_Insert": "run-6td0blfo-toxigen_aug_insert_random_16_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT48000_Substitute": "run-6td0blfo-toxigen_aug_substitute_random_16_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT48000_Translate": "run-6td0blfo-toxigen_aug_backtranslate_random_16_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
     "BOSS_Toxicity_Ablate_Data_Toxigen_BERT48000_Paraphrase": "run-6td0blfo-toxigen_stabilityaiStableBeluga7b_random_0_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
-    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT48000_ICR": "run-6td0blfo-toxigen_stabilityaiStableBeluga7b_random_0_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
+    "BOSS_Toxicity_Ablate_Data_Toxigen_BERT48000_ICR": "run-6td0blfo-toxigen_stabilityaiStableBeluga7b_random_16_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
 
     // T5
     "BOSS_Toxicity_Toxigen_T5_Insert": "run-vxvt9l40-toxigen_aug_insert_random_16_Kyle1668bosstoxicityt5large_style_logs:v0",
@@ -285,11 +285,11 @@
     "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT24000_Paraphrase": "run-pfn0gt7d-adv_civil_stabilityaiStableBeluga7b_random_0_Kyle1668bosstoxicity24000bertbaseuncased_style_logs:v0",
     "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT24000_ICR": "run-pfn0gt7d-adv_civil_stabilityaiStableBeluga7b_random_16_Kyle1668bosstoxicity24000bertbaseuncased_style_logs:v0",
 
-    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT48000_Insert": "run-6td0blfo-adv_civil_stabilityaiStableBeluga7b_random_0_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
-    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT48000_Substitute": "run-6td0blfo-adv_civil_stabilityaiStableBeluga7b_random_0_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
-    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT48000_Translate": "run-6td0blfo-adv_civil_stabilityaiStableBeluga7b_random_0_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT48000_Insert": "run-6td0blfo-adv_civil_aug_insert_random_16_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT48000_Substitute": "run-6td0blfo-adv_civil_aug_substitute_random_16_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT48000_Translate": "run-6td0blfo-adv_civil_aug_backtranslate_random_16_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
     "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT48000_Paraphrase": "run-6td0blfo-adv_civil_stabilityaiStableBeluga7b_random_0_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
-    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT48000_ICR": "run-6td0blfo-adv_civil_stabilityaiStableBeluga7b_random_0_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
+    "BOSS_Toxicity_Ablate_Data_AdvCivil_BERT48000_ICR": "run-6td0blfo-adv_civil_stabilityaiStableBeluga7b_random_16_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
 
     // T5
     "BOSS_Toxicity_AdvCivil_T5_Insert": "run-vxvt9l40-adv_civil_aug_insert_random_16_Kyle1668bosstoxicityt5large_style_logs:v0",
@@ -337,11 +337,11 @@
     "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT24000_Paraphrase": "run-pfn0gt7d-implicit_hate_stabilityaiStableBeluga7b_random_0_Kyle1668bosstoxicity24000bertbaseuncased_style_logs:v0",
     "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT24000_ICR": "run-pfn0gt7d-implicit_hate_stabilityaiStableBeluga7b_random_16_Kyle1668bosstoxicity24000bertbaseuncased_style_logs:v0",
 
-    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT48000_Insert": "run-6td0blfo-implicit_hate_stabilityaiStableBeluga7b_random_0_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
-    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT48000_Substitute": "run-6td0blfo-implicit_hate_stabilityaiStableBeluga7b_random_16_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
-    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT48000_Translate": "run-6td0blfo-implicit_hate_stabilityaiStableBeluga7b_random_0_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
-    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT48000_Paraphrase": "run-6td0blfo-implicit_hate_stabilityaiStableBeluga7b_random_16_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
-    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT48000_ICR": "run-6td0blfo-implicit_hate_stabilityaiStableBeluga7b_random_0_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT48000_Insert": "run-6td0blfo-implicit_hate_aug_insert_random_16_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT48000_Substitute": "run-6td0blfo-implicit_hate_aug_substitute_random_16_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT48000_Translate": "run-6td0blfo-implicit_hate_aug_backtranslate_random_16_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT48000_Paraphrase": "run-6td0blfo-implicit_hate_stabilityaiStableBeluga7b_random_0_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
+    "BOSS_Toxicity_Ablate_Data_ImplicitHate_BERT48000_ICR": "run-6td0blfo-implicit_hate_stabilityaiStableBeluga7b_random_16_Kyle1668bosstoxicity48000bertbaseuncased_style_logs:v0",
 
     // T5
     "BOSS_Toxicity_ImplicitHate_T5_Insert": "run-vxvt9l40-implicit_hate_aug_insert_random_16_Kyle1668bosstoxicityt5large_style_logs:v0",
