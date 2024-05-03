@@ -26,7 +26,7 @@
     // BERT
     "BOSS_Sentiment_SST5_BERT_Insert": "run-3e0ohjya-sst5_aug_insert_random_16_Kyle1668bosssentimentbertbaseuncased_style_logs:v0",
     "BOSS_Sentiment_SST5_BERT_Substitute": "run-3e0ohjya-sst5_aug_substitute_random_16_Kyle1668bosssentimentbertbaseuncased_style_logs:v0",
-    "BOSS_Sentiment_SST5_BERT_Translate": "run-3e0ohjya-sst5_aug_backtranslate_random_16_Kyle1668bosssentimentbertbaseuncased_style_logs:v0",
+    "BOSS_Sentiment_SST5_BERT_Translate": "run-6lhwk2ms-sst5_aug_backtranslate_random_16_Kyle1668bosssentimentbertbaseuncased_style_logs:v0",
     "BOSS_Sentiment_SST5_BERT_Paraphrase": "run-3e0ohjya-sst5_stabilityaiStableBeluga7b_random_0_Kyle1668bosssentimentbertbaseuncased_style_logs:v0",
     "BOSS_Sentiment_SST5_BERT_ICR": "run-3e0ohjya-sst5_stabilityaiStableBeluga7b_random_16_Kyle1668bosssentimentbertbaseuncased_style_logs:v0",
 
@@ -63,14 +63,14 @@
     // T5
     "BOSS_Sentiment_SST5_T5_Insert": "run-3e0ohjya-sst5_aug_insert_random_16_Kyle1668bosssentimentt5large_style_logs:v0",
     "BOSS_Sentiment_SST5_T5_Substitute": "run-3e0ohjya-sst5_aug_substitute_random_16_Kyle1668bosssentimentt5large_style_logs:v0",
-    "BOSS_Sentiment_SST5_T5_Translate": "run-3e0ohjya-sst5_aug_backtranslate_random_16_Kyle1668bosssentimentt5large_style_logs:v0",
+    "BOSS_Sentiment_SST5_T5_Translate": "run-6lhwk2ms-sst5_aug_backtranslate_random_16_Kyle1668bosssentimentt5large_style_logs:v0",
     "BOSS_Sentiment_SST5_T5_Paraphrase": "run-3e0ohjya-sst5_stabilityaiStableBeluga7b_random_0_Kyle1668bosssentimentt5large_style_logs:v0",
     "BOSS_Sentiment_SST5_T5_ICR": "run-3e0ohjya-sst5_stabilityaiStableBeluga7b_random_16_Kyle1668bosssentimentt5large_style_logs:v0",
 
     // Falcon
     "BOSS_Sentiment_SST5_Falcon_Insert": "run-3e0ohjya-sst5_aug_insert_random_16_tiiuaefalcon7binstruct_style_logs:v0",
     "BOSS_Sentiment_SST5_Falcon_Substitute": "run-3e0ohjya-sst5_aug_substitute_random_16_tiiuaefalcon7binstruct_style_logs:v0",
-    "BOSS_Sentiment_SST5_Falcon_Translate": "run-3e0ohjya-sst5_aug_backtranslate_random_16_tiiuaefalcon7binstruct_style_logs:v0",
+    "BOSS_Sentiment_SST5_Falcon_Translate": "run-6lhwk2ms-sst5_aug_backtranslate_random_16_tiiuaefalcon7binstruct_style_logs:v0",
     "BOSS_Sentiment_SST5_Falcon_Paraphrase": "run-3e0ohjya-sst5_stabilityaiStableBeluga7b_random_0_tiiuaefalcon7binstruct_style_logs:v0",
     "BOSS_Sentiment_SST5_Falcon_ICR": "run-3e0ohjya-sst5_stabilityaiStableBeluga7b_random_16_tiiuaefalcon7binstruct_style_logs:v0",
 
