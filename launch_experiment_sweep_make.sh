@@ -1,4 +1,10 @@
 main_results_experiment_ids=(
+    # main results ID split by LLM and baseline\
+    "main_results_id_sentiment_llm"
+    "main_results_id_sentiment_baseline-tta"
+    "main_results_id_toxicity_llm-tta"
+    "main_results_id_toxicity_baseline-tta"
+
     # Main Results Split by ID & OOD
     # "main_results_ood_sentiment"
     # "main_results_ood_toxicity"
@@ -7,9 +13,9 @@ main_results_experiment_ids=(
 #    "main_results_ood_toxicity_translate"
     # main_results_ood_news_translate
 
-    "main_results_id_news"
-    "main_results_id_sentiment"
-    "main_results_id_toxicity"
+    # "main_results_id_news"
+    # "main_results_id_sentiment"
+
 
     # Main Results
     # "main_results_sentiment"
@@ -26,8 +32,8 @@ main_results_experiment_ids=(
 seeds=(
     3
     17
-    46
-    58
+    # 46
+    # 58
     # 90
 )
 
