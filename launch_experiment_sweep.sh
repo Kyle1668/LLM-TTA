@@ -1,25 +1,5 @@
 main_results_experiment_ids=(
-    # Main Results Split by ID & OOD
-    # "main_results_ood_sentiment"
-    # "main_results_ood_toxicity"
-    # "main_results_ood_news"
-    # main_results_ood_sentiment_translate
-#    "main_results_ood_toxicity_translate"
-    # main_results_ood_news_translate
-
-    "main_results_id_news"
-    "main_results_id_sentiment"
-    "main_results_id_toxicity"
-
-    # Main Results
-    # "main_results_sentiment"
-    # "main_results_toxicity"
-    # "main_results_news"
-
-    # Training set size ablations
-    # "ablate_data_sentiment"
-    # "ablate_data_toxicity"
-    # "ablate_data_ag_news"
+    "ablate_data_ood_translate"
 )
 
 # Generated between 1-100 using Google
