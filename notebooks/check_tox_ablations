@@ -1,0 +1,281 @@
+seed,shift,data_count,tta_method,count
+3,AdvCivil,3000,Insert,1
+3,AdvCivil,3000,LLM-TTA: ICR,1
+3,AdvCivil,3000,LLM-TTA: Paraphrase,1
+3,AdvCivil,3000,Substitute,1
+3,AdvCivil,3000,Translate,1
+3,AdvCivil,6000,Insert,1
+3,AdvCivil,6000,LLM-TTA: ICR,1
+3,AdvCivil,6000,LLM-TTA: Paraphrase,1
+3,AdvCivil,6000,Substitute,1
+3,AdvCivil,6000,Translate,1
+3,AdvCivil,12000,Insert,1
+3,AdvCivil,12000,LLM-TTA: ICR,1
+3,AdvCivil,12000,LLM-TTA: Paraphrase,1
+3,AdvCivil,12000,Substitute,1
+3,AdvCivil,12000,Translate,1
+3,AdvCivil,24000,Insert,1
+3,AdvCivil,24000,LLM-TTA: ICR,1
+3,AdvCivil,24000,LLM-TTA: Paraphrase,1
+3,AdvCivil,24000,Substitute,1
+3,AdvCivil,24000,Translate,1
+3,AdvCivil,48000,Insert,1
+3,AdvCivil,48000,LLM-TTA: ICR,1
+3,AdvCivil,48000,LLM-TTA: Paraphrase,1
+3,AdvCivil,48000,Substitute,1
+3,AdvCivil,48000,Translate,1
+3,ImplicitHate,3000,Insert,1
+3,ImplicitHate,3000,LLM-TTA: ICR,1
+3,ImplicitHate,3000,LLM-TTA: Paraphrase,1
+3,ImplicitHate,3000,Substitute,1
+3,ImplicitHate,3000,Translate,1
+3,ImplicitHate,6000,Insert,1
+3,ImplicitHate,6000,LLM-TTA: ICR,1
+3,ImplicitHate,6000,LLM-TTA: Paraphrase,1
+3,ImplicitHate,6000,Substitute,1
+3,ImplicitHate,6000,Translate,1
+3,ImplicitHate,12000,Insert,1
+3,ImplicitHate,12000,LLM-TTA: ICR,1
+3,ImplicitHate,12000,LLM-TTA: Paraphrase,1
+3,ImplicitHate,12000,Substitute,1
+3,ImplicitHate,12000,Translate,1
+3,ImplicitHate,24000,Insert,1
+3,ImplicitHate,24000,LLM-TTA: ICR,1
+3,ImplicitHate,24000,LLM-TTA: Paraphrase,1
+3,ImplicitHate,24000,Substitute,1
+3,ImplicitHate,24000,Translate,1
+3,ImplicitHate,48000,Insert,1
+3,ImplicitHate,48000,LLM-TTA: ICR,1
+3,ImplicitHate,48000,LLM-TTA: Paraphrase,1
+3,ImplicitHate,48000,Substitute,1
+3,ImplicitHate,48000,Translate,1
+3,Toxigen,3000,Insert,1
+3,Toxigen,3000,LLM-TTA: ICR,1
+3,Toxigen,3000,LLM-TTA: Paraphrase,1
+3,Toxigen,3000,Substitute,1
+3,Toxigen,3000,Translate,1
+3,Toxigen,6000,Insert,1
+3,Toxigen,6000,LLM-TTA: ICR,1
+3,Toxigen,6000,LLM-TTA: Paraphrase,1
+3,Toxigen,6000,Substitute,1
+3,Toxigen,6000,Translate,1
+3,Toxigen,12000,Insert,1
+3,Toxigen,12000,LLM-TTA: ICR,1
+3,Toxigen,12000,LLM-TTA: Paraphrase,1
+3,Toxigen,12000,Substitute,1
+3,Toxigen,12000,Translate,1
+3,Toxigen,24000,Insert,1
+3,Toxigen,24000,LLM-TTA: ICR,1
+3,Toxigen,24000,LLM-TTA: Paraphrase,1
+3,Toxigen,24000,Substitute,1
+3,Toxigen,24000,Translate,1
+3,Toxigen,48000,Insert,1
+3,Toxigen,48000,LLM-TTA: ICR,1
+3,Toxigen,48000,LLM-TTA: Paraphrase,1
+3,Toxigen,48000,Substitute,1
+3,Toxigen,48000,Translate,1
+17,AdvCivil,3000,Insert,1
+17,AdvCivil,3000,LLM-TTA: ICR,1
+17,AdvCivil,3000,LLM-TTA: Paraphrase,1
+17,AdvCivil,3000,Substitute,1
+17,AdvCivil,3000,Translate,1
+17,AdvCivil,6000,Insert,1
+17,AdvCivil,6000,LLM-TTA: ICR,1
+17,AdvCivil,6000,LLM-TTA: Paraphrase,1
+17,AdvCivil,6000,Substitute,1
+17,AdvCivil,6000,Translate,1
+17,AdvCivil,12000,Insert,1
+17,AdvCivil,12000,LLM-TTA: ICR,1
+17,AdvCivil,12000,LLM-TTA: Paraphrase,1
+17,AdvCivil,12000,Substitute,1
+17,AdvCivil,12000,Translate,1
+17,AdvCivil,24000,Insert,1
+17,AdvCivil,24000,LLM-TTA: ICR,1
+17,AdvCivil,24000,LLM-TTA: Paraphrase,1
+17,AdvCivil,24000,Substitute,1
+17,AdvCivil,24000,Translate,1
+17,AdvCivil,48000,Insert,1
+17,AdvCivil,48000,LLM-TTA: ICR,1
+17,AdvCivil,48000,LLM-TTA: Paraphrase,1
+17,AdvCivil,48000,Substitute,1
+17,AdvCivil,48000,Translate,1
+17,ImplicitHate,3000,Insert,1
+17,ImplicitHate,3000,LLM-TTA: ICR,1
+17,ImplicitHate,3000,LLM-TTA: Paraphrase,1
+17,ImplicitHate,3000,Substitute,1
+17,ImplicitHate,3000,Translate,1
+17,ImplicitHate,6000,Insert,1
+17,ImplicitHate,6000,LLM-TTA: ICR,1
+17,ImplicitHate,6000,LLM-TTA: Paraphrase,1
+17,ImplicitHate,6000,Substitute,1
+17,ImplicitHate,6000,Translate,1
+17,ImplicitHate,12000,Insert,1
+17,ImplicitHate,12000,LLM-TTA: ICR,1
+17,ImplicitHate,12000,LLM-TTA: Paraphrase,1
+17,ImplicitHate,12000,Substitute,1
+17,ImplicitHate,12000,Translate,1
+17,ImplicitHate,24000,Insert,1
+17,ImplicitHate,24000,LLM-TTA: ICR,1
+17,ImplicitHate,24000,LLM-TTA: Paraphrase,1
+17,ImplicitHate,24000,Substitute,1
+17,ImplicitHate,24000,Translate,1
+17,ImplicitHate,48000,Insert,1
+17,ImplicitHate,48000,LLM-TTA: ICR,1
+17,ImplicitHate,48000,LLM-TTA: Paraphrase,1
+17,ImplicitHate,48000,Substitute,1
+17,ImplicitHate,48000,Translate,1
+17,Toxigen,3000,Insert,1
+17,Toxigen,3000,LLM-TTA: ICR,1
+17,Toxigen,3000,LLM-TTA: Paraphrase,1
+17,Toxigen,3000,Substitute,1
+17,Toxigen,3000,Translate,1
+17,Toxigen,6000,Insert,1
+17,Toxigen,6000,LLM-TTA: ICR,1
+17,Toxigen,6000,LLM-TTA: Paraphrase,1
+17,Toxigen,6000,Substitute,1
+17,Toxigen,6000,Translate,1
+17,Toxigen,12000,Insert,1
+17,Toxigen,12000,LLM-TTA: ICR,1
+17,Toxigen,12000,LLM-TTA: Paraphrase,1
+17,Toxigen,12000,Substitute,1
+17,Toxigen,12000,Translate,1
+17,Toxigen,24000,Insert,1
+17,Toxigen,24000,LLM-TTA: ICR,1
+17,Toxigen,24000,LLM-TTA: Paraphrase,1
+17,Toxigen,24000,Substitute,1
+17,Toxigen,24000,Translate,1
+17,Toxigen,48000,Insert,1
+17,Toxigen,48000,LLM-TTA: ICR,1
+17,Toxigen,48000,LLM-TTA: Paraphrase,1
+17,Toxigen,48000,Substitute,1
+17,Toxigen,48000,Translate,1
+46,AdvCivil,3000,Insert,1
+46,AdvCivil,3000,LLM-TTA: ICR,1
+46,AdvCivil,3000,LLM-TTA: Paraphrase,1
+46,AdvCivil,3000,Substitute,1
+46,AdvCivil,3000,Translate,1
+46,AdvCivil,6000,Insert,1
+46,AdvCivil,6000,LLM-TTA: ICR,1
+46,AdvCivil,6000,LLM-TTA: Paraphrase,1
+46,AdvCivil,6000,Substitute,1
+46,AdvCivil,6000,Translate,1
+46,AdvCivil,12000,Insert,1
+46,AdvCivil,12000,LLM-TTA: ICR,1
+46,AdvCivil,12000,LLM-TTA: Paraphrase,1
+46,AdvCivil,12000,Substitute,1
+46,AdvCivil,12000,Translate,1
+46,AdvCivil,48000,Insert,1
+46,AdvCivil,48000,LLM-TTA: ICR,1
+46,AdvCivil,48000,LLM-TTA: Paraphrase,1
+46,AdvCivil,48000,Substitute,1
+46,AdvCivil,48000,Translate,1
+46,ImplicitHate,3000,Insert,1
+46,ImplicitHate,3000,LLM-TTA: ICR,1
+46,ImplicitHate,3000,LLM-TTA: Paraphrase,1
+46,ImplicitHate,3000,Substitute,1
+46,ImplicitHate,3000,Translate,1
+46,ImplicitHate,6000,Insert,1
+46,ImplicitHate,6000,LLM-TTA: ICR,1
+46,ImplicitHate,6000,LLM-TTA: Paraphrase,1
+46,ImplicitHate,6000,Substitute,1
+46,ImplicitHate,6000,Translate,1
+46,ImplicitHate,12000,Insert,1
+46,ImplicitHate,12000,LLM-TTA: ICR,1
+46,ImplicitHate,12000,LLM-TTA: Paraphrase,1
+46,ImplicitHate,12000,Substitute,1
+46,ImplicitHate,12000,Translate,1
+46,ImplicitHate,48000,Insert,1
+46,ImplicitHate,48000,LLM-TTA: ICR,1
+46,ImplicitHate,48000,LLM-TTA: Paraphrase,1
+46,ImplicitHate,48000,Substitute,1
+46,ImplicitHate,48000,Translate,1
+46,Toxigen,3000,Insert,1
+46,Toxigen,3000,LLM-TTA: ICR,1
+46,Toxigen,3000,LLM-TTA: Paraphrase,1
+46,Toxigen,3000,Substitute,1
+46,Toxigen,3000,Translate,1
+46,Toxigen,6000,Insert,1
+46,Toxigen,6000,LLM-TTA: ICR,1
+46,Toxigen,6000,LLM-TTA: Paraphrase,1
+46,Toxigen,6000,Substitute,1
+46,Toxigen,6000,Translate,1
+46,Toxigen,12000,Insert,1
+46,Toxigen,12000,LLM-TTA: ICR,1
+46,Toxigen,12000,LLM-TTA: Paraphrase,1
+46,Toxigen,12000,Substitute,1
+46,Toxigen,12000,Translate,1
+46,Toxigen,24000,Insert,1
+46,Toxigen,24000,LLM-TTA: ICR,1
+46,Toxigen,24000,LLM-TTA: Paraphrase,1
+46,Toxigen,24000,Substitute,1
+46,Toxigen,24000,Translate,1
+46,Toxigen,48000,Insert,1
+46,Toxigen,48000,LLM-TTA: ICR,1
+46,Toxigen,48000,LLM-TTA: Paraphrase,1
+46,Toxigen,48000,Substitute,1
+46,Toxigen,48000,Translate,1
+58,AdvCivil,3000,Insert,1
+58,AdvCivil,3000,LLM-TTA: ICR,1
+58,AdvCivil,3000,LLM-TTA: Paraphrase,1
+58,AdvCivil,3000,Substitute,1
+58,AdvCivil,3000,Translate,1
+58,AdvCivil,6000,Insert,1
+58,AdvCivil,6000,LLM-TTA: ICR,1
+58,AdvCivil,6000,LLM-TTA: Paraphrase,1
+58,AdvCivil,6000,Substitute,1
+58,AdvCivil,6000,Translate,1
+58,AdvCivil,12000,Insert,1
+58,AdvCivil,12000,LLM-TTA: ICR,1
+58,AdvCivil,12000,LLM-TTA: Paraphrase,1
+58,AdvCivil,12000,Substitute,1
+58,AdvCivil,12000,Translate,1
+58,AdvCivil,48000,Insert,1
+58,AdvCivil,48000,LLM-TTA: ICR,1
+58,AdvCivil,48000,LLM-TTA: Paraphrase,1
+58,AdvCivil,48000,Substitute,1
+58,AdvCivil,48000,Translate,1
+58,ImplicitHate,3000,Insert,1
+58,ImplicitHate,3000,LLM-TTA: ICR,1
+58,ImplicitHate,3000,LLM-TTA: Paraphrase,1
+58,ImplicitHate,3000,Substitute,1
+58,ImplicitHate,3000,Translate,1
+58,ImplicitHate,6000,Insert,1
+58,ImplicitHate,6000,LLM-TTA: ICR,1
+58,ImplicitHate,6000,LLM-TTA: Paraphrase,1
+58,ImplicitHate,6000,Substitute,1
+58,ImplicitHate,6000,Translate,1
+58,ImplicitHate,12000,Insert,1
+58,ImplicitHate,12000,LLM-TTA: ICR,1
+58,ImplicitHate,12000,LLM-TTA: Paraphrase,1
+58,ImplicitHate,12000,Substitute,1
+58,ImplicitHate,12000,Translate,1
+58,ImplicitHate,48000,Insert,1
+58,ImplicitHate,48000,LLM-TTA: ICR,1
+58,ImplicitHate,48000,LLM-TTA: Paraphrase,1
+58,ImplicitHate,48000,Substitute,1
+58,ImplicitHate,48000,Translate,1
+58,Toxigen,3000,Insert,1
+58,Toxigen,3000,LLM-TTA: ICR,1
+58,Toxigen,3000,LLM-TTA: Paraphrase,1
+58,Toxigen,3000,Substitute,1
+58,Toxigen,3000,Translate,1
+58,Toxigen,6000,Insert,1
+58,Toxigen,6000,LLM-TTA: ICR,1
+58,Toxigen,6000,LLM-TTA: Paraphrase,1
+58,Toxigen,6000,Substitute,1
+58,Toxigen,6000,Translate,1
+58,Toxigen,12000,Insert,1
+58,Toxigen,12000,LLM-TTA: ICR,1
+58,Toxigen,12000,LLM-TTA: Paraphrase,1
+58,Toxigen,12000,Substitute,1
+58,Toxigen,12000,Translate,1
+58,Toxigen,24000,Insert,1
+58,Toxigen,24000,LLM-TTA: ICR,1
+58,Toxigen,24000,LLM-TTA: Paraphrase,1
+58,Toxigen,24000,Substitute,1
+58,Toxigen,24000,Translate,1
+58,Toxigen,48000,Insert,1
+58,Toxigen,48000,LLM-TTA: ICR,1
+58,Toxigen,48000,LLM-TTA: Paraphrase,1
+58,Toxigen,48000,Substitute,1
+58,Toxigen,48000,Translate,1
