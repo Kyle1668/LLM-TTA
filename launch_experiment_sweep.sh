@@ -1,5 +1,6 @@
 main_results_experiment_ids=(
-    "ablate_data_ood_translate"
+    # "ablate_data_ood_translate"
+    "main_results_ood_translate_bert"
 )
 
 # Generated between 1-100 using Google
