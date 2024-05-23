@@ -1,0 +1,38 @@
+{
+    "BOSS_Sentiment_ID_BERT_Paraphrase": {
+        "threshold": 0.6234000000000001,
+        "accuracy": 0.9090067859346083,
+        "score": 0.9090067510567909,
+        "llm_call_rate": "0.10%"
+    },
+    "BOSS_Sentiment_ID_BERT_ICR": {
+        "threshold": 0.5474,
+        "accuracy": 0.9120141887723627,
+        "score": 0.9120140205517979,
+        "llm_call_rate": "0.13%"
+    },
+    "BOSS_Toxicity_ID_BERT_Paraphrase": {
+        "threshold": 0.0001,
+        "accuracy": 0.9075524044389642,
+        "score": 0.9075512596649691,
+        "llm_call_rate": "0.31%"
+    },
+    "BOSS_Toxicity_ID_BERT_ICR": {
+        "threshold": 0.0001,
+        "accuracy": 0.9169646526921497,
+        "score": 0.9169634460108806,
+        "llm_call_rate": "0.31%"
+    },
+    "AgNewsTweets_ID_BERT_Paraphrase": {
+        "threshold": 0.22290000000000001,
+        "accuracy": 0.9494736842105264,
+        "score": 0.9494738478905508,
+        "llm_call_rate": "0.01%"
+    },
+    "AgNewsTweets_ID_BERT_ICR": {
+        "threshold": 0.0142,
+        "accuracy": 0.9493421052631579,
+        "score": 0.9493422146498431,
+        "llm_call_rate": "0.02%"
+    }
+}
