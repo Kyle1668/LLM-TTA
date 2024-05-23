@@ -28,6 +28,30 @@ main_results_async:
 	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_sentiment --evaluate_id_adaptation --model=Kyle1668/boss-sentiment-bert-base-uncased,Kyle1668/boss-sentiment-t5-large,tiiuae/falcon-7b-instruct --adaptive_model=stabilityai/StableBeluga-7b,aug_insert,aug_substitute,aug_back-translate --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb --seed=$(SEED)
 	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=ag_news_twitter --evaluate_id_adaptation --model=Kyle1668/ag-news-bert-base-uncased,Kyle1668/ag-news-t5-large,tiiuae/falcon-7b-instruct --adaptive_model=stabilityai/StableBeluga-7b,aug_insert,aug_substitute,aug_back-translate --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb --seed=$(SEED)
 
+main_results_async_insert:
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --evaluate_id_adaptation --model=Kyle1668/boss-toxicity-bert-base-uncased,Kyle1668/boss-toxicity-t5-large,tiiuae/falcon-7b-instruct --adaptive_model=aug_insert --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb --seed=$(SEED)
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_sentiment --evaluate_id_adaptation --model=Kyle1668/boss-sentiment-bert-base-uncased,Kyle1668/boss-sentiment-t5-large,tiiuae/falcon-7b-instruct --adaptive_model=aug_insert --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb --seed=$(SEED)
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=ag_news_twitter --evaluate_id_adaptation --model=Kyle1668/ag-news-bert-base-uncased,Kyle1668/ag-news-t5-large,tiiuae/falcon-7b-instruct --adaptive_model=aug_insert --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb --seed=$(SEED)
+
+main_results_async_substitute:
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --evaluate_id_adaptation --model=Kyle1668/boss-toxicity-bert-base-uncased,Kyle1668/boss-toxicity-t5-large,tiiuae/falcon-7b-instruct --adaptive_model=aug_substitute --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb --seed=$(SEED)
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_sentiment --evaluate_id_adaptation --model=Kyle1668/boss-sentiment-bert-base-uncased,Kyle1668/boss-sentiment-t5-large,tiiuae/falcon-7b-instruct --adaptive_model=aug_substitute --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb --seed=$(SEED)
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=ag_news_twitter --evaluate_id_adaptation --model=Kyle1668/ag-news-bert-base-uncased,Kyle1668/ag-news-t5-large,tiiuae/falcon-7b-instruct --adaptive_model=aug_substitute --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb --seed=$(SEED)
+
+main_results_async_back_translate:
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --evaluate_id_adaptation --model=Kyle1668/boss-toxicity-bert-base-uncased,Kyle1668/boss-toxicity-t5-large,tiiuae/falcon-7b-instruct --adaptive_model=aug_back-translate --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb --seed=$(SEED)
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_sentiment --evaluate_id_adaptation --model=Kyle1668/boss-sentiment-bert-base-uncased,Kyle1668/boss-sentiment-t5-large,tiiuae/falcon-7b-instruct --adaptive_model=aug_back-translate --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb --seed=$(SEED)
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=ag_news_twitter --evaluate_id_adaptation --model=Kyle1668/ag-news-bert-base-uncased,Kyle1668/ag-news-t5-large,tiiuae/falcon-7b-instruct --adaptive_model=aug_back-translate --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb --seed=$(SEED)
+
+main_results_async_llmtta_sentiment:
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_sentiment --evaluate_id_adaptation --model=Kyle1668/boss-sentiment-bert-base-uncased,Kyle1668/boss-sentiment-t5-large,tiiuae/falcon-7b-instruct --adaptive_model=stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb --seed=$(SEED)
+
+main_results_async_llmtta_toxicity:
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_toxicity --evaluate_id_adaptation --model=Kyle1668/boss-toxicity-bert-base-uncased,Kyle1668/boss-toxicity-t5-large,tiiuae/falcon-7b-instruct --adaptive_model=stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb --seed=$(SEED)
+
+main_results_async_llmtta_news:
+	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=ag_news_twitter --evaluate_id_adaptation --model=Kyle1668/ag-news-bert-base-uncased,Kyle1668/ag-news-t5-large,tiiuae/falcon-7b-instruct --adaptive_model=stabilityai/StableBeluga-7b --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb --seed=$(SEED)
+
 main_results_sentiment:
 	torchrun --nproc-per-node=gpu evaluate_styling.py --dataset=boss_sentiment --evaluate_id_adaptation --model=Kyle1668/boss-sentiment-bert-base-uncased,Kyle1668/boss-sentiment-t5-large,tiiuae/falcon-7b-instruct --adaptive_model=stabilityai/StableBeluga-7b,aug_insert,aug_substitute,aug_back-translate --skip_style_model_eval --num_shots=0,16 --icl_method=random --temperature=0 --trim_exemplars --use_wandb --seed=$(SEED)
 

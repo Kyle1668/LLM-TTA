@@ -1,6 +1,9 @@
 main_results_experiment_ids=(
-    # "ablate_data_ood_translate"
-    "main_results_ood_translate_bert"
+    "main_results_async_insert",
+    "main_results_async_substitute",
+    "main_results_async_back_translate",
+    "main_results_async_llmtta_sentiment",
+    "main_results_async_llmtta_toxicity",
 )
 
 # Generated between 1-100 using Google
@@ -9,7 +12,6 @@ seeds=(
     17
     46
     58
-    # 90
 )
 
 gpu=$1
